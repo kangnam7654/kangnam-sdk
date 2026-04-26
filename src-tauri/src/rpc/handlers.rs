@@ -54,11 +54,15 @@ pub async fn start_session(params: Option<serde_json::Value>, state: &AppState) 
     // NOTE: conversation DB row is created lazily on first message (send_message),
     // not here. This prevents empty "New Chat" entries on every app launch.
 
-    let broadcast_tx = state.broadcast_tx.clone();
-    let enhanced_tx = state.enhanced_broadcast_tx.clone();
+    let sink: std::sync::Arc<dyn chat_agent::AgentEventSink> = std::sync::Arc::new(
+        crate::cli::broadcast_sink::BroadcastSink::new(
+            state.broadcast_tx.clone(),
+            Some(state.enhanced_broadcast_tx.clone()),
+        ),
+    );
     let manager = state.cli_manager.lock().await;
     manager
-        .start_session(&p.provider, &working_dir, &session_id, broadcast_tx, Some(enhanced_tx), p.model)
+        .start_session(&p.provider, &working_dir, &session_id, sink, p.model)
         .await
         .map_err(|e| JsonRpcError::internal(&e))?;
 
@@ -92,10 +96,15 @@ pub async fn send_message(params: Option<serde_json::Value>, state: &AppState) -
         let _ = conversations::auto_title_if_needed(&db, &p.session_id, &p.message);
     }
 
-    let broadcast_tx = state.broadcast_tx.clone();
+    let sink: std::sync::Arc<dyn chat_agent::AgentEventSink> = std::sync::Arc::new(
+        crate::cli::broadcast_sink::BroadcastSink::new(
+            state.broadcast_tx.clone(),
+            Some(state.enhanced_broadcast_tx.clone()),
+        ),
+    );
     let manager = state.cli_manager.lock().await;
     manager
-        .send_message(&p.session_id, &p.message, broadcast_tx)
+        .send_message(&p.session_id, &p.message, sink)
         .await
         .map_err(|e| JsonRpcError::internal(&e))?;
     Ok(serde_json::Value::Null)

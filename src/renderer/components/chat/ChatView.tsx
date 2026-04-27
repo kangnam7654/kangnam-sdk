@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useAppStore } from '../../stores/app-store'
 import type { SessionMeta, TaskState, Conversation } from '../../stores/app-store'
 import { cliApi } from '../../lib/cli-api'
-import { MessageRenderer } from './MessageRenderer'
+import { MessageRenderer } from '@kangnam/chat-ui'
+import { MarkdownPreview } from '../common/MarkdownPreview'
 import { SafetyDialog } from './SafetyDialog'
 
 const AVAILABLE_MODELS = [
@@ -559,7 +560,7 @@ function ChatContent() {
             </div>
           ) : (
             <>
-              {messages.map((msg, i) => <MessageRenderer key={i} message={msg} isLast={i === messages.length - 1} isStreaming={isStreaming} />)}
+              {messages.map((msg, i) => <MessageRenderer key={i} message={msg} isLast={i === messages.length - 1} isStreaming={isStreaming} renderMarkdown={(content) => <MarkdownPreview content={content} />} />)}
               {isStreaming && messages[messages.length - 1]?.type !== 'text_delta' && messages[messages.length - 1]?.type !== 'agent_progress' && (
                 <StreamingIndicator />
               )}

@@ -33,6 +33,7 @@
     "vitest": "^4.1.1"
   },
   "dependencies": {
+    "@kangnam/chat-ui": "file:../chat-module/packages/chat-ui",
     "@fontsource/noto-serif-kr": "^5.2.9",
     "@fontsource/pretendard": "^5.2.5",
     "@modelcontextprotocol/sdk": "^1.27.1",

@@ -38,7 +38,7 @@ dirs = "6"
 url = "2"
 urlencoding = "2"
 open = "5"
-chat = { path = "../../chat-sdk/crates/chat", features = ["server"] }
+chat = { git = "https://github.com/kangnam7654/chat-sdk", tag = "v0.1.0", features = ["server"] }
 
 [profile.release]
 strip = true

@@ -542,6 +542,7 @@ checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 [[package]]
 name = "chat"
 version = "0.1.0"
+source = "git+https://github.com/kangnam7654/chat-sdk?tag=v0.1.0#fb992b640210dc23844c5be24db8d506a37c945e"
 dependencies = [
  "chat-agent",
  "chat-core",
@@ -552,6 +553,7 @@ dependencies = [
 [[package]]
 name = "chat-agent"
 version = "0.1.0"
+source = "git+https://github.com/kangnam7654/chat-sdk?tag=v0.1.0#fb992b640210dc23844c5be24db8d506a37c945e"
 dependencies = [
  "llm-router",
  "serde",
@@ -562,6 +564,7 @@ dependencies = [
 [[package]]
 name = "chat-core"
 version = "0.1.0"
+source = "git+https://github.com/kangnam7654/chat-sdk?tag=v0.1.0#fb992b640210dc23844c5be24db8d506a37c945e"
 dependencies = [
  "rusqlite",
  "serde",
@@ -572,6 +575,7 @@ dependencies = [
 [[package]]
 name = "chat-rpc"
 version = "0.1.0"
+source = "git+https://github.com/kangnam7654/chat-sdk?tag=v0.1.0#fb992b640210dc23844c5be24db8d506a37c945e"
 dependencies = [
  "chat-agent",
  "chat-core",
@@ -586,6 +590,7 @@ dependencies = [
 [[package]]
 name = "chat-server"
 version = "0.1.0"
+source = "git+https://github.com/kangnam7654/chat-sdk?tag=v0.1.0#fb992b640210dc23844c5be24db8d506a37c945e"
 dependencies = [
  "axum",
  "chat-agent",

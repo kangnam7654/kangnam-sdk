@@ -38,7 +38,7 @@ dirs = "6"
 url = "2"
 urlencoding = "2"
 open = "5"
-chat = { path = "../../chat-module/crates/chat", features = ["server"] }
+chat = { path = "../../chat-sdk/crates/chat", features = ["server"] }
 
 [profile.release]
 strip = true

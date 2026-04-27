@@ -1,19 +1,20 @@
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex as StdMutex};
 use rusqlite::Connection;
 
-use crate::cli::manager::CliManager;
+use chat_agent::CliManager;
+use chat_server::broadcast::{self, BroadcastTx, EnhancedBroadcastTx};
+
 use crate::db;
 use crate::mcp::bridge::McpBridge;
-use crate::server::broadcast::{self, BroadcastTx, EnhancedBroadcastTx};
 
 pub struct AppState {
-    pub db: Mutex<Connection>,
-    pub cli_manager: tokio::sync::Mutex<CliManager>,
+    pub db: Arc<StdMutex<Connection>>,
+    pub cli_manager: Arc<tokio::sync::Mutex<CliManager>>,
     pub mcp: McpBridge,
     pub broadcast_tx: BroadcastTx,
     pub enhanced_broadcast_tx: EnhancedBroadcastTx,
-    pub pending_permissions: tokio::sync::Mutex<HashMap<String, tokio::sync::oneshot::Sender<bool>>>,
+    pub pending_permissions: Arc<tokio::sync::Mutex<HashMap<String, tokio::sync::oneshot::Sender<bool>>>>,
 }
 
 impl AppState {
@@ -41,12 +42,12 @@ impl AppState {
         let (enhanced_broadcast_tx, _) = broadcast::create_enhanced_channel();
 
         Ok(Self {
-            db: Mutex::new(conn),
-            cli_manager: tokio::sync::Mutex::new(cli_manager),
+            db: Arc::new(StdMutex::new(conn)),
+            cli_manager: Arc::new(tokio::sync::Mutex::new(cli_manager)),
             mcp: McpBridge::new(),
             broadcast_tx,
             enhanced_broadcast_tx,
-            pending_permissions: tokio::sync::Mutex::new(HashMap::new()),
+            pending_permissions: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
         })
     }
 }

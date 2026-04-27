@@ -1,18 +1,22 @@
 //! JSON-RPC dispatch glue.
 //!
-//! The handlers and dispatcher live in the `chat-rpc` crate. This
-//! module re-exports the JSON-RPC types under the original
-//! `crate::rpc::types` path and provides [`dispatch`] — a thin
-//! adapter that builds a [`chat_rpc::DispatchContext`] from this
-//! app's `AppState` and forwards to `chat_rpc::dispatch`.
-
-pub use chat_core::json_rpc as types;
+//! Delegates to the `chat-rpc` crate, building a
+//! [`chat_rpc::DispatchContext`] from this app's `AppState`. The
+//! event sink is `chat_server::broadcast::BroadcastSink`, which fans
+//! agent events out as JSON-RPC notifications on the broadcast
+//! channels owned by `AppState`.
+//!
+//! Currently used only by Tauri-internal tests / fallback paths;
+//! the running WebSocket server has its own dispatch loop in
+//! `chat-server`.
 
 use std::sync::Arc;
 
-use crate::cli::broadcast_sink::BroadcastSink;
+use chat_server::broadcast::BroadcastSink;
+
 use crate::state::AppState;
 
+#[allow(dead_code)]
 pub async fn dispatch(
     request: chat_core::json_rpc::JsonRpcRequest,
     state: &AppState,

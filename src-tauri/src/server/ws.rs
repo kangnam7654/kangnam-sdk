@@ -10,7 +10,7 @@ use axum::{
 use futures::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
 
-use crate::rpc::dispatcher;
+use crate::rpc;
 use crate::rpc::types::JsonRpcRequest;
 use crate::state::AppState;
 
@@ -68,7 +68,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
             Message::Text(text) => {
                 let text_str: &str = &text;
                 if let Ok(request) = serde_json::from_str::<JsonRpcRequest>(text_str) {
-                    let response = dispatcher::dispatch(request, &state).await;
+                    let response = rpc::dispatch(request, &state).await;
                     if let Ok(response_text) = serde_json::to_string(&response) {
                         if outbound_tx.send(response_text).await.is_err() {
                             break;

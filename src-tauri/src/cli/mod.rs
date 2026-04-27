@@ -8,6 +8,6 @@
 //! chat-agent's transport-agnostic `AgentEventSink` to this app's
 //! `tokio::sync::broadcast` channels carrying `JsonRpcNotification`.
 
-pub use chat_agent::{adapters, manager, registry, types};
+pub use chat_agent::{adapters, manager, types};
 
 pub mod broadcast_sink;

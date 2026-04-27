@@ -40,6 +40,7 @@ urlencoding = "2"
 open = "5"
 chat-core = { path = "../../chat-module/crates/chat-core" }
 chat-agent = { path = "../../chat-module/crates/chat-agent" }
+chat-rpc = { path = "../../chat-module/crates/chat-rpc" }
 
 [profile.release]
 strip = true

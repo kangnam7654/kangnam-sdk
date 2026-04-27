@@ -3,6 +3,7 @@ use tauri::State;
 
 use crate::db::conversations::{self, Conversation, Message, SearchResult};
 use crate::state::AppState;
+use chat_core::export::{export_conversation, ExportFormat};
 
 #[tauri::command]
 pub fn conv_list(state: State<'_, Arc<AppState>>) -> Result<Vec<Conversation>, String> {
@@ -56,33 +57,9 @@ pub fn conv_export(
     format: String,
     state: State<'_, Arc<AppState>>,
 ) -> Result<String, String> {
+    let fmt = ExportFormat::parse(&format).ok_or_else(|| format!("Unknown format: {format}"))?;
     let conn = state.db.lock().unwrap_or_else(|e| e.into_inner());
-    let conv = conversations::get_conversation(&conn, &id)
-        .ok_or("Conversation not found")?;
-    let messages = conversations::get_messages(&conn, &id).map_err(|e| e.to_string())?;
-
-    match format.as_str() {
-        "markdown" => {
-            let mut md = format!("# {}\n\n", conv.title);
-            for msg in &messages {
-                let role = match msg.role.as_str() {
-                    "user" => "**User**",
-                    "assistant" => "**Assistant**",
-                    "system" => "**System**",
-                    "tool" => "**Tool**",
-                    _ => &msg.role,
-                };
-                md.push_str(&format!("{role}\n\n{}\n\n---\n\n", msg.content));
-            }
-            Ok(md)
-        }
-        "json" => serde_json::to_string_pretty(&serde_json::json!({
-            "conversation": conv,
-            "messages": messages,
-        }))
-        .map_err(|_| "Failed to serialize conversation data".to_string()),
-        _ => Err(format!("Unknown format: {format}")),
-    }
+    export_conversation(&conn, &id, fmt)
 }
 
 #[tauri::command]

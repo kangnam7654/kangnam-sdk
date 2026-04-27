@@ -3,7 +3,7 @@ use tauri::State;
 
 use crate::db::conversations::{self, Conversation, Message, SearchResult};
 use crate::state::AppState;
-use chat_core::export::{export_conversation, ExportFormat};
+use chat::core::export::{export_conversation, ExportFormat};
 
 #[tauri::command]
 pub fn conv_list(state: State<'_, Arc<AppState>>) -> Result<Vec<Conversation>, String> {

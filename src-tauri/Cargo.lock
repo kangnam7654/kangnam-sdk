@@ -540,6 +540,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
+name = "chat"
+version = "0.1.0"
+dependencies = [
+ "chat-agent",
+ "chat-core",
+ "chat-rpc",
+ "chat-server",
+]
+
+[[package]]
 name = "chat-agent"
 version = "0.1.0"
 dependencies = [
@@ -2135,10 +2145,7 @@ dependencies = [
  "async-trait",
  "axum",
  "base64 0.22.1",
- "chat-agent",
- "chat-core",
- "chat-rpc",
- "chat-server",
+ "chat",
  "chrono",
  "dirs",
  "futures",

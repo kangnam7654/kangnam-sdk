@@ -38,10 +38,7 @@ dirs = "6"
 url = "2"
 urlencoding = "2"
 open = "5"
-chat-core = { path = "../../chat-module/crates/chat-core" }
-chat-agent = { path = "../../chat-module/crates/chat-agent" }
-chat-rpc = { path = "../../chat-module/crates/chat-rpc" }
-chat-server = { path = "../../chat-module/crates/chat-server" }
+chat = { path = "../../chat-module/crates/chat", features = ["server"] }
 
 [profile.release]
 strip = true

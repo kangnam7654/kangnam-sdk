@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex as StdMutex};
 use rusqlite::Connection;
 
-use chat_agent::CliManager;
-use chat_server::broadcast::{self, BroadcastTx, EnhancedBroadcastTx};
+use chat::agent::CliManager;
+use chat::server::broadcast::{self, BroadcastTx, EnhancedBroadcastTx};
 
 use crate::db;
 use crate::mcp::bridge::McpBridge;

@@ -5,7 +5,7 @@
 //! the original `crate::cli::*` paths so existing call sites
 //! (`crate::cli::adapters::claude::ClaudeAdapter`, etc.) keep working.
 //!
-//! The transport bridge from `chat_agent::AgentEventSink` to the
-//! WebSocket broadcast channels lives in `chat_server::broadcast`.
+//! The transport bridge from `chat::agent::AgentEventSink` to the
+//! WebSocket broadcast channels lives in `chat::server::broadcast`.
 
-pub use chat_agent::adapters;
+pub use chat::agent::adapters;

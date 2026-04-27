@@ -1,8 +1,8 @@
 //! JSON-RPC dispatch glue.
 //!
 //! Delegates to the `chat-rpc` crate, building a
-//! [`chat_rpc::DispatchContext`] from this app's `AppState`. The
-//! event sink is `chat_server::broadcast::BroadcastSink`, which fans
+//! [`chat::rpc::DispatchContext`] from this app's `AppState`. The
+//! event sink is `chat::server::broadcast::BroadcastSink`, which fans
 //! agent events out as JSON-RPC notifications on the broadcast
 //! channels owned by `AppState`.
 //!
@@ -12,26 +12,26 @@
 
 use std::sync::Arc;
 
-use chat_server::broadcast::BroadcastSink;
+use chat::server::broadcast::BroadcastSink;
 
 use crate::state::AppState;
 
 #[allow(dead_code)]
 pub async fn dispatch(
-    request: chat_core::json_rpc::JsonRpcRequest,
+    request: chat::core::json_rpc::JsonRpcRequest,
     state: &AppState,
-) -> chat_core::json_rpc::JsonRpcResponse {
-    let make_sink = || -> Arc<dyn chat_agent::AgentEventSink> {
+) -> chat::core::json_rpc::JsonRpcResponse {
+    let make_sink = || -> Arc<dyn chat::agent::AgentEventSink> {
         Arc::new(BroadcastSink::new(
             state.broadcast_tx.clone(),
             Some(state.enhanced_broadcast_tx.clone()),
         ))
     };
-    let ctx = chat_rpc::DispatchContext {
+    let ctx = chat::rpc::DispatchContext {
         cli_manager: &state.cli_manager,
         db: &state.db,
         pending_permissions: &state.pending_permissions,
         make_sink: &make_sink,
     };
-    chat_rpc::dispatch(request, ctx).await
+    chat::rpc::dispatch(request, ctx).await
 }

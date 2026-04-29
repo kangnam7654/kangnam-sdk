@@ -1,0 +1,18 @@
+[package]
+name = "kangnam-harness"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Umbrella crate for the kangnam-harness agent runtime: core types and (optionally) the persistence layer behind feature flags."
+readme = "../../README.md"
+
+[features]
+default = ["store"]
+core = []
+store = ["dep:kangnam-harness-store"]
+
+[dependencies]
+kangnam-harness-core = { workspace = true }
+kangnam-harness-store = { workspace = true, optional = true }

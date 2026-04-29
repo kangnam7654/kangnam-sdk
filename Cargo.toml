@@ -4,6 +4,7 @@ members = [
     "apps/kangnam-client",
     "crates/kangnam-harness-core",
     "crates/kangnam-harness-store",
+    "crates/kangnam-harness",
     "crates/kangnam-router",
     "crates/kangnam-chat-core",
     "crates/kangnam-chat-agent",
@@ -34,6 +35,7 @@ tokio = { version = "1", features = ["rt", "macros"] }
 # ── workspace internal crates ──
 kangnam-harness-core = { path = "crates/kangnam-harness-core" }
 kangnam-harness-store = { path = "crates/kangnam-harness-store" }
+kangnam-harness = { path = "crates/kangnam-harness" }
 kangnam-router = { path = "crates/kangnam-router" }
 kangnam-chat-core = { path = "crates/kangnam-chat-core" }
 kangnam-chat-agent = { path = "crates/kangnam-chat-agent" }

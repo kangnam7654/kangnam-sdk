@@ -2380,8 +2380,7 @@ dependencies = [
  "dirs",
  "futures",
  "kangnam-chat",
- "kangnam-harness-core",
- "kangnam-harness-store",
+ "kangnam-harness",
  "keyring",
  "open",
  "rand 0.8.6",
@@ -2402,6 +2401,14 @@ dependencies = [
  "url",
  "urlencoding",
  "uuid",
+]
+
+[[package]]
+name = "kangnam-harness"
+version = "0.2.1"
+dependencies = [
+ "kangnam-harness-core",
+ "kangnam-harness-store",
 ]
 
 [[package]]

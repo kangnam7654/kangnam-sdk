@@ -2,15 +2,9 @@
 resolver = "2"
 members = [
     "apps/kangnam-client",
-    "crates/kangnam-harness-core",
-    "crates/kangnam-harness-store",
-    "crates/kangnam-harness",
-    "crates/kangnam-router",
-    "crates/kangnam-chat-core",
-    "crates/kangnam-chat-agent",
-    "crates/kangnam-chat-rpc",
-    "crates/kangnam-chat-server",
-    "crates/kangnam-chat",
+    "crates/chat/*",
+    "crates/harness/*",
+    "crates/router",
 ]
 
 [workspace.package]
@@ -33,15 +27,15 @@ sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-r
 tokio = { version = "1", features = ["rt", "macros"] }
 
 # ── workspace internal crates ──
-kangnam-harness-core = { path = "crates/kangnam-harness-core" }
-kangnam-harness-store = { path = "crates/kangnam-harness-store" }
-kangnam-harness = { path = "crates/kangnam-harness" }
-kangnam-router = { path = "crates/kangnam-router" }
-kangnam-chat-core = { path = "crates/kangnam-chat-core" }
-kangnam-chat-agent = { path = "crates/kangnam-chat-agent" }
-kangnam-chat-rpc = { path = "crates/kangnam-chat-rpc" }
-kangnam-chat-server = { path = "crates/kangnam-chat-server" }
-kangnam-chat = { path = "crates/kangnam-chat" }
+kangnam-harness-core  = { path = "crates/harness/core" }
+kangnam-harness-store = { path = "crates/harness/store" }
+kangnam-harness       = { path = "crates/harness/harness" }
+kangnam-router        = { path = "crates/router" }
+kangnam-chat-core     = { path = "crates/chat/core" }
+kangnam-chat-agent    = { path = "crates/chat/agent" }
+kangnam-chat-rpc      = { path = "crates/chat/rpc" }
+kangnam-chat-server   = { path = "crates/chat/server" }
+kangnam-chat          = { path = "crates/chat/chat" }
 
 [profile.release]
 strip = true

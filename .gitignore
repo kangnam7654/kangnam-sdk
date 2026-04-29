@@ -10,7 +10,8 @@ dist/
 *.pem
 *.key
 
-# Tauri
+# Tauri / Cargo workspace
+target/
 src-tauri/target/
 src-tauri/gen/schemas/
 

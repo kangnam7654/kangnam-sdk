@@ -1,0 +1,23 @@
+[package]
+name = "kangnam-harness-store"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Persistence layer for kangnam-harness — HarnessStore trait with SQLite default impl."
+
+[features]
+default = ["sqlite"]
+sqlite = ["dep:rusqlite"]
+
+[dependencies]
+kangnam-harness-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+rusqlite = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "macros"] }

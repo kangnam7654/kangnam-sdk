@@ -1,0 +1,36 @@
+[package]
+name = "kangnam-chat-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Pure domain types and persistence for the chat module: conversations, messages, JSON-RPC types, plus pluggable Storage backends (SQLite via rusqlite, Postgres via sqlx)."
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+tokio = { version = "1", features = ["sync", "rt"], optional = true }
+rusqlite = { workspace = true, optional = true }
+sqlx = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
+
+[features]
+# Default keeps the original rusqlite path so existing consumers
+# (chat-rpc, chat-server, downstream apps) continue to compile
+# without changes.
+default = ["sqlite"]
+
+# SQLite backend via rusqlite. Enables the legacy `conversations::*`
+# free functions and the `SqliteStorage` impl. Requires `tokio` for
+# the async trait wrapper (`spawn_blocking`).
+sqlite = ["dep:rusqlite", "dep:tokio"]
+
+# Postgres backend via sqlx. Enables `PostgresStorage`. Hosts that
+# don't need SQLite can opt out of the default features.
+postgres = ["dep:sqlx"]

@@ -1,0 +1,25 @@
+[package]
+name = "kangnam-chat-server"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Axum-based WebSocket + MCP server for the chat module: routes JSON-RPC requests through chat-rpc, broadcasts agent events to subscribers, and exposes an MCP permission-prompt tool."
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+rusqlite = { workspace = true }
+uuid = { workspace = true }
+kangnam-chat-core = { workspace = true }
+kangnam-chat-agent = { workspace = true }
+kangnam-chat-rpc = { workspace = true }
+tokio = { version = "1", features = ["sync", "rt", "macros", "net", "time"] }
+axum = { version = "0.8", features = ["ws"] }
+tower-http = { version = "0.6", features = ["cors", "fs"] }
+futures = "0.3"
+async-trait = { workspace = true }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }

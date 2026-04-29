@@ -1,0 +1,48 @@
+[workspace]
+resolver = "2"
+members = [
+    "apps/kangnam-client",
+    "crates/kangnam-harness-core",
+    "crates/kangnam-harness-store",
+    "crates/kangnam-router",
+    "crates/kangnam-chat-core",
+    "crates/kangnam-chat-agent",
+    "crates/kangnam-chat-rpc",
+    "crates/kangnam-chat-server",
+    "crates/kangnam-chat",
+]
+
+[workspace.package]
+version = "0.2.1"
+edition = "2021"
+authors = ["Kangnam Kim <kangnam7654@naver.com>"]
+license = "MIT"
+repository = "https://github.com/kangnam7654/kangnam-sdk"
+
+[workspace.dependencies]
+# ── shared utilities ──
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+chrono = { version = "0.4", features = ["serde"] }
+async-trait = "0.1"
+uuid = { version = "1", features = ["v4", "serde"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "postgres", "macros", "uuid", "chrono", "migrate"] }
+tokio = { version = "1", features = ["rt", "macros"] }
+
+# ── workspace internal crates ──
+kangnam-harness-core = { path = "crates/kangnam-harness-core" }
+kangnam-harness-store = { path = "crates/kangnam-harness-store" }
+kangnam-router = { path = "crates/kangnam-router" }
+kangnam-chat-core = { path = "crates/kangnam-chat-core" }
+kangnam-chat-agent = { path = "crates/kangnam-chat-agent" }
+kangnam-chat-rpc = { path = "crates/kangnam-chat-rpc" }
+kangnam-chat-server = { path = "crates/kangnam-chat-server" }
+kangnam-chat = { path = "crates/kangnam-chat" }
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+opt-level = "s"

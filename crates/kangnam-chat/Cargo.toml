@@ -1,0 +1,37 @@
+[package]
+name = "kangnam-chat"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Reusable chat module: pure-domain DB types, persistent CLI agent session manager, JSON-RPC handlers, and an Axum WebSocket + MCP server. One umbrella crate with feature flags so consumers pull only the layers they need."
+readme = "../../README.md"
+
+[features]
+# Most apps want the full server stack. Override on the consumer side
+# to slim down (e.g. headless tools that only need the DB types).
+default = ["server"]
+
+# Just the pure domain: conversations, messages, JSON-RPC types,
+# export formatters. No async runtime, no Tauri, no network. Always
+# available — `kangnam-chat-core` is a non-optional dependency.
+core = []
+
+# Adds the persistent CLI agent session manager (Claude Code / Codex).
+agent = ["dep:kangnam-chat-agent"]
+
+# Adds the JSON-RPC dispatcher and `cli.*` method handlers. Implies
+# `agent` because every RPC call routes through the agent manager.
+rpc = ["agent", "dep:kangnam-chat-rpc"]
+
+# Adds the Axum WebSocket + MCP server. Implies `rpc`. This is the
+# default — the typical consumer is a Tauri app or headless service
+# that wants the whole stack.
+server = ["rpc", "dep:kangnam-chat-server"]
+
+[dependencies]
+kangnam-chat-core = { workspace = true }
+kangnam-chat-agent = { workspace = true, optional = true }
+kangnam-chat-rpc = { workspace = true, optional = true }
+kangnam-chat-server = { workspace = true, optional = true }

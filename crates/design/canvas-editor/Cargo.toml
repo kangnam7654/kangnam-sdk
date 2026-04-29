@@ -1,0 +1,29 @@
+[package]
+name = "canvas-editor"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "LLM-driven deck generator + zone/section editors for canvas-sdk"
+keywords = ["ai", "slides", "llm", "editor"]
+categories = ["multimedia"]
+
+[dependencies]
+async-stream = "0.3"
+canvas-llm = { path = "../canvas-llm" }
+canvas-slide-doc = { path = "../canvas-slide-doc" }
+futures = "0.3"
+serde = { workspace = true }
+serde_json = { workspace = true }
+tera = "1"
+thiserror = { workspace = true }
+tracing = "0.1"
+uuid = { version = "1", features = ["v4"] }
+
+[features]
+default = []
+test-util = ["canvas-llm/test-util"]
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }

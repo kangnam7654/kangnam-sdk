@@ -5,11 +5,14 @@ members = [
     "crates/chat/*",
     "crates/harness/*",
     "crates/router",
+    "crates/design/*",
 ]
+exclude = ["crates/design/canvas-sdk-target"]
 
 [workspace.package]
 version = "0.2.1"
 edition = "2021"
+rust-version = "1.85"
 authors = ["Kangnam Kim <kangnam7654@naver.com>"]
 license = "MIT"
 repository = "https://github.com/kangnam7654/kangnam-sdk"
@@ -25,6 +28,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "postgres", "macros", "uuid", "chrono", "migrate"] }
 tokio = { version = "1", features = ["rt", "macros"] }
+tempfile = "3"
 
 # ── workspace internal crates ──
 kangnam-harness-core  = { path = "crates/harness/core" }
@@ -36,6 +40,11 @@ kangnam-chat-agent    = { path = "crates/chat/agent" }
 kangnam-chat-rpc      = { path = "crates/chat/rpc" }
 kangnam-chat-server   = { path = "crates/chat/server" }
 kangnam-chat          = { path = "crates/chat/chat" }
+canvas                = { path = "crates/design/canvas" }
+canvas-editor         = { path = "crates/design/canvas-editor" }
+canvas-llm            = { path = "crates/design/canvas-llm" }
+canvas-pptx-writer    = { path = "crates/design/canvas-pptx-writer" }
+canvas-slide-doc      = { path = "crates/design/canvas-slide-doc" }
 
 [profile.release]
 strip = true

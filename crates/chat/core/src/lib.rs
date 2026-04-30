@@ -13,6 +13,37 @@
 //! - [`export`] (feature `sqlite`) — Markdown / JSON exporters.
 //! - [`sqlite_storage`] (feature `sqlite`) — `SqliteStorage` impl.
 //! - [`postgres_storage`] (feature `postgres`) — `PostgresStorage` impl.
+//!
+//! # Use without CLI subprocess sessions
+//!
+//! `kangnam-chat-core` is a *pure-data + storage* layer with no
+//! dependency on the heavier `kangnam-chat-agent` /
+//! `kangnam-chat-rpc` / `kangnam-chat-server` crates. Domain apps
+//! that already have their own conversation storage (e.g. Travel
+//! Planner's `chat_messages` + `plan_revisions` tables) but want
+//! the SDK's `Conversation` / `Message` shapes can depend on this
+//! crate alone:
+//!
+//! ```ignore
+//! // App-native chat — no CLI agent runtime, no WS server.
+//! use kangnam_chat_core::types::{Conversation, Message, NewMessage};
+//! use kangnam_chat_core::storage::Storage;
+//!
+//! let storage: Box<dyn Storage> = /* your sqlite / postgres / in-memory impl */;
+//! let conv = storage.create_conversation("planning").await?;
+//! storage.append_message(NewMessage {
+//!     conversation_id: conv.id.clone(),
+//!     role: "user".into(),
+//!     content: "Plan a 5-day Seoul trip".into(),
+//!     ..Default::default()
+//! }).await?;
+//! ```
+//!
+//! The CLI agent layer (`kangnam-chat-agent`), JSON-RPC dispatcher
+//! (`kangnam-chat-rpc`), and Axum WebSocket server
+//! (`kangnam-chat-server`) are *optional* layers built on top —
+//! pick them up only when you want Claude Code / Codex subprocess
+//! integration, the suspend/resume tool flow, or a hosted WS endpoint.
 
 pub mod json_rpc;
 pub mod storage;

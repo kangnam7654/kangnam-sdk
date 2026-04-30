@@ -1,3 +1,28 @@
+/**
+ * Top-level Zustand store + the data shapes it carries.
+ *
+ * Phase 5a-09 through 5a-15 split the previously-monolithic 427 LoC
+ * store object into seven focused slices. This file is now the
+ * composer: it lists the type shapes the rest of the renderer
+ * depends on, defines the union `AppState` from the slice
+ * interfaces, and assembles the store by spreading slice creators
+ * in dependency order (`get()` is needed only by
+ * agents-prompts for cross-field clearing).
+ *
+ * Adding a new slice:
+ * 1. Create `slices/<name>.ts` exporting `<Name>Slice` interface
+ *    and `create<Name>Slice(set[, get])` factory.
+ * 2. Import here, extend `AppState`, and append the spread inside
+ *    `useAppStore`.
+ * 3. Existing `useAppStore(s => s.field)` callsites work unchanged.
+ *
+ * Type aliases (`Conversation`, `Agent`, `Prompt`, `UnifiedMessage`,
+ * `SessionMeta`, …) stay in this file because they are referenced
+ * across multiple slices and many components — moving them would
+ * fan out unnecessary import churn. The slice files import these
+ * types from here; the back-references are type-only and have no
+ * runtime effect.
+ */
 import { create } from 'zustand'
 
 import { createThemeSlice, type ThemeSlice } from './slices/theme'
@@ -171,11 +196,6 @@ interface AppState
     ChatSlice {}
 
 export const useAppStore = create<AppState>((set, get) => ({
-  // === Slice composition ===
-  // Each slice owns a coherent concern. The rest of this object is
-  // legacy fields awaiting extraction in Phase 5a-10 through 5a-15.
-  // Slices spread first; 5a-16 cleans up once everything is
-  // extracted.
   ...createThemeSlice(set),
   ...createLayoutSlice(set),
   ...createSettingsSlice(set),

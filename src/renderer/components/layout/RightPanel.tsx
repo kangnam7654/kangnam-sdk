@@ -1,6 +1,7 @@
 import { useAppStore, type RightPanelTab } from '../../stores/app-store'
 import { TaskPanel } from '../sidebar/TaskPanel'
 import { FileWorkspace } from '../files/FileWorkspace'
+import { ToolLogPanel } from '../chat/ToolLogPanel'
 
 const tabs: { id: RightPanelTab; label: string }[] = [
   { id: 'terminal', label: 'Terminal' },
@@ -67,7 +68,7 @@ export function RightPanel() {
         {rightPanelTab === 'terminal' && <Placeholder label="Terminal Log (Phase 4)" />}
         {rightPanelTab === 'agents' && <Placeholder label="Agent Tracker (Phase 4)" />}
         {rightPanelTab === 'files' && <FileWorkspace />}
-        {rightPanelTab === 'tools' && <Placeholder label="Tool Log (5c-11 lands ToolCard)" />}
+        {rightPanelTab === 'tools' && <ToolLogPanel />}
       </div>
     </div>
   )

@@ -514,75 +514,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "canvas"
-version = "0.2.1"
-dependencies = [
- "canvas-editor",
- "canvas-llm",
- "canvas-pptx-writer",
- "canvas-slide-doc",
-]
-
-[[package]]
-name = "canvas-editor"
-version = "0.2.1"
-dependencies = [
- "async-stream",
- "canvas-llm",
- "canvas-slide-doc",
- "futures",
- "serde",
- "serde_json",
- "tera",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "canvas-llm"
-version = "0.2.1"
-dependencies = [
- "async-stream",
- "base64 0.22.1",
- "futures",
- "regex-lite",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tokio-stream",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "canvas-pptx-writer"
-version = "0.2.1"
-dependencies = [
- "canvas-slide-doc",
- "image",
- "quick-xml 0.36.2",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "zip",
-]
-
-[[package]]
-name = "canvas-slide-doc"
-version = "0.2.1"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
 name = "cargo-platform"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1039,6 +970,123 @@ dependencies = [
  "quote",
  "rustc_version",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "design"
+version = "0.2.1"
+dependencies = [
+ "design-doc-site",
+ "design-doc-slide",
+ "design-editor-html",
+ "design-editor-site",
+ "design-editor-slide",
+ "design-export-pptx",
+ "design-llm",
+]
+
+[[package]]
+name = "design-doc-site"
+version = "0.2.1"
+dependencies = [
+ "design-doc-slide",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "design-doc-slide"
+version = "0.2.1"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "design-editor-html"
+version = "0.2.1"
+dependencies = [
+ "async-stream",
+ "design-llm",
+ "futures",
+ "serde",
+ "serde_json",
+ "tera",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "design-editor-site"
+version = "0.2.1"
+dependencies = [
+ "async-stream",
+ "design-doc-site",
+ "design-doc-slide",
+ "design-llm",
+ "futures",
+ "serde",
+ "serde_json",
+ "tera",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "design-editor-slide"
+version = "0.2.1"
+dependencies = [
+ "async-stream",
+ "design-doc-site",
+ "design-doc-slide",
+ "design-llm",
+ "futures",
+ "serde",
+ "serde_json",
+ "tera",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "design-export-pptx"
+version = "0.2.1"
+dependencies = [
+ "design-doc-slide",
+ "image",
+ "quick-xml 0.36.2",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "zip",
+]
+
+[[package]]
+name = "design-llm"
+version = "0.2.1"
+dependencies = [
+ "async-stream",
+ "base64 0.22.1",
+ "futures",
+ "regex-lite",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]

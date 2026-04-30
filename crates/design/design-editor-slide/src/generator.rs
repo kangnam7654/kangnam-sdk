@@ -5,8 +5,8 @@ use serde::Deserialize;
 use tera::{Context, Tera};
 use thiserror::Error;
 
-use canvas_llm::{AiAttachment, AiChunk, AiClient, AiError};
-use canvas_slide_doc::{Deck, SlideDoc, CANVAS_HEIGHT, CANVAS_WIDTH};
+use design_llm::{AiAttachment, AiChunk, AiClient, AiError};
+use design_doc_slide::{Deck, SlideDoc, CANVAS_HEIGHT, CANVAS_WIDTH};
 
 const TEMPLATE_NAME: &str = "deck-system-prompt";
 const DECK_SYSTEM_PROMPT_TEMPLATE: &str =
@@ -134,7 +134,7 @@ impl CanvasGenerator {
                                     slide_count = deck.slides.len(),
                                     "canvas.generate: deck parsed",
                                 );
-                                let html = deck.to_html();
+                                let html = design_doc_site::deck_to_html(&deck);
                                 // Legacy `slide_doc_json` carries the first
                                 // slide so v1 consumers (PPTX v1 path, any
                                 // leftover single-slide reader) still see
@@ -230,7 +230,7 @@ fn truncate(s: &str, n: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use canvas_llm::FakeAiClient;
+    use design_llm::FakeAiClient;
 
     fn slide_doc_json() -> String {
         r##"{
@@ -393,7 +393,7 @@ mod tests {
         let last = events.last().unwrap().as_ref().expect("ok");
         match last {
             GenerationEvent::Complete { html, slide_doc_json, deck_doc_json } => {
-                let deck: canvas_slide_doc::Deck =
+                let deck: design_doc_slide::Deck =
                     serde_json::from_str(deck_doc_json).expect("valid deck json");
                 assert_eq!(deck.slides.len(), 1);
                 assert_eq!(deck.slides[0].id, "slide-1");
@@ -424,7 +424,7 @@ mod tests {
         let last = events.last().unwrap().as_ref().expect("ok");
         match last {
             GenerationEvent::Complete { html, deck_doc_json, .. } => {
-                let deck: canvas_slide_doc::Deck =
+                let deck: design_doc_slide::Deck =
                     serde_json::from_str(deck_doc_json).expect("valid deck json");
                 assert_eq!(deck.slides.len(), 3);
                 assert_eq!(deck.slides[0].id, "slide-1");

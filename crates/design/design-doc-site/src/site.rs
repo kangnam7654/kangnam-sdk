@@ -1,5 +1,5 @@
 //! SiteDoc: canvas-web payload — a landing page composed of vertically
-//! stacked sections. Mirrors [`super::deck::Deck`] structurally (id +
+//! stacked sections. Mirrors [`design_doc_slide::deck::Deck`] structurally (id +
 //! children) so the zone-editing/override machinery built for decks can
 //! be reused, but individual sections are `SlideDoc`s rendered inline
 //! (no 1280×720 viewport, no absolute positioning).
@@ -12,7 +12,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::slide::{SlideDoc, SlideElement};
+use design_doc_slide::slide::{SlideDoc, SlideElement};
 
 /// Root payload for a canvas-web project version.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -130,7 +130,7 @@ fn render_section_elements(section: &SlideDoc) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::slide::{Frame, SlideDoc, SlideElement, TextStyle};
+    use design_doc_slide::slide::{Frame, SlideDoc, SlideElement, TextStyle};
 
     fn text_el(id: &str, content: &str) -> SlideElement {
         SlideElement::Text {

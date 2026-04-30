@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tera::{Context, Tera};
 use thiserror::Error;
 
-use canvas_llm::{AiChunk, AiClient, AiError};
+use design_llm::{AiChunk, AiClient, AiError};
 
 const SYSTEM_PROMPT_TEMPLATE: &str = include_str!("../templates/zone-edit-prompt.tera");
 const TEMPLATE_NAME: &str = "zone-edit-prompt";
@@ -326,7 +326,7 @@ fn strip_code_fence(s: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use canvas_llm::FakeAiClient;
+    use design_llm::FakeAiClient;
     use futures::StreamExt;
 
     fn input<'a>(instr: &'a str, current: &'a str) -> EditPromptInput<'a> {

@@ -1,0 +1,16 @@
+[package]
+name = "design-doc-site"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Site document model — HTML render, DOM-manifest ingest, zone override injection. Builds on design-doc-slide."
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+design-doc-slide = { path = "../design-doc-slide" }
+
+[dev-dependencies]

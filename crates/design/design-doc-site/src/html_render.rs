@@ -1,5 +1,6 @@
-use crate::slide::{
-    Background, Fill, ImageFit, ShapeKind, SlideDoc, SlideElement, Stroke, TextAlign, TextStyle,
+use design_doc_slide::slide::{
+    Background, Fill, Frame, ImageFit, ShapeKind, SlideDoc, SlideElement, Stroke, TextAlign,
+    TextStyle,
 };
 
 const ZONE_ATTR: &str = "data-edit-zone";
@@ -184,7 +185,7 @@ fn stroke_css(s: &Stroke) -> String {
     format!("border:{}px solid {};", s.width_px, escape_css(&s.color))
 }
 
-fn shape_css(shape: ShapeKind, frame: &super::Frame) -> String {
+fn shape_css(shape: ShapeKind, frame: &Frame) -> String {
     match shape {
         ShapeKind::Rect => String::new(),
         ShapeKind::RoundedRect => "border-radius:12px;".to_string(),
@@ -215,7 +216,7 @@ fn escape_css(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::slide::*;
+    use design_doc_slide::slide::*;
     use super::*;
 
     #[test]

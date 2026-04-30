@@ -32,7 +32,8 @@ function StreamingIndicator() {
 export function ChatContent() {
   const { messages, addMessage, setPendingPermission, currentSessionId,
           setIsStreaming, isStreaming,
-          setSessionMeta, addTask, updateTask, setRateLimit, setSessionCost } = useAppStore()
+          setSessionMeta, addTask, updateTask, setRateLimit, setSessionCost,
+          startArtifact, appendArtifactDelta, endArtifact } = useAppStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Auto-start session when provider is set but no session exists.
@@ -42,18 +43,25 @@ export function ChatContent() {
 
   useEffect(() => {
     const unlisten = cliApi.onMessage((msg) => {
-      if (msg.type === 'turn_end') {
-        setIsStreaming(false)
-        addMessage(msg)
-      } else if (msg.type === 'error') {
-        setIsStreaming(false)
-        addMessage(msg)
-      } else {
-        addMessage(msg)
+      // Mirror artifact_* events into the artifacts slice so other
+      // panes (PreviewIframe in 5b-11) can read the in-flight body.
+      // The message itself still flows into the chat buffer as a
+      // typed envelope; the renderer (5b-09) decides whether to
+      // surface it inline or only via the preview pane.
+      if (msg.type === 'artifact_start') {
+        startArtifact(msg.id, msg.kind)
+      } else if (msg.type === 'artifact_delta') {
+        appendArtifactDelta(msg.id, msg.text)
+      } else if (msg.type === 'artifact_end') {
+        endArtifact(msg.id, msg.manifest)
       }
+      if (msg.type === 'turn_end' || msg.type === 'error') {
+        setIsStreaming(false)
+      }
+      addMessage(msg)
     })
     return unlisten
-  }, [addMessage, setIsStreaming])
+  }, [addMessage, setIsStreaming, startArtifact, appendArtifactDelta, endArtifact])
 
   useEffect(() => {
     const unlisten = cliApi.onPermissionRequest((req) => {

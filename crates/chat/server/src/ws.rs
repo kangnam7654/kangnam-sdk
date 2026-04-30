@@ -129,6 +129,12 @@ async fn handle_socket(
                         cli_manager: &ctx.cli_manager,
                         db: &ctx.db,
                         pending_permissions: &ctx.pending_permissions,
+                        // Phase 4c — design suspend/resume maps wired
+                        // when the host carries them. chat-server itself
+                        // doesn't run design tools, so they default to
+                        // None until the Tauri host activates them.
+                        pending_question_forms: ctx.pending_question_forms.as_deref(),
+                        pending_previews: ctx.pending_previews.as_deref(),
                         make_sink: &make_sink,
                         user_id: user_id.as_deref(),
                         guard: ctx.message_guard.as_deref(),

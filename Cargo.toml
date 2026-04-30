@@ -31,9 +31,10 @@ tokio = { version = "1", features = ["rt", "macros"] }
 tempfile = "3"
 
 # ── workspace internal crates ──
-kangnam-harness-core  = { path = "crates/harness/core" }
-kangnam-harness-store = { path = "crates/harness/store" }
-kangnam-harness       = { path = "crates/harness/harness" }
+kangnam-harness-core    = { path = "crates/harness/core" }
+kangnam-harness-store   = { path = "crates/harness/store" }
+kangnam-harness-runtime = { path = "crates/harness/runtime" }
+kangnam-harness         = { path = "crates/harness/harness" }
 kangnam-router        = { path = "crates/router" }
 kangnam-chat-core     = { path = "crates/chat/core" }
 kangnam-chat-agent    = { path = "crates/chat/agent" }
@@ -53,6 +54,7 @@ design-system         = { path = "crates/design/design-system" }
 design-skill          = { path = "crates/design/design-skill" }
 design-prompt         = { path = "crates/design/design-prompt" }
 design-artifact       = { path = "crates/design/design-artifact" }
+design-tools          = { path = "crates/design/design-tools" }
 
 [profile.release]
 strip = true

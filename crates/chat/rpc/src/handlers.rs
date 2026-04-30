@@ -168,6 +168,66 @@ pub async fn permission_response(
     }
 }
 
+pub async fn question_form_response(
+    params: Option<serde_json::Value>,
+    ctx: &DispatchContext<'_>,
+) -> RpcResult {
+    let p: AwaitResponseParams = parse_params(params)?;
+
+    let map = match ctx.pending_question_forms {
+        Some(m) => m,
+        None => {
+            return Err(JsonRpcError::internal(
+                "host has no pending_question_forms map (design tools not wired)",
+            ))
+        }
+    };
+    let tx = {
+        let mut pending = map.lock().await;
+        pending.remove(&p.id)
+    };
+    match tx {
+        Some(sender) => {
+            let _ = sender.send(p.payload);
+            Ok(serde_json::Value::Null)
+        }
+        None => Err(JsonRpcError::internal(&format!(
+            "no pending question form with id: {}",
+            p.id
+        ))),
+    }
+}
+
+pub async fn preview_result(
+    params: Option<serde_json::Value>,
+    ctx: &DispatchContext<'_>,
+) -> RpcResult {
+    let p: AwaitResponseParams = parse_params(params)?;
+
+    let map = match ctx.pending_previews {
+        Some(m) => m,
+        None => {
+            return Err(JsonRpcError::internal(
+                "host has no pending_previews map (design tools not wired)",
+            ))
+        }
+    };
+    let tx = {
+        let mut pending = map.lock().await;
+        pending.remove(&p.id)
+    };
+    match tx {
+        Some(sender) => {
+            let _ = sender.send(p.payload);
+            Ok(serde_json::Value::Null)
+        }
+        None => Err(JsonRpcError::internal(&format!(
+            "no pending preview with id: {}",
+            p.id
+        ))),
+    }
+}
+
 pub async fn stop_session(
     params: Option<serde_json::Value>,
     ctx: &DispatchContext<'_>,
@@ -207,6 +267,14 @@ struct SendMessageParams {
 struct PermissionResponseParams {
     id: String,
     allowed: bool,
+}
+
+/// Shared param shape for `cli.questionFormResponse` and `cli.previewResult`.
+/// Both are resolve-by-id with an opaque payload.
+#[derive(Deserialize)]
+struct AwaitResponseParams {
+    id: String,
+    payload: serde_json::Value,
 }
 
 #[derive(Deserialize)]
@@ -308,6 +376,8 @@ mod guard_dispatch_tests {
             cli_manager: &cli_manager,
             db: &db,
             pending_permissions: &pending,
+            pending_question_forms: None,
+            pending_previews: None,
             make_sink: &make_sink,
             user_id: Some("u-1"),
             guard: Some(&guard),
@@ -342,6 +412,8 @@ mod guard_dispatch_tests {
             cli_manager: &cli_manager,
             db: &db,
             pending_permissions: &pending,
+            pending_question_forms: None,
+            pending_previews: None,
             make_sink: &make_sink,
             user_id: Some("u-1"),
             guard: Some(&guard),
@@ -377,6 +449,8 @@ mod guard_dispatch_tests {
             cli_manager: &cli_manager,
             db: &db,
             pending_permissions: &pending,
+            pending_question_forms: None,
+            pending_previews: None,
             make_sink: &make_sink,
             user_id: None,
             guard: None,
@@ -393,5 +467,163 @@ mod guard_dispatch_tests {
             .query_row("SELECT COUNT(*) FROM messages", [], |r| r.get(0))
             .unwrap();
         assert_eq!(count, 1);
+    }
+}
+
+#[cfg(test)]
+mod await_resolve_tests {
+    //! Tests for `cli.questionFormResponse` and `cli.previewResult`
+    //! resolve flows. These mirror `permission_response` semantics but
+    //! carry an opaque JSON payload instead of a single `bool`.
+
+    use std::sync::{Arc, Mutex as StdMutex};
+
+    use kangnam_chat_agent::{AgentEventSink, CliManager};
+    use kangnam_chat_core::json_rpc::JsonRpcRequest;
+    use rusqlite::Connection;
+    use tokio::sync::{oneshot, Mutex as AsyncMutex};
+
+    use crate::{
+        dispatch, DispatchContext, PendingPermissions, PendingPreviews, PendingQuestionForms,
+    };
+
+    struct NullSink;
+    impl AgentEventSink for NullSink {
+        fn emit_message(&self, _msg: kangnam_chat_agent::UnifiedMessage) {}
+    }
+
+    fn fresh_db() -> Arc<StdMutex<Connection>> {
+        let mut conn = Connection::open_in_memory().unwrap();
+        kangnam_chat_core::migrations::run(&mut conn).unwrap();
+        Arc::new(StdMutex::new(conn))
+    }
+
+    #[tokio::test]
+    async fn question_form_response_resolves_pending_sender() {
+        let cli_manager = AsyncMutex::new(CliManager::new());
+        let db = fresh_db();
+        let pending_perms: AsyncMutex<PendingPermissions> = AsyncMutex::new(Default::default());
+        let pending_qf: AsyncMutex<PendingQuestionForms> = AsyncMutex::new(Default::default());
+        let pending_pv: AsyncMutex<PendingPreviews> = AsyncMutex::new(Default::default());
+        let make_sink = || -> Arc<dyn AgentEventSink> { Arc::new(NullSink) };
+
+        let (tx, rx) = oneshot::channel::<serde_json::Value>();
+        pending_qf.lock().await.insert("await-q-1".into(), tx);
+
+        let req: JsonRpcRequest = serde_json::from_value(serde_json::json!({
+            "jsonrpc": "2.0", "id": 1,
+            "method": "cli.questionFormResponse",
+            "params": { "id": "await-q-1", "payload": { "answers": { "tone": "calm" } } }
+        })).unwrap();
+
+        let ctx = DispatchContext {
+            cli_manager: &cli_manager,
+            db: &db,
+            pending_permissions: &pending_perms,
+            pending_question_forms: Some(&pending_qf),
+            pending_previews: Some(&pending_pv),
+            make_sink: &make_sink,
+            user_id: None,
+            guard: None,
+        };
+        let resp = dispatch(req, ctx).await;
+        assert!(resp.error.is_none());
+
+        let payload = rx.await.expect("sender should have fired");
+        assert_eq!(payload["answers"]["tone"], "calm");
+    }
+
+    #[tokio::test]
+    async fn preview_result_resolves_pending_sender() {
+        let cli_manager = AsyncMutex::new(CliManager::new());
+        let db = fresh_db();
+        let pending_perms: AsyncMutex<PendingPermissions> = AsyncMutex::new(Default::default());
+        let pending_qf: AsyncMutex<PendingQuestionForms> = AsyncMutex::new(Default::default());
+        let pending_pv: AsyncMutex<PendingPreviews> = AsyncMutex::new(Default::default());
+        let make_sink = || -> Arc<dyn AgentEventSink> { Arc::new(NullSink) };
+
+        let (tx, rx) = oneshot::channel::<serde_json::Value>();
+        pending_pv.lock().await.insert("await-p-1".into(), tx);
+
+        let req: JsonRpcRequest = serde_json::from_value(serde_json::json!({
+            "jsonrpc": "2.0", "id": 2,
+            "method": "cli.previewResult",
+            "params": { "id": "await-p-1", "payload": { "screenshot": "/tmp/x.png", "console": [] } }
+        })).unwrap();
+
+        let ctx = DispatchContext {
+            cli_manager: &cli_manager,
+            db: &db,
+            pending_permissions: &pending_perms,
+            pending_question_forms: Some(&pending_qf),
+            pending_previews: Some(&pending_pv),
+            make_sink: &make_sink,
+            user_id: None,
+            guard: None,
+        };
+        let resp = dispatch(req, ctx).await;
+        assert!(resp.error.is_none());
+
+        let payload = rx.await.expect("sender should have fired");
+        assert_eq!(payload["screenshot"], "/tmp/x.png");
+    }
+
+    #[tokio::test]
+    async fn missing_pending_map_yields_error() {
+        let cli_manager = AsyncMutex::new(CliManager::new());
+        let db = fresh_db();
+        let pending_perms: AsyncMutex<PendingPermissions> = AsyncMutex::new(Default::default());
+        let make_sink = || -> Arc<dyn AgentEventSink> { Arc::new(NullSink) };
+
+        let req: JsonRpcRequest = serde_json::from_value(serde_json::json!({
+            "jsonrpc": "2.0", "id": 3,
+            "method": "cli.questionFormResponse",
+            "params": { "id": "anything", "payload": {} }
+        })).unwrap();
+
+        let ctx = DispatchContext {
+            cli_manager: &cli_manager,
+            db: &db,
+            pending_permissions: &pending_perms,
+            pending_question_forms: None,
+            pending_previews: None,
+            make_sink: &make_sink,
+            user_id: None,
+            guard: None,
+        };
+        let resp = dispatch(req, ctx).await;
+        assert!(resp.error.is_some());
+        let err = resp.error.unwrap();
+        assert!(err.message.contains("design tools not wired"));
+    }
+
+    #[tokio::test]
+    async fn unknown_id_yields_error() {
+        let cli_manager = AsyncMutex::new(CliManager::new());
+        let db = fresh_db();
+        let pending_perms: AsyncMutex<PendingPermissions> = AsyncMutex::new(Default::default());
+        let pending_qf: AsyncMutex<PendingQuestionForms> = AsyncMutex::new(Default::default());
+        let pending_pv: AsyncMutex<PendingPreviews> = AsyncMutex::new(Default::default());
+        let make_sink = || -> Arc<dyn AgentEventSink> { Arc::new(NullSink) };
+
+        let req: JsonRpcRequest = serde_json::from_value(serde_json::json!({
+            "jsonrpc": "2.0", "id": 4,
+            "method": "cli.previewResult",
+            "params": { "id": "no-such-await", "payload": {} }
+        })).unwrap();
+
+        let ctx = DispatchContext {
+            cli_manager: &cli_manager,
+            db: &db,
+            pending_permissions: &pending_perms,
+            pending_question_forms: Some(&pending_qf),
+            pending_previews: Some(&pending_pv),
+            make_sink: &make_sink,
+            user_id: None,
+            guard: None,
+        };
+        let resp = dispatch(req, ctx).await;
+        assert!(resp.error.is_some());
+        assert!(resp.error.unwrap().message.contains("no pending preview"));
     }
 }

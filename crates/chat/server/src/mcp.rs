@@ -1,10 +1,22 @@
-//! MCP (Model Context Protocol) endpoint exposing a single `approve`
-//! tool that Claude Code calls before executing risky actions.
+//! MCP (Model Context Protocol) endpoint exposing two host-side tools:
 //!
-//! The tool blocks (up to 5 minutes) on a `oneshot::Sender<bool>`
-//! placed in [`ServerContext::pending_permissions`]; the host's UI
-//! resolves the request through the `cli.permissionResponse` JSON-RPC
-//! method (handled in [`kangnam_chat_rpc`]).
+//! - `approve` — Claude Code calls this before executing risky
+//!   actions. Blocks (up to 5 min) on a `oneshot::Sender<bool>` placed
+//!   in [`ServerContext::pending_permissions`]; the host UI resolves
+//!   it via `cli.permissionResponse`.
+//!
+//! - `preview` (Phase 4d) — Design-mode agents call this to render an
+//!   artifact in the host's sandboxed iframe and receive a
+//!   `{ screenshot, console, errors }` payload. Blocks (up to 5 min)
+//!   on a `oneshot::Sender<Value>` placed in
+//!   [`ServerContext::pending_previews`]; the host UI resolves it
+//!   via `cli.previewResult`. The tool advertises only when the host
+//!   has wired the `pending_previews` map.
+//!
+//! Both follow the same suspend/resume pattern: insert sender into the
+//! pending map keyed by a fresh uuid, fan out a `cli.*Request`
+//! notification on the broadcast channel, await the matching
+//! response.
 
 use std::sync::Arc;
 
@@ -88,7 +100,7 @@ pub(crate) async fn mcp_handler(
     match req.method.as_str() {
         "initialize" => handle_initialize(&state, req.id).into_response(),
         "notifications/initialized" => (StatusCode::OK, "").into_response(),
-        "tools/list" => handle_tools_list(req.id).into_response(),
+        "tools/list" => handle_tools_list(&state, req.id).into_response(),
         "tools/call" => handle_tools_call(state, req.id, req.params).await.into_response(),
         _ => Json(McpResponse::error(req.id, -32601, "Method not found")).into_response(),
     }
@@ -108,36 +120,56 @@ fn handle_initialize(state: &McpState, id: Option<serde_json::Value>) -> Json<Mc
     ))
 }
 
-fn handle_tools_list(id: Option<serde_json::Value>) -> Json<McpResponse> {
-    Json(McpResponse::success(
-        id,
-        json!({
-            "tools": [
-                {
-                    "name": "approve",
-                    "description": "Request user approval for a tool execution",
-                    "inputSchema": {
+fn handle_tools_list(state: &McpState, id: Option<serde_json::Value>) -> Json<McpResponse> {
+    let mut tools = vec![json!({
+        "name": "approve",
+        "description": "Request user approval for a tool execution",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "tool_name": {
+                    "type": "string",
+                    "description": "Name of the tool requesting approval"
+                },
+                "tool_input": {
+                    "type": "object",
+                    "description": "Input parameters of the tool requesting approval"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Human-readable description of what the tool will do"
+                }
+            },
+            "required": ["tool_name", "tool_input", "description"]
+        }
+    })];
+    // Advertise `preview` only when the host has wired the
+    // pending_previews map. Headless servers (CI / smoke tests)
+    // don't run design tools and shouldn't surface the tool.
+    if state.ctx.pending_previews.is_some() {
+        tools.push(json!({
+            "name": "preview",
+            "description": "Render a design artifact in the host's sandboxed iframe and return screenshot + console output. Suspends the agent turn until the host posts cli.previewResult.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Absolute path of the artifact entry HTML inside the project working_dir."
+                    },
+                    "viewport": {
                         "type": "object",
                         "properties": {
-                            "tool_name": {
-                                "type": "string",
-                                "description": "Name of the tool requesting approval"
-                            },
-                            "tool_input": {
-                                "type": "object",
-                                "description": "Input parameters of the tool requesting approval"
-                            },
-                            "description": {
-                                "type": "string",
-                                "description": "Human-readable description of what the tool will do"
-                            }
-                        },
-                        "required": ["tool_name", "tool_input", "description"]
+                            "width":  { "type": "integer", "minimum": 200, "maximum": 4000 },
+                            "height": { "type": "integer", "minimum": 200, "maximum": 4000 }
+                        }
                     }
-                }
-            ]
-        }),
-    ))
+                },
+                "required": ["path"]
+            }
+        }));
+    }
+    Json(McpResponse::success(id, json!({ "tools": tools })))
 }
 
 async fn handle_tools_call(
@@ -153,17 +185,24 @@ async fn handle_tools_call(
     };
 
     let tool_name = params.get("name").and_then(|v| v.as_str()).unwrap_or("");
-
-    if tool_name != "approve" {
-        return Json(McpResponse::error(
-            id,
-            -32602,
-            &format!("Unknown tool: {}", tool_name),
-        ));
-    }
-
     let arguments = params.get("arguments").cloned().unwrap_or(json!({}));
 
+    match tool_name {
+        "approve" => handle_approve_call(state, id, arguments).await,
+        "preview" => handle_preview_call(state, id, arguments).await,
+        other => Json(McpResponse::error(
+            id,
+            -32602,
+            &format!("Unknown tool: {other}"),
+        )),
+    }
+}
+
+async fn handle_approve_call(
+    state: Arc<McpState>,
+    id: Option<serde_json::Value>,
+    arguments: serde_json::Value,
+) -> Json<McpResponse> {
     let permission_id = uuid::Uuid::new_v4().to_string();
     let (tx, rx) = tokio::sync::oneshot::channel::<bool>();
 
@@ -206,5 +245,64 @@ async fn handle_tools_call(
             "Permission request was cancelled",
         )),
         Err(_) => Json(McpResponse::error(id, -32603, "Permission request timed out")),
+    }
+}
+
+async fn handle_preview_call(
+    state: Arc<McpState>,
+    id: Option<serde_json::Value>,
+    arguments: serde_json::Value,
+) -> Json<McpResponse> {
+    // The map is opt-in — the host hadn't activated design tools.
+    // Surface a clear error so model traces don't get a "tool worked
+    // and returned nothing" red herring.
+    let pending_previews = match &state.ctx.pending_previews {
+        Some(m) => m.clone(),
+        None => {
+            return Json(McpResponse::error(
+                id,
+                -32601,
+                "Preview tool is not available on this host",
+            ))
+        }
+    };
+
+    let preview_id = uuid::Uuid::new_v4().to_string();
+    let (tx, rx) = tokio::sync::oneshot::channel::<serde_json::Value>();
+
+    {
+        let mut pending = pending_previews.lock().await;
+        pending.insert(preview_id.clone(), tx);
+    }
+
+    let notification = JsonRpcNotification::new(
+        "cli.previewRequest",
+        json!({
+            "id": preview_id,
+            "path": arguments.get("path").cloned().unwrap_or(json!(null)),
+            "viewport": arguments.get("viewport").cloned().unwrap_or(json!(null)),
+        }),
+    );
+
+    let _ = state.ctx.broadcast_tx.send(notification);
+
+    let result = tokio::time::timeout(std::time::Duration::from_secs(300), rx).await;
+
+    {
+        let mut pending = pending_previews.lock().await;
+        pending.remove(&preview_id);
+    }
+
+    match result {
+        Ok(Ok(payload)) => Json(McpResponse::success(
+            id,
+            json!({
+                "content": [
+                    { "type": "text", "text": payload.to_string() }
+                ]
+            }),
+        )),
+        Ok(Err(_)) => Json(McpResponse::error(id, -32603, "Preview request was cancelled")),
+        Err(_) => Json(McpResponse::error(id, -32603, "Preview request timed out")),
     }
 }

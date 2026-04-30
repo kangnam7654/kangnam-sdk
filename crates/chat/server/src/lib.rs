@@ -21,7 +21,9 @@ use rusqlite::Connection;
 use tokio::sync::Mutex as AsyncMutex;
 
 use kangnam_chat_agent::CliManager;
-use kangnam_chat_rpc::{MessageGuard, PendingPermissions};
+use kangnam_chat_rpc::{
+    MessageGuard, PendingPermissions, PendingPreviews, PendingQuestionForms,
+};
 
 pub mod auth;
 pub mod broadcast;
@@ -55,6 +57,12 @@ pub struct ServerContext {
     /// that bill per turn or enforce rate limits — see
     /// [`kangnam_chat_rpc::MessageGuard`].
     pub message_guard: Option<Arc<dyn MessageGuard>>,
+    /// Phase 4c — design `ask` tool's pending await map. `None` for
+    /// hosts that don't run design tools. Required by the Tauri host
+    /// once it wires `design-tools` into its agent runtime.
+    pub pending_question_forms: Option<Arc<AsyncMutex<PendingQuestionForms>>>,
+    /// Phase 4c — design `preview` tool's pending await map.
+    pub pending_previews: Option<Arc<AsyncMutex<PendingPreviews>>>,
 }
 
 /// Server-level configuration: bind port, optional static dir, and

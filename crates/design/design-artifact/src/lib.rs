@@ -19,6 +19,7 @@ pub mod parser;
 pub mod question_form;
 pub mod lint;
 pub mod srcdoc;
+pub mod export;
 
 pub use parser::{ArtifactEvent, ArtifactKind, ArtifactParser};
 pub use question_form::{
@@ -26,3 +27,4 @@ pub use question_form::{
 };
 pub use lint::{lint_artifact, LintFinding, LintSeverity};
 pub use srcdoc::{wrap_srcdoc, SrcdocOpts};
+pub use export::{export_html, export_markdown};

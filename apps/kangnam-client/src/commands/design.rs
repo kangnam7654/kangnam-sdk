@@ -38,6 +38,19 @@ pub struct DesignSystemEntry {
     pub description: String,
 }
 
+/// Full DESIGN.md preview payload — for the design-system preview modal
+/// (Phase 5c-06). Returned by `design_system_get`.
+#[derive(Serialize)]
+pub struct DesignSystemDetail {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    /// Full DESIGN.md body (markdown).
+    pub body: String,
+    /// Hex/oklch color tokens extracted by design-system parser.
+    pub colors: Vec<String>,
+}
+
 fn resolve_dir(env_var: &str, default_rel: &str) -> Option<PathBuf> {
     if let Ok(p) = std::env::var(env_var) {
         let pb = PathBuf::from(p);
@@ -99,6 +112,34 @@ pub fn design_system_list() -> Result<Vec<DesignSystemEntry>, String> {
         })
         .collect();
     Ok(out)
+}
+
+#[tauri::command]
+pub fn design_system_get(id: String) -> Result<DesignSystemDetail, String> {
+    let dir = resolve_dir(
+        "KANGNAM_DESIGN_SYSTEMS_DIR",
+        "crates/design/design-system/systems",
+    )
+    .ok_or_else(|| "design systems directory not found".to_string())?;
+    let systems = design_system::load_systems_from_dir(&dir).map_err(|e| e.to_string())?;
+    let sys = systems
+        .into_iter()
+        .find(|s| s.id == id)
+        .ok_or_else(|| format!("design system not found: {id}"))?;
+    let tokens = design_system::tokens::extract_color_tokens(&sys.body);
+    let colors: Vec<String> = tokens
+        .into_iter()
+        .filter(|t| matches!(t.kind, design_system::tokens::ColorKind::Hex))
+        .take(12)
+        .map(|t| t.value)
+        .collect();
+    Ok(DesignSystemDetail {
+        description: extract_first_paragraph(&sys.body),
+        name: titlecase_id(&sys.id),
+        body: sys.body,
+        colors,
+        id: sys.id,
+    })
 }
 
 fn titlecase_id(id: &str) -> String {

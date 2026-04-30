@@ -109,6 +109,7 @@ pub fn run() {
             // Design family catalog (Phase 5b)
             commands::design::design_skill_list,
             commands::design::design_system_list,
+            commands::design::design_system_get,
         ])
         .setup(|app| {
             // ── System tray ──

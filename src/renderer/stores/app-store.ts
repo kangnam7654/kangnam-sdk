@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { createThemeSlice, type ThemeSlice } from './slices/theme'
 import { createLayoutSlice, type LayoutSlice } from './slices/layout'
 import { createSettingsSlice, type SettingsSlice } from './slices/settings'
+import { createMainViewSlice, type MainViewSlice } from './slices/main-view'
 
 export interface Conversation {
   id: string
@@ -151,7 +152,7 @@ export interface StudioState {
   dirty: boolean
 }
 
-interface AppState extends ThemeSlice, LayoutSlice, SettingsSlice {
+interface AppState extends ThemeSlice, LayoutSlice, SettingsSlice, MainViewSlice {
   // CLI
   cliStatuses: CliStatus[]
   setCliStatuses: (statuses: CliStatus[]) => void
@@ -214,17 +215,6 @@ interface AppState extends ThemeSlice, LayoutSlice, SettingsSlice {
   sessionCost: ResultSummary | null
   setSessionCost: (cost: ResultSummary | null) => void
 
-  // Main view
-  activeMainView: MainView
-  setActiveMainView: (view: MainView) => void
-
-  // Studio
-  studioState: StudioState | null
-  openStudio: (type: 'skill' | 'agent', name?: string) => void
-  closeStudio: () => void
-  setStudioBottomTab: (tab: StudioBottomTab) => void
-  toggleStudioBottomPanel: () => void
-  setStudioDirty: (dirty: boolean) => void
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -236,6 +226,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   ...createThemeSlice(set),
   ...createLayoutSlice(set),
   ...createSettingsSlice(set),
+  ...createMainViewSlice(set),
 
   // CLI
   cliStatuses: [],
@@ -331,39 +322,4 @@ export const useAppStore = create<AppState>((set, get) => ({
   sessionCost: null,
   setSessionCost: (cost) => set({ sessionCost: cost }),
 
-  // Main view
-  activeMainView: 'chat',
-  setActiveMainView: (view) => set({ activeMainView: view }),
-
-  // Studio
-  studioState: null,
-  openStudio: (type, name) => set({
-    activeMainView: 'studio',
-    studioState: {
-      type,
-      name,
-      activeView: name ? 'editor' : 'dashboard',
-      bottomTab: 'cli',
-      bottomPanelVisible: false,
-      dirty: false,
-    },
-  }),
-  closeStudio: () => set({
-    studioState: {
-      type: 'skill',
-      activeView: 'dashboard',
-      bottomTab: 'cli',
-      bottomPanelVisible: false,
-      dirty: false,
-    },
-  }),
-  setStudioBottomTab: (tab) => set((s) => ({
-    studioState: s.studioState ? { ...s.studioState, bottomTab: tab, bottomPanelVisible: true } : null,
-  })),
-  toggleStudioBottomPanel: () => set((s) => ({
-    studioState: s.studioState ? { ...s.studioState, bottomPanelVisible: !s.studioState.bottomPanelVisible } : null,
-  })),
-  setStudioDirty: (dirty) => set((s) => ({
-    studioState: s.studioState ? { ...s.studioState, dirty } : null,
-  })),
 }))

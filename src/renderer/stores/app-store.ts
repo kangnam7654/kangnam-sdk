@@ -12,6 +12,7 @@ import {
   createConversationsSlice,
   type ConversationsSlice,
 } from './slices/conversations'
+import { createChatSlice, type ChatSlice } from './slices/chat'
 
 export interface Conversation {
   id: string
@@ -166,52 +167,8 @@ interface AppState
     SettingsSlice,
     MainViewSlice,
     AgentsPromptsSlice,
-    ConversationsSlice {
-  // CLI
-  cliStatuses: CliStatus[]
-  setCliStatuses: (statuses: CliStatus[]) => void
-  currentSessionId: string | null
-  setCurrentSessionId: (id: string | null) => void
-  currentProvider: string | null
-  setCurrentProvider: (provider: string | null) => void
-  setupComplete: boolean
-  setSetupComplete: (complete: boolean) => void
-  currentWorkingDir: string | null
-  setCurrentWorkingDir: (dir: string | null) => void
-  isStreaming: boolean
-  setIsStreaming: (v: boolean) => void
-
-  // Streaming CLI messages
-  messages: UnifiedMessage[]
-  addMessage: (msg: UnifiedMessage) => void
-  clearMessages: () => void
-  pendingPermission: UnifiedMessage | null
-  setPendingPermission: (msg: UnifiedMessage | null) => void
-
-  // Pending attachments (for passing from Composer to onNew)
-  pendingAttachments: AttachmentData[]
-  setPendingAttachments: (atts: AttachmentData[]) => void
-
-  // Search overlay
-  showSearch: boolean
-  setShowSearch: (v: boolean) => void
-
-  // Model selection (persisted — used at session start)
-  selectedModel: string | null
-  setSelectedModel: (model: string | null) => void
-
-  // Enhanced (Claude-specific)
-  sessionMeta: SessionMeta | null
-  setSessionMeta: (meta: SessionMeta | null) => void
-  activeTasks: TaskState[]
-  addTask: (task: TaskState) => void
-  updateTask: (taskId: string, updates: Partial<TaskState>) => void
-  rateLimits: Record<string, RateLimitInfo>
-  setRateLimit: (info: RateLimitInfo) => void
-  sessionCost: ResultSummary | null
-  setSessionCost: (cost: ResultSummary | null) => void
-
-}
+    ConversationsSlice,
+    ChatSlice {}
 
 export const useAppStore = create<AppState>((set, get) => ({
   // === Slice composition ===
@@ -225,81 +182,5 @@ export const useAppStore = create<AppState>((set, get) => ({
   ...createMainViewSlice(set),
   ...createAgentsPromptsSlice(set, get),
   ...createConversationsSlice(set),
-
-  // CLI
-  cliStatuses: [],
-  setCliStatuses: (statuses) => set({ cliStatuses: statuses }),
-  currentSessionId: null,
-  setCurrentSessionId: (id) => set({ currentSessionId: id }),
-  currentProvider: localStorage.getItem('kangnam-provider'),
-  setCurrentProvider: (provider) => {
-    if (provider) localStorage.setItem('kangnam-provider', provider)
-    else localStorage.removeItem('kangnam-provider')
-    set({ currentProvider: provider })
-  },
-  setupComplete: localStorage.getItem('kangnam-setup-complete') === 'true',
-  setSetupComplete: (complete) => {
-    localStorage.setItem('kangnam-setup-complete', complete ? 'true' : 'false')
-    set({ setupComplete: complete })
-  },
-  currentWorkingDir: null,
-  setCurrentWorkingDir: (dir) => set({ currentWorkingDir: dir }),
-  isStreaming: false,
-  setIsStreaming: (v) => set({ isStreaming: v }),
-
-  // Streaming CLI messages
-  messages: [],
-  addMessage: (msg) => set((s) => {
-    const last = s.messages[s.messages.length - 1]
-    // Accumulate consecutive text_deltas into one message
-    if (msg.type === 'text_delta' && last?.type === 'text_delta') {
-      const updated = [...s.messages]
-      updated[updated.length - 1] = { ...last, text: last.text + msg.text }
-      return { messages: updated }
-    }
-    // Accumulate consecutive agent_progress from same agent
-    if (msg.type === 'agent_progress' && last?.type === 'agent_progress' && last.id === msg.id) {
-      const updated = [...s.messages]
-      updated[updated.length - 1] = { ...last, message: last.message + msg.message }
-      return { messages: updated }
-    }
-    return { messages: [...s.messages, msg] }
-  }),
-  clearMessages: () => set({ messages: [] }),
-  pendingPermission: null,
-  setPendingPermission: (msg) => set({ pendingPermission: msg }),
-
-  // Pending attachments
-  pendingAttachments: [],
-  setPendingAttachments: (atts) => set({ pendingAttachments: atts }),
-
-  // Search overlay
-  showSearch: false,
-  setShowSearch: (v) => set({ showSearch: v }),
-
-  // Model selection
-  selectedModel: localStorage.getItem('kangnam-selected-model'),
-  setSelectedModel: (model) => {
-    if (model) localStorage.setItem('kangnam-selected-model', model)
-    else localStorage.removeItem('kangnam-selected-model')
-    set({ selectedModel: model })
-  },
-
-  // Enhanced
-  sessionMeta: null,
-  setSessionMeta: (meta) => set({ sessionMeta: meta }),
-  activeTasks: [],
-  addTask: (task) => set((s) => ({ activeTasks: [...s.activeTasks, task] })),
-  updateTask: (taskId, updates) => set((s) => ({
-    activeTasks: s.activeTasks.map((t) =>
-      t.task_id === taskId ? { ...t, ...updates } : t
-    ),
-  })),
-  rateLimits: {},
-  setRateLimit: (info) => set((s) => ({
-    rateLimits: { ...s.rateLimits, [info.rate_limit_type]: info }
-  })),
-  sessionCost: null,
-  setSessionCost: (cost) => set({ sessionCost: cost }),
-
+  ...createChatSlice(set),
 }))

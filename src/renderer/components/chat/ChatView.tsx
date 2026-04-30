@@ -2,14 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import { useAppStore } from '../../stores/app-store'
 import type { SessionMeta, TaskState, Conversation } from '../../stores/app-store'
 import { cliApi } from '../../lib/cli-api'
-import { FALLBACK_MODELS } from '../../lib/models/registry'
+import { useAvailableModels } from '../../hooks/useAvailableModels'
 import { MessageRenderer } from '@kangnam/chat-ui'
 import { MarkdownPreview } from '../common/MarkdownPreview'
 import { SafetyDialog } from './SafetyDialog'
-
-// Temporary alias preserved so the rest of TopBar reads identically.
-// Phase 5a-03 swaps this for `useAvailableModels()`.
-const AVAILABLE_MODELS = FALLBACK_MODELS
 
 type EffortLevel = 'low' | 'medium' | 'high'
 
@@ -26,6 +22,7 @@ function TopBar() {
   } = useAppStore()
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false)
   const modelDropdownRef = useRef<HTMLDivElement>(null)
+  const availableModels = useAvailableModels()
 
   const handleNewChat = async () => {
     if (currentSessionId) {
@@ -117,7 +114,7 @@ function TopBar() {
                   <div style={{ padding: '6px 10px 4px', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                     Model (restarts session)
                   </div>
-                  {AVAILABLE_MODELS.map((m) => {
+                  {availableModels.map((m) => {
                     const isActive = selectedModel === m.id || (!selectedModel && sessionMeta?.model === m.id)
                     return (
                       <button

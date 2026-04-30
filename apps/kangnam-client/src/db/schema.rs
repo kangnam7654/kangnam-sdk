@@ -106,6 +106,24 @@ pub fn run_migrations(conn: &mut Connection) -> Result<()> {
     let _ = tx.execute_batch("ALTER TABLE prompts ADD COLUMN model TEXT");
     let _ = tx.execute_batch("ALTER TABLE prompts ADD COLUMN user_invocable INTEGER NOT NULL DEFAULT 1");
 
+    // ADR-008 Phase 0c: unify with kangnam-harness-core::Skill so the
+    // `prompts` table can also serve as the canonical skill store. New
+    // columns capture harness-core fields (trigger, scope) and the
+    // open-design `od:` frontmatter extras as JSON. Existing rows default to
+    // `auto`/empty/`user`/null which match harness-core defaults.
+    let _ = tx.execute_batch(
+        "ALTER TABLE prompts ADD COLUMN trigger_mode TEXT NOT NULL DEFAULT 'auto'",
+    );
+    let _ = tx.execute_batch(
+        "ALTER TABLE prompts ADD COLUMN trigger_keywords TEXT NOT NULL DEFAULT '[]'",
+    );
+    let _ = tx.execute_batch(
+        "ALTER TABLE prompts ADD COLUMN scope TEXT NOT NULL DEFAULT 'user'",
+    );
+    let _ = tx.execute_batch(
+        "ALTER TABLE prompts ADD COLUMN frontmatter_extras TEXT NOT NULL DEFAULT 'null'",
+    );
+
     // ── Skill references ──
 
     tx.execute_batch(

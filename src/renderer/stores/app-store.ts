@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
 import { createThemeSlice, type ThemeSlice } from './slices/theme'
+import { createLayoutSlice, type LayoutSlice } from './slices/layout'
 
 export interface Conversation {
   id: string
@@ -149,7 +150,7 @@ export interface StudioState {
   dirty: boolean
 }
 
-interface AppState extends ThemeSlice {
+interface AppState extends ThemeSlice, LayoutSlice {
   // CLI
   cliStatuses: CliStatus[]
   setCliStatuses: (statuses: CliStatus[]) => void
@@ -197,11 +198,6 @@ interface AppState extends ThemeSlice {
   activeAgentId: string | null
   setActiveAgentId: (id: string | null) => void
 
-  // Sidebar
-  sidebarCollapsed: boolean
-  setSidebarCollapsed: (v: boolean) => void
-  toggleSidebar: () => void
-
   // Settings panel
   showSettings: boolean
   setShowSettings: (v: boolean) => void
@@ -228,23 +224,6 @@ interface AppState extends ThemeSlice {
   sessionCost: ResultSummary | null
   setSessionCost: (cost: ResultSummary | null) => void
 
-  // Layout
-  sidePanelTab: SidePanelTab
-  setSidePanelTab: (tab: SidePanelTab) => void
-  sidePanelVisible: boolean
-  setSidePanelVisible: (v: boolean) => void
-  toggleSidePanel: (tab?: SidePanelTab) => void
-  sidePanelWidth: number
-  setSidePanelWidth: (w: number) => void
-
-  rightPanelTab: RightPanelTab
-  setRightPanelTab: (tab: RightPanelTab) => void
-  rightPanelVisible: boolean
-  setRightPanelVisible: (v: boolean) => void
-  toggleRightPanel: () => void
-  rightPanelWidth: number
-  setRightPanelWidth: (w: number) => void
-
   // Main view
   activeMainView: MainView
   setActiveMainView: (view: MainView) => void
@@ -265,6 +244,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Slices spread first; 5a-16 cleans up once everything is
   // extracted.
   ...createThemeSlice(set),
+  ...createLayoutSlice(set),
 
   // CLI
   cliStatuses: [],
@@ -335,11 +315,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeAgentId: null,
   setActiveAgentId: (id) => set({ activeAgentId: id, activePromptId: id ? null : get().activePromptId }),
 
-  // Sidebar
-  sidebarCollapsed: false,
-  setSidebarCollapsed: (v) => set({ sidebarCollapsed: v }),
-  toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
-
   // Settings
   showSettings: false,
   setShowSettings: (v) => set({ showSettings: v }),
@@ -382,28 +357,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   })),
   sessionCost: null,
   setSessionCost: (cost) => set({ sessionCost: cost }),
-
-  // Layout
-  sidePanelTab: 'chats',
-  setSidePanelTab: (tab) => set({ sidePanelTab: tab }),
-  sidePanelVisible: true,
-  setSidePanelVisible: (v) => set({ sidePanelVisible: v }),
-  toggleSidePanel: (tab) => set((s) => {
-    if (tab && tab !== s.sidePanelTab) {
-      return { sidePanelTab: tab, sidePanelVisible: true }
-    }
-    return { sidePanelVisible: !s.sidePanelVisible }
-  }),
-  sidePanelWidth: 280,
-  setSidePanelWidth: (w) => set({ sidePanelWidth: w }),
-
-  rightPanelTab: 'terminal',
-  setRightPanelTab: (tab) => set({ rightPanelTab: tab }),
-  rightPanelVisible: false,
-  setRightPanelVisible: (v) => set({ rightPanelVisible: v }),
-  toggleRightPanel: () => set((s) => ({ rightPanelVisible: !s.rightPanelVisible })),
-  rightPanelWidth: 360,
-  setRightPanelWidth: (w) => set({ rightPanelWidth: w }),
 
   // Main view
   activeMainView: 'chat',

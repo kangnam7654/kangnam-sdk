@@ -34,7 +34,8 @@ pub(crate) mod tests {
 
     use async_trait::async_trait;
     use kangnam_harness_runtime::{
-        InteractionBridge, FsCallbacks, ImageCallbacks, ToolCtx, ToolError, WebCallbacks,
+        DefaultCapabilities, FsCallbacks, ImageCallbacks, InteractionBridge, ToolCtx, ToolError,
+        WebCallbacks,
     };
     use serde_json::Value;
     use tempfile::TempDir;
@@ -114,26 +115,29 @@ pub(crate) mod tests {
         }
     }
 
+    fn caps_with(fs: RealFs, body: Vec<u8>) -> DefaultCapabilities {
+        DefaultCapabilities {
+            fs: Arc::new(fs),
+            web: Arc::new(StubWeb { body }),
+            image: Some(Arc::new(StubImage)),
+            bridge: Arc::new(StubBridge),
+        }
+    }
+
     pub fn test_ctx() -> ToolCtx {
         ToolCtx {
-            working_dir: PathBuf::from("/tmp"),
+            working_dir: Some(PathBuf::from("/tmp")),
             session_id: "test-session".into(),
-            fs: Arc::new(RealFs { recorder: None }),
-            web: Arc::new(StubWeb { body: vec![] }),
-            image: Arc::new(StubImage),
-            bridge: Arc::new(StubBridge),
+            capabilities: caps_with(RealFs { recorder: None }, vec![]),
         }
     }
 
     pub fn test_ctx_with_workspace() -> (ToolCtx, TempDir) {
         let dir = tempfile::tempdir().unwrap();
         let ctx = ToolCtx {
-            working_dir: dir.path().to_path_buf(),
+            working_dir: Some(dir.path().to_path_buf()),
             session_id: "test-session".into(),
-            fs: Arc::new(RealFs { recorder: None }),
-            web: Arc::new(StubWeb { body: vec![] }),
-            image: Arc::new(StubImage),
-            bridge: Arc::new(StubBridge),
+            capabilities: caps_with(RealFs { recorder: None }, vec![]),
         };
         (ctx, dir)
     }
@@ -141,24 +145,18 @@ pub(crate) mod tests {
     pub fn test_ctx_with_web_workspace(body: Vec<u8>) -> (ToolCtx, TempDir) {
         let dir = tempfile::tempdir().unwrap();
         let ctx = ToolCtx {
-            working_dir: dir.path().to_path_buf(),
+            working_dir: Some(dir.path().to_path_buf()),
             session_id: "test-session".into(),
-            fs: Arc::new(RealFs { recorder: None }),
-            web: Arc::new(StubWeb { body }),
-            image: Arc::new(StubImage),
-            bridge: Arc::new(StubBridge),
+            capabilities: caps_with(RealFs { recorder: None }, body),
         };
         (ctx, dir)
     }
 
     pub fn test_ctx_recording(rec: StrReplaceLog) -> ToolCtx {
         ToolCtx {
-            working_dir: PathBuf::from("/tmp"),
+            working_dir: Some(PathBuf::from("/tmp")),
             session_id: "test-session".into(),
-            fs: Arc::new(RealFs { recorder: Some(rec) }),
-            web: Arc::new(StubWeb { body: vec![] }),
-            image: Arc::new(StubImage),
-            bridge: Arc::new(StubBridge),
+            capabilities: caps_with(RealFs { recorder: Some(rec) }, vec![]),
         }
     }
 }

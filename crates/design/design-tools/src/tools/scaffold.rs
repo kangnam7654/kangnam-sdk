@@ -57,7 +57,12 @@ impl AgentTool for ScaffoldTool {
             }
         };
 
-        let dest_root = ctx.working_dir.join(dest_rel);
+        let dest_root = match ctx.resolve_path(dest_rel) {
+            Some(p) => p,
+            None => return ToolResult::Failed {
+                error: "scaffold requires a working directory".into(),
+            },
+        };
         let mut copied: Vec<String> = Vec::new();
         if let Err(e) = walk_and_copy(&assets, &assets, &dest_root, ctx, &mut copied).await {
             return ToolResult::Failed { error: format!("scaffold failed: {e}") };
@@ -97,7 +102,7 @@ async fn walk_and_copy(
             let bytes = tokio::fs::read(&path).await?;
             // Write through the ToolCtx so the host's FsCallbacks can
             // sandbox / log uniformly.
-            ctx.fs.write(&dest, &bytes).await.map_err(|e| {
+            ctx.capabilities.fs.write(&dest, &bytes).await.map_err(|e| {
                 std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
             })?;
             copied.push(rel.display().to_string());

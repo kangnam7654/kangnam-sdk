@@ -42,8 +42,8 @@ pub mod permission;
 pub mod hook;
 
 pub use tool::{
-    AgentTool, AwaitKind, FsCallbacks, ImageCallbacks, InteractionBridge, ToolCtx, ToolError,
-    ToolResult, WebCallbacks,
+    AgentTool, AwaitKind, DefaultCapabilities, FsCallbacks, ImageCallbacks, InteractionBridge,
+    ToolCtx, ToolError, ToolResult, WebCallbacks,
 };
 pub use permission::{PermissionEvaluator, PermissionVerdict};
 pub use hook::{HookExecutor, HookOutcome};

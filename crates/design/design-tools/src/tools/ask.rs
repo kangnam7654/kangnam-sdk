@@ -44,7 +44,7 @@ impl AgentTool for AskTool {
             return ToolResult::Failed { error: format!("invalid form: {e}") };
         }
 
-        match ctx.bridge.register_question_form(&form_value).await {
+        match ctx.capabilities.bridge.register_question_form(&form_value).await {
             Ok((await_id, receiver)) => ToolResult::AwaitUser {
                 await_id,
                 kind: AwaitKind::QuestionForm,

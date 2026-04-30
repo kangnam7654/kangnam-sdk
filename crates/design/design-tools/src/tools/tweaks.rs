@@ -61,8 +61,13 @@ impl AgentTool for TweaksTool {
         };
         let mut applied = 0usize;
         for edit in &edits {
-            let path = ctx.working_dir.join(&edit.path);
-            if let Err(e) = ctx.fs.str_replace(&path, &edit.anchor, &edit.replacement).await {
+            let path = match ctx.resolve_path(&edit.path) {
+                Some(p) => p,
+                None => return ToolResult::Failed {
+                    error: "tweaks requires a working directory".into(),
+                },
+            };
+            if let Err(e) = ctx.capabilities.fs.str_replace(&path, &edit.anchor, &edit.replacement).await {
                 return ToolResult::Failed {
                     error: format!("str_replace failed for {}: {e}", edit.path),
                 };

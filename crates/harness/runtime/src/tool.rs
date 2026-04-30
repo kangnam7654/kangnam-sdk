@@ -113,43 +113,104 @@ pub enum ToolResult {
 /// in fakes and the production runtime can apply hooks / permissions
 /// uniformly.
 ///
-/// All callback fields use `Arc<dyn ...>` so the context is cheap to
-/// clone across the suspend/resume boundary.
+/// # Capability bundle
 ///
-/// # Capability shape (current)
+/// `ToolCtx` is generic over a capability bundle `C`. The default,
+/// [`DefaultCapabilities`], carries the four capabilities the design
+/// family uses (filesystem, web fetch, image generation, interaction
+/// bridge). Other consumers — Travel Planner, research agents,
+/// finance advisors — define their own capability struct with their
+/// domain providers (map / accommodation / money advice / …) and
+/// instantiate `ToolCtx<TheirCapabilities>`.
 ///
-/// The current `ToolCtx` carries the four capabilities the design
-/// family needs:
+/// ```ignore
+/// // Travel Planner
+/// pub struct TravelCapabilities {
+///     pub web: Arc<dyn WebSearch>,
+///     pub map: Arc<dyn MapProvider>,
+///     pub accommodation: Arc<dyn AccommodationProvider>,
+///     pub interaction: Arc<dyn InteractionBridge>,
+/// }
 ///
-/// - `fs` — read/write/str_replace into the working directory
-/// - `web` — fetch URLs as bytes
-/// - `image` — generate images from a prompt
-/// - `bridge` — interaction bridge (`InteractionBridge`) for
-///   suspend/resume across the chat-rpc channel
+/// impl AgentTool<TravelCapabilities> for AccommodationSearchTool {
+///     async fn execute(&self, params: Value, ctx: &ToolCtx<TravelCapabilities>)
+///         -> ToolResult { /* ctx.capabilities.accommodation.search(...) */ }
+/// }
+/// ```
 ///
-/// Phase 2 of the harness generalization (handoff to Travel Planner)
-/// will move these behind a generic `ToolCtx<C>` so non-design
-/// consumers can supply their own capability bundle (web search +
-/// map provider + accommodation provider, etc) without polluting
-/// the design-family fields. Until then this struct is the SDK's
-/// canonical shape.
+/// `working_dir` is `Option<PathBuf>` — capabilities that have no
+/// canonical workspace (Travel itinerary research, money advice)
+/// pass `None`.
 #[derive(Clone)]
-pub struct ToolCtx {
+pub struct ToolCtx<C = DefaultCapabilities> {
     /// Project working directory — the root tools should treat as the
-    /// canonical writable area. Absolute path. Phase 2 will widen
-    /// this to `Option<PathBuf>` for capabilities that don't need a
-    /// workspace at all.
-    pub working_dir: PathBuf,
+    /// canonical writable area when one applies. `None` for
+    /// non-workspace tools (e.g. pure web search, map lookup).
+    pub working_dir: Option<PathBuf>,
     /// Conversation / session id — included in await_id correlation
     /// keys to scope pending receivers per session.
     pub session_id: String,
+    /// App-supplied bundle of host capabilities. The design family
+    /// uses [`DefaultCapabilities`]; other domains define their own
+    /// struct.
+    pub capabilities: C,
+}
+
+/// The default capability bundle — design family + Travel Planner
+/// share the same shape because both need fs / web / interaction.
+///
+/// `image` is design-specific but kept here for now to avoid breaking
+/// design-tools; future split:
+/// - `CoreCapabilities` (fs, web, bridge) — minimum any consumer needs
+/// - `DesignCapabilities` (CoreCapabilities + image)
+/// - `TravelCapabilities` (CoreCapabilities + map + accommodation + …)
+///
+/// This split is deferred to a follow-up commit because the only
+/// current `image` consumer is `gen_image` and design-tools imports
+/// would churn. For now the field is `Option<Arc<dyn ImageCallbacks>>`
+/// so non-design consumers can pass `None`.
+#[derive(Clone)]
+pub struct DefaultCapabilities {
     pub fs: Arc<dyn FsCallbacks>,
     pub web: Arc<dyn WebCallbacks>,
-    pub image: Arc<dyn ImageCallbacks>,
+    pub image: Option<Arc<dyn ImageCallbacks>>,
     /// Interaction bridge — used by tools that suspend the agent
     /// turn awaiting a user response (forms, previews, selections,
     /// approvals).
     pub bridge: Arc<dyn InteractionBridge>,
+}
+
+impl<C> ToolCtx<C> {
+    /// Construct a `ToolCtx` with no working directory.
+    pub fn new(session_id: impl Into<String>, capabilities: C) -> Self {
+        Self {
+            working_dir: None,
+            session_id: session_id.into(),
+            capabilities,
+        }
+    }
+
+    /// Set a working directory.
+    pub fn with_working_dir(mut self, dir: PathBuf) -> Self {
+        self.working_dir = Some(dir);
+        self
+    }
+
+    /// Convenience: resolve a relative path inside `working_dir`.
+    /// Returns `None` if the context has no workspace — tools that
+    /// require one should check first and return a structured
+    /// `ToolError::InvalidArgs` so the agent gets a clear message.
+    pub fn resolve_path(&self, rel: impl AsRef<std::path::Path>) -> Option<PathBuf> {
+        self.working_dir.as_ref().map(|w| w.join(rel))
+    }
+
+    /// Convenience: workspace root, or an InvalidArgs error if the
+    /// caller's tool needs one.
+    pub fn require_working_dir(&self) -> Result<&PathBuf, ToolError> {
+        self.working_dir
+            .as_ref()
+            .ok_or_else(|| ToolError::InvalidArgs("tool requires a working directory".into()))
+    }
 }
 
 #[async_trait]
@@ -240,8 +301,15 @@ pub trait InteractionBridge: Send + Sync {
 /// the [`ToolCtx`] callbacks. Test fakes swap the callbacks for
 /// recorded mock implementations; production hosts wire fs / web /
 /// image / interaction bridges to real services.
+///
+/// Generic over a capability bundle `C`; the default,
+/// [`DefaultCapabilities`], works for the design family. Domains
+/// with their own provider types (Travel Planner's
+/// `TravelCapabilities`, research agents, …) implement
+/// `AgentTool<TheirCapabilities>` so the runtime can host both
+/// kinds of tools simultaneously.
 #[async_trait]
-pub trait AgentTool: Send + Sync {
+pub trait AgentTool<C = DefaultCapabilities>: Send + Sync {
     /// Stable string id used in registries and permission patterns
     /// (`mcp__kangnam__preview`, `kangnam.brand_asset_extract`,
     /// `travel.accommodation_search`, etc).
@@ -252,7 +320,7 @@ pub trait AgentTool: Send + Sync {
     /// schema crate.
     fn parameters(&self) -> Value;
 
-    async fn execute(&self, params: Value, ctx: &ToolCtx) -> ToolResult;
+    async fn execute(&self, params: Value, ctx: &ToolCtx<C>) -> ToolResult;
 }
 
 #[cfg(test)]
@@ -292,12 +360,14 @@ mod tests {
 
     fn ctx() -> ToolCtx {
         ToolCtx {
-            working_dir: PathBuf::from("/tmp"),
+            working_dir: Some(PathBuf::from("/tmp")),
             session_id: "s1".into(),
-            fs: Arc::new(FakeFs),
-            web: Arc::new(FakeWeb),
-            image: Arc::new(FakeImg),
-            bridge: Arc::new(FakeBridge),
+            capabilities: DefaultCapabilities {
+                fs: Arc::new(FakeFs),
+                web: Arc::new(FakeWeb),
+                image: Some(Arc::new(FakeImg)),
+                bridge: Arc::new(FakeBridge),
+            },
         }
     }
 

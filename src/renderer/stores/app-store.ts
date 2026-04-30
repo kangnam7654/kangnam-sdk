@@ -2,6 +2,7 @@ import { create } from 'zustand'
 
 import { createThemeSlice, type ThemeSlice } from './slices/theme'
 import { createLayoutSlice, type LayoutSlice } from './slices/layout'
+import { createSettingsSlice, type SettingsSlice } from './slices/settings'
 
 export interface Conversation {
   id: string
@@ -150,7 +151,7 @@ export interface StudioState {
   dirty: boolean
 }
 
-interface AppState extends ThemeSlice, LayoutSlice {
+interface AppState extends ThemeSlice, LayoutSlice, SettingsSlice {
   // CLI
   cliStatuses: CliStatus[]
   setCliStatuses: (statuses: CliStatus[]) => void
@@ -198,17 +199,6 @@ interface AppState extends ThemeSlice, LayoutSlice {
   activeAgentId: string | null
   setActiveAgentId: (id: string | null) => void
 
-  // Settings panel
-  showSettings: boolean
-  setShowSettings: (v: boolean) => void
-  settingsTab: 'providers' | 'mcp' | 'general'
-  setSettingsTab: (tab: 'providers' | 'mcp' | 'general') => void
-
-  // Dev mode (shows hidden providers: gemini, antigravity, claude OAT, mock)
-  devMode: boolean
-  setDevMode: (v: boolean) => void
-  toggleDevMode: () => void
-
   // Model selection (persisted — used at session start)
   selectedModel: string | null
   setSelectedModel: (model: string | null) => void
@@ -245,6 +235,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // extracted.
   ...createThemeSlice(set),
   ...createLayoutSlice(set),
+  ...createSettingsSlice(set),
 
   // CLI
   cliStatuses: [],
@@ -314,24 +305,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAgents: (agents) => set({ agents }),
   activeAgentId: null,
   setActiveAgentId: (id) => set({ activeAgentId: id, activePromptId: id ? null : get().activePromptId }),
-
-  // Settings
-  showSettings: false,
-  setShowSettings: (v) => set({ showSettings: v }),
-  settingsTab: 'providers',
-  setSettingsTab: (tab) => set({ settingsTab: tab }),
-
-  // Dev mode — persisted in localStorage, activated via Ctrl+Shift+D
-  devMode: localStorage.getItem('kangnam-dev-mode') === 'true',
-  setDevMode: (v) => {
-    localStorage.setItem('kangnam-dev-mode', v ? 'true' : 'false')
-    set({ devMode: v })
-  },
-  toggleDevMode: () => set((s) => {
-    const next = !s.devMode
-    localStorage.setItem('kangnam-dev-mode', next ? 'true' : 'false')
-    return { devMode: next }
-  }),
 
   // Model selection
   selectedModel: localStorage.getItem('kangnam-selected-model'),

@@ -1,0 +1,16 @@
+[package]
+name = "design-direction"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Built-in design-direction library — 5 curated visual schools (Editorial / Modern Minimal / Tech Utility / Brutalist / Soft Warm) with deterministic OKLch palettes and font stacks."
+keywords = ["design", "direction", "oklch", "palette", "typography"]
+categories = ["multimedia"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]

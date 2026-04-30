@@ -48,6 +48,9 @@ design-editor-html    = { path = "crates/design/design-editor-html" }
 design-editor-slide   = { path = "crates/design/design-editor-slide" }
 design-editor-site    = { path = "crates/design/design-editor-site" }
 design-export-pptx    = { path = "crates/design/design-export-pptx" }
+design-direction      = { path = "crates/design/design-direction" }
+design-system         = { path = "crates/design/design-system" }
+design-skill          = { path = "crates/design/design-skill" }
 
 [profile.release]
 strip = true

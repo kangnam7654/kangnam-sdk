@@ -1,0 +1,19 @@
+[package]
+name = "design-skill"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "SKILL.md catalog — Anthropic SkillFrontmatterV1 + open-design `od:` extension parser, with 30 vendored design skills (web-prototype, dashboard, mobile-app, guizang-ppt, …)."
+keywords = ["skill", "design", "frontmatter", "anthropic"]
+categories = ["multimedia"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = "0.9"
+thiserror = { workspace = true }
+kangnam-harness-core = { workspace = true }
+
+[dev-dependencies]

@@ -35,7 +35,7 @@ function getProjectApi(): ProjectApi | null {
 
 export function FileWorkspace() {
   const project = useAppStore((s) =>
-    s.activeProjectId ? s.projects[s.activeProjectId] : undefined,
+    s.activeProjectId ? s.projects.find((p) => p.id === s.activeProjectId) : undefined,
   )
   const [entries, setEntries] = useState<ProjectFileEntry[]>([])
   const [selected, setSelected] = useState<string | null>(null)

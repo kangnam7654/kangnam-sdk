@@ -78,6 +78,17 @@ const projectTab = {
   ),
 }
 
+const hubTab = {
+  id: 'hub' as const,
+  label: 'Designs Hub',
+  icon: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+      <path d="M9 9h6v6H9z" />
+    </svg>
+  ),
+}
+
 export function ActivityBar() {
   const { sidePanelTab, sidePanelVisible, toggleSidePanel, setShowSettings, activeMainView, setActiveMainView } = useAppStore()
 
@@ -189,6 +200,34 @@ export function ActivityBar() {
         }}
       >
         {projectTab.icon}
+      </button>
+
+      {/* Designs Hub — multi-project switcher (Phase 5c). */}
+      <button
+        onClick={() => {
+          setActiveMainView(activeMainView === 'hub' ? 'chat' : 'hub')
+        }}
+        title={hubTab.label}
+        aria-label={hubTab.label}
+        className="no-drag"
+        style={{
+          width: 36,
+          height: 36,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: 'var(--radius-md)',
+          border: 'none',
+          background: activeMainView === 'hub' ? 'var(--accent-soft)' : 'transparent',
+          color:
+            activeMainView === 'hub'
+              ? 'var(--activity-icon-active)'
+              : 'var(--activity-icon)',
+          cursor: 'pointer',
+          transition: 'all 0.15s',
+        }}
+      >
+        {hubTab.icon}
       </button>
 
       <div style={{ flex: 1 }} />

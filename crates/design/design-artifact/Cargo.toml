@@ -1,0 +1,17 @@
+[package]
+name = "design-artifact"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Streaming `<artifact>` parser + `<question-form>` JSON schema + P0/P1 lint + sandboxed srcdoc HTML wrapper for the design family."
+keywords = ["artifact", "design", "streaming", "lint", "iframe"]
+categories = ["multimedia"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]

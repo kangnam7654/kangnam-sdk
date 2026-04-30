@@ -986,6 +986,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "design-artifact"
+version = "0.2.1"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "design-direction"
 version = "0.2.1"
 dependencies = [

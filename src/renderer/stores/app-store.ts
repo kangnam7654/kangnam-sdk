@@ -4,6 +4,10 @@ import { createThemeSlice, type ThemeSlice } from './slices/theme'
 import { createLayoutSlice, type LayoutSlice } from './slices/layout'
 import { createSettingsSlice, type SettingsSlice } from './slices/settings'
 import { createMainViewSlice, type MainViewSlice } from './slices/main-view'
+import {
+  createAgentsPromptsSlice,
+  type AgentsPromptsSlice,
+} from './slices/agents-prompts'
 
 export interface Conversation {
   id: string
@@ -152,7 +156,12 @@ export interface StudioState {
   dirty: boolean
 }
 
-interface AppState extends ThemeSlice, LayoutSlice, SettingsSlice, MainViewSlice {
+interface AppState
+  extends ThemeSlice,
+    LayoutSlice,
+    SettingsSlice,
+    MainViewSlice,
+    AgentsPromptsSlice {
   // CLI
   cliStatuses: CliStatus[]
   setCliStatuses: (statuses: CliStatus[]) => void
@@ -188,18 +197,6 @@ interface AppState extends ThemeSlice, LayoutSlice, SettingsSlice, MainViewSlice
   showSearch: boolean
   setShowSearch: (v: boolean) => void
 
-  // Prompts
-  prompts: Prompt[]
-  setPrompts: (prompts: Prompt[]) => void
-  activePromptId: string | null
-  setActivePromptId: (id: string | null) => void
-
-  // Agents
-  agents: Agent[]
-  setAgents: (agents: Agent[]) => void
-  activeAgentId: string | null
-  setActiveAgentId: (id: string | null) => void
-
   // Model selection (persisted — used at session start)
   selectedModel: string | null
   setSelectedModel: (model: string | null) => void
@@ -227,6 +224,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   ...createLayoutSlice(set),
   ...createSettingsSlice(set),
   ...createMainViewSlice(set),
+  ...createAgentsPromptsSlice(set, get),
 
   // CLI
   cliStatuses: [],
@@ -284,18 +282,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Search overlay
   showSearch: false,
   setShowSearch: (v) => set({ showSearch: v }),
-
-  // Prompts
-  prompts: [],
-  setPrompts: (prompts) => set({ prompts }),
-  activePromptId: null,
-  setActivePromptId: (id) => set({ activePromptId: id, activeAgentId: id ? null : get().activeAgentId }),
-
-  // Agents
-  agents: [],
-  setAgents: (agents) => set({ agents }),
-  activeAgentId: null,
-  setActiveAgentId: (id) => set({ activeAgentId: id, activePromptId: id ? null : get().activePromptId }),
 
   // Model selection
   selectedModel: localStorage.getItem('kangnam-selected-model'),

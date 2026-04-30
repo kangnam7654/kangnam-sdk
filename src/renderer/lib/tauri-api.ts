@@ -446,6 +446,20 @@ const api = {
       onEvent('cowork:complete', cb),
     onError: (cb: EventCallback<{ error: string }>) =>
       onEvent('cowork:error', cb)
+  },
+
+  // Design family (Phase 5b)
+  // Surfaces the design-skill / design-system catalog scanners to
+  // the renderer's NewProjectPanel. The host resolves catalog dirs
+  // via env vars (KANGNAM_DESIGN_SKILLS_DIR, KANGNAM_DESIGN_SYSTEMS_DIR)
+  // or by walking up from the binary; see commands/design.rs.
+  design: {
+    skills: () =>
+      invoke<{ id: string; name: string; description: string; triggers: string[] }[]>(
+        'design_skill_list',
+      ),
+    systems: () =>
+      invoke<{ id: string; name: string; description: string }[]>('design_system_list'),
   }
 }
 

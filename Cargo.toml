@@ -51,6 +51,7 @@ design-export-pptx    = { path = "crates/design/design-export-pptx" }
 design-direction      = { path = "crates/design/design-direction" }
 design-system         = { path = "crates/design/design-system" }
 design-skill          = { path = "crates/design/design-skill" }
+design-prompt         = { path = "crates/design/design-prompt" }
 
 [profile.release]
 strip = true

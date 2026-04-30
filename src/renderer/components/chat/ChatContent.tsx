@@ -1,12 +1,13 @@
 import { useEffect, useRef } from 'react'
 import { useAppStore } from '../../stores/app-store'
-import type { SessionMeta, TaskState, Conversation } from '../../stores/app-store'
+import type { SessionMeta, TaskState } from '../../stores/app-store'
 import { cliApi } from '../../lib/cli-api'
 import { MessageRenderer } from '@kangnam/chat-ui'
 import { MarkdownPreview } from '../common/MarkdownPreview'
 import { SafetyDialog } from './SafetyDialog'
 import { TopBar } from './TopBar'
 import { MessageInput } from './MessageInput'
+import { useChatSession } from '../../hooks/useChatSession'
 
 /**
  * The chat pane content — wires up the four streaming subscriptions
@@ -29,38 +30,15 @@ function StreamingIndicator() {
 }
 
 export function ChatContent() {
-  const { messages, addMessage, setPendingPermission, currentSessionId, setCurrentSessionId,
-          setIsStreaming, isStreaming, currentProvider, setCurrentWorkingDir,
-          setSessionMeta, addTask, updateTask, setRateLimit, setSessionCost, selectedModel } = useAppStore()
+  const { messages, addMessage, setPendingPermission, currentSessionId,
+          setIsStreaming, isStreaming,
+          setSessionMeta, addTask, updateTask, setRateLimit, setSessionCost } = useAppStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const startingSession = useRef(false)
 
-  // Auto-start session when provider is set but no session exists
-  useEffect(() => {
-    if (currentSessionId || !currentProvider || startingSession.current) return
-    startingSession.current = true
-
-    const lastDir = localStorage.getItem('kangnam-last-workdir')
-    const workingDir = lastDir || (navigator.platform?.includes('Win') ? 'C:\\Users' : '/Users')
-
-    cliApi.startSession(currentProvider, workingDir, selectedModel)
-      .then(async (sessionId) => {
-        setCurrentSessionId(sessionId)
-        setCurrentWorkingDir(workingDir)
-        localStorage.setItem('kangnam-last-workdir', workingDir)
-        // Refresh conversation list
-        try {
-          const convs = await window.api.conv.list()
-          useAppStore.getState().setConversations(convs as Conversation[])
-        } catch { /* ignore */ }
-      })
-      .catch((e) => {
-        console.error('[ChatContent] auto-start session failed:', e)
-      })
-      .finally(() => {
-        startingSession.current = false
-      })
-  }, [currentSessionId, currentProvider, setCurrentSessionId, setCurrentWorkingDir, selectedModel])
+  // Auto-start session when provider is set but no session exists.
+  // The bootstrap effect, the conversation-list refresh, and the
+  // localStorage workdir persistence all live in the hook now.
+  useChatSession()
 
   useEffect(() => {
     const unlisten = cliApi.onMessage((msg) => {

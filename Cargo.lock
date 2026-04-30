@@ -2700,6 +2700,7 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "chrono",
+ "design-artifact",
  "design-skill",
  "design-system",
  "dirs",

@@ -41,7 +41,6 @@ pub fn export_markdown(body: &str) -> String {
     let mut out = String::with_capacity(body.len());
     let mut chars = body.chars().peekable();
     let mut in_tag = false;
-    let mut in_skip_block: Option<&str> = None;
     let lower = body.to_ascii_lowercase();
 
     // Find skip-block ranges so we don't include their text.
@@ -63,7 +62,6 @@ pub fn export_markdown(body: &str) -> String {
             }
             continue;
         }
-        let _ = in_skip_block;
         if c == '<' {
             in_tag = true;
             continue;

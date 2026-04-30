@@ -24,6 +24,7 @@ import { cliApi } from '../../lib/cli-api'
 import { buildSrcdoc } from '../../lib/runtime/srcdoc'
 import { useAppStore } from '../../stores/app-store'
 import { FrameToolbar, PhoneFrame, type FrameMode } from './PhoneFrame'
+import { ExportChips } from './ExportChips'
 
 interface ConsoleMsg {
   kind: 'console' | 'error' | 'unhandled-rejection' | 'ready'
@@ -162,6 +163,13 @@ export function PreviewIframe({
             {artifact ? `Preview · ${artifact.kind}` : 'Preview · idle'}
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {artifact?.body ? (
+              <ExportChips
+                artifactBody={artifact.body}
+                artifactKind={artifact.kind}
+                iframeRef={iframeRef}
+              />
+            ) : null}
             {!hideFrameToggle ? (
               <FrameToolbar mode={frame} onChange={setFrame} />
             ) : null}

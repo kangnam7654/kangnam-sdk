@@ -23,6 +23,7 @@ import { useEffect, useRef, useState } from 'react'
 import { cliApi } from '../../lib/cli-api'
 import { buildSrcdoc } from '../../lib/runtime/srcdoc'
 import { useAppStore } from '../../stores/app-store'
+import { FrameToolbar, PhoneFrame, type FrameMode } from './PhoneFrame'
 
 interface ConsoleMsg {
   kind: 'console' | 'error' | 'unhandled-rejection' | 'ready'
@@ -44,6 +45,10 @@ interface Props {
   height?: number | string
   /** Show a translucent header with the kind + a console-count badge. */
   showHeader?: boolean
+  /** Initial device-frame mode. User can still toggle via the toolbar. */
+  initialFrame?: FrameMode
+  /** Hide the frame toggle (for embeds that pin a single mode). */
+  hideFrameToggle?: boolean
 }
 
 export function PreviewIframe({
@@ -51,9 +56,27 @@ export function PreviewIframe({
   width = '100%',
   height = '100%',
   showHeader = true,
+  initialFrame = 'desktop',
+  hideFrameToggle = false,
 }: Props) {
   const artifact = useAppStore((s) => (artifactId ? s.artifacts[artifactId] : undefined))
   const [consoleBuf, setConsoleBuf] = useState<ConsoleMsg[]>([])
+  const [frame, setFrame] = useState<FrameMode>(initialFrame)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const [containerSize, setContainerSize] = useState<{ w: number; h: number } | null>(null)
+
+  useEffect(() => {
+    if (!containerRef.current) return
+    const el = containerRef.current
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const r = entry.contentRect
+        setContainerSize({ w: r.width, h: r.height })
+      }
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
   const [pendingRequest, setPendingRequest] = useState<
     | { id: string; path: string; viewport?: { width: number; height: number } }
     | null
@@ -138,20 +161,29 @@ export function PreviewIframe({
           <span>
             {artifact ? `Preview · ${artifact.kind}` : 'Preview · idle'}
           </span>
-          <span>
-            {consoleBuf.length > 0 ? `console: ${consoleBuf.length}` : ''}
+          <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {!hideFrameToggle ? (
+              <FrameToolbar mode={frame} onChange={setFrame} />
+            ) : null}
+            {consoleBuf.length > 0 ? <span>console: {consoleBuf.length}</span> : null}
           </span>
         </div>
       ) : null}
-      <div style={{ flex: 1, minHeight: 0 }}>
+      <div ref={containerRef} style={{ flex: 1, minHeight: 0 }}>
         {srcdoc ? (
-          <iframe
-            ref={iframeRef}
-            srcDoc={srcdoc}
-            sandbox="allow-scripts"
-            style={{ width: '100%', height: '100%', border: 'none' }}
-            title="design artifact preview"
-          />
+          <PhoneFrame
+            mode={frame}
+            maxWidth={containerSize?.w}
+            maxHeight={containerSize?.h}
+          >
+            <iframe
+              ref={iframeRef}
+              srcDoc={srcdoc}
+              sandbox="allow-scripts"
+              style={{ width: '100%', height: '100%', border: 'none' }}
+              title="design artifact preview"
+            />
+          </PhoneFrame>
         ) : (
           <div
             style={{

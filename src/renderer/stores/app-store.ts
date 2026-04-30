@@ -117,7 +117,17 @@ export interface ResultSummary {
 
 export type SidePanelTab = 'chats' | 'files' | 'skills' | 'agents' | 'mcp'
 export type RightPanelTab = 'terminal' | 'files' | 'tools' | 'agents' | 'tasks'
-export type MainView = 'chat' | 'studio'
+/**
+ * Top-level view modes the main pane swaps between.
+ *
+ * - `chat` / `studio` are wired today.
+ * - `project` / `hub` are reserved for the design family Phase 5b/c —
+ *   `project` will host the per-project workspace + preview iframe;
+ *   `hub` will host the Designs Hub (last-N preview cache). Until
+ *   those land, the App-level switch falls back to `chat` for the new
+ *   variants so widening the type can't crash older renderer paths.
+ */
+export type MainView = 'chat' | 'studio' | 'project' | 'hub'
 export type StudioBottomTab = 'cli' | 'tests' | 'viewer' | 'optimize'
 
 export interface StudioState {

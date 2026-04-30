@@ -143,7 +143,22 @@ export function ChatContent() {
             </div>
           ) : (
             <>
-              {messages.map((msg, i) => <MessageRenderer key={i} message={msg} isLast={i === messages.length - 1} isStreaming={isStreaming} renderMarkdown={(content) => <MarkdownPreview content={content} />} />)}
+              {messages.map((msg, i) => (
+                // The chat-ui MessageRenderer doesn't know about the
+                // design-family variants (artifact_*, question_form_*,
+                // thinking_delta, tool_use_input, turn_suspended_*).
+                // Its switch default returns null so unknown types are
+                // safely ignored at runtime — Phase 5b-09 plugs in the
+                // dedicated renderers for the design variants.
+                <MessageRenderer
+                  key={i}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  message={msg as any}
+                  isLast={i === messages.length - 1}
+                  isStreaming={isStreaming}
+                  renderMarkdown={(content) => <MarkdownPreview content={content} />}
+                />
+              ))}
               {isStreaming && messages[messages.length - 1]?.type !== 'text_delta' && messages[messages.length - 1]?.type !== 'agent_progress' && (
                 <StreamingIndicator />
               )}

@@ -119,6 +119,15 @@ export type UnifiedMessage =
   | { type: 'turn_end'; usage?: { input_tokens: number; output_tokens: number } }
   | { type: 'error'; message: string }
   | { type: 'session_init'; session_id: string }
+  // Phase 0b chat-agent parity additions —
+  | { type: 'thinking_delta'; text: string }
+  | { type: 'tool_use_input'; id: string; input: unknown }
+  // Phase 3 + 5b design-family additions —
+  | { type: 'artifact_start'; id: string; kind: string }
+  | { type: 'artifact_delta'; id: string; text: string }
+  | { type: 'artifact_end'; id: string; manifest?: unknown }
+  | { type: 'question_form_posted'; id: string; schema: unknown }
+  | { type: 'turn_suspended_pending_form'; form_id: string }
 
 export interface SessionMeta {
   session_id: string

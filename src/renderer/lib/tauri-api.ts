@@ -460,7 +460,29 @@ const api = {
       ),
     systems: () =>
       invoke<{ id: string; name: string; description: string }[]>('design_system_list'),
-  }
+    systemGet: (id: string) =>
+      invoke<{ id: string; name: string; description: string; body: string; colors: string[] }>(
+        'design_system_get',
+        { id },
+      ),
+  },
+
+  // Project FileWorkspace (Phase 5c-07/10)
+  // Recursive file tree + read/write operations for the design-mode
+  // FileWorkspace pane. All paths are resolved relative to the
+  // project's workingDir and verified by the Rust backend to remain
+  // inside that root (path traversal guard).
+  project: {
+    filesList: (workingDir: string) =>
+      invoke<{ path: string; kind: 'dir' | 'file'; size?: number | null }[]>(
+        'project_files_list',
+        { workingDir },
+      ),
+    fileRead: (workingDir: string, relPath: string) =>
+      invoke<string>('project_file_read', { workingDir, relPath }),
+    fileWrite: (workingDir: string, relPath: string, body: string) =>
+      invoke<void>('project_file_write', { workingDir, relPath, body }),
+  },
 }
 
 declare global {

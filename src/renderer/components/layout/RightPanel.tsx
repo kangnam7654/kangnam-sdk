@@ -1,5 +1,6 @@
 import { useAppStore, type RightPanelTab } from '../../stores/app-store'
 import { TaskPanel } from '../sidebar/TaskPanel'
+import { FileWorkspace } from '../files/FileWorkspace'
 
 const tabs: { id: RightPanelTab; label: string }[] = [
   { id: 'terminal', label: 'Terminal' },
@@ -65,7 +66,7 @@ export function RightPanel() {
         {rightPanelTab === 'tasks' && <TaskPanel />}
         {rightPanelTab === 'terminal' && <Placeholder label="Terminal Log (Phase 4)" />}
         {rightPanelTab === 'agents' && <Placeholder label="Agent Tracker (Phase 4)" />}
-        {rightPanelTab === 'files' && <Placeholder label="File Workspace (5c-09 lands tree+viewer)" />}
+        {rightPanelTab === 'files' && <FileWorkspace />}
         {rightPanelTab === 'tools' && <Placeholder label="Tool Log (5c-11 lands ToolCard)" />}
       </div>
     </div>

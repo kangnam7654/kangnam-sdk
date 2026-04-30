@@ -3,5 +3,6 @@ pub mod claude_commands;
 pub mod conv;
 pub mod design;
 pub mod mcp;
+pub mod project_files;
 pub mod settings;
 pub mod skills;

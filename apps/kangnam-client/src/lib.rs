@@ -110,6 +110,10 @@ pub fn run() {
             commands::design::design_skill_list,
             commands::design::design_system_list,
             commands::design::design_system_get,
+            // Project FileWorkspace (Phase 5c-07)
+            commands::project_files::project_files_list,
+            commands::project_files::project_file_read,
+            commands::project_files::project_file_write,
         ])
         .setup(|app| {
             // ── System tray ──

@@ -2,15 +2,14 @@ import { useState, useEffect, useRef } from 'react'
 import { useAppStore } from '../../stores/app-store'
 import type { SessionMeta, TaskState, Conversation } from '../../stores/app-store'
 import { cliApi } from '../../lib/cli-api'
+import { FALLBACK_MODELS } from '../../lib/models/registry'
 import { MessageRenderer } from '@kangnam/chat-ui'
 import { MarkdownPreview } from '../common/MarkdownPreview'
 import { SafetyDialog } from './SafetyDialog'
 
-const AVAILABLE_MODELS = [
-  { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
-  { id: 'claude-opus-4-6', label: 'Opus 4.6' },
-  { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5' },
-]
+// Temporary alias preserved so the rest of TopBar reads identically.
+// Phase 5a-03 swaps this for `useAvailableModels()`.
+const AVAILABLE_MODELS = FALLBACK_MODELS
 
 type EffortLevel = 'low' | 'medium' | 'high'
 

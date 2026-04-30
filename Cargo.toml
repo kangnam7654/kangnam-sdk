@@ -54,6 +54,7 @@ design-system         = { path = "crates/design/design-system" }
 design-skill          = { path = "crates/design/design-skill" }
 design-prompt         = { path = "crates/design/design-prompt" }
 design-artifact       = { path = "crates/design/design-artifact" }
+design-tools          = { path = "crates/design/design-tools" }
 
 [profile.release]
 strip = true

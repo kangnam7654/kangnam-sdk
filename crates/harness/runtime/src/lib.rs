@@ -17,6 +17,9 @@ pub mod tool;
 pub mod permission;
 pub mod hook;
 
-pub use tool::{DesignTool, ToolCtx, ToolError, ToolResult, AwaitKind};
+pub use tool::{
+    AwaitKind, DesignTool, FrontendBridge, FsCallbacks, ImageCallbacks, ToolCtx, ToolError,
+    ToolResult, WebCallbacks,
+};
 pub use permission::{PermissionEvaluator, PermissionVerdict};
 pub use hook::{HookExecutor, HookOutcome};

@@ -1,0 +1,23 @@
+[package]
+name = "design-tools"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Eight design-mode tools for the kangnam-sdk harness runtime: ask, scaffold, skill, preview, tweaks, done, brand_asset_extract, gen_image."
+
+[dependencies]
+kangnam-harness-runtime = { workspace = true }
+design-skill            = { workspace = true }
+design-artifact         = { workspace = true }
+serde       = { workspace = true }
+serde_json  = { workspace = true }
+async-trait = { workspace = true }
+thiserror   = { workspace = true }
+tokio       = { workspace = true, features = ["sync", "macros", "rt", "fs"] }
+regex       = "1"
+
+[dev-dependencies]
+tokio    = { workspace = true, features = ["macros", "rt", "sync", "fs"] }
+tempfile = { workspace = true }

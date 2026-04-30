@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 
+import { createThemeSlice, type ThemeSlice } from './slices/theme'
+
 export interface Conversation {
   id: string
   title: string
@@ -147,7 +149,7 @@ export interface StudioState {
   dirty: boolean
 }
 
-interface AppState {
+interface AppState extends ThemeSlice {
   // CLI
   cliStatuses: CliStatus[]
   setCliStatuses: (statuses: CliStatus[]) => void
@@ -206,10 +208,6 @@ interface AppState {
   settingsTab: 'providers' | 'mcp' | 'general'
   setSettingsTab: (tab: 'providers' | 'mcp' | 'general') => void
 
-  // Theme
-  theme: 'light' | 'dark'
-  setTheme: (t: 'light' | 'dark') => void
-
   // Dev mode (shows hidden providers: gemini, antigravity, claude OAT, mock)
   devMode: boolean
   setDevMode: (v: boolean) => void
@@ -261,6 +259,13 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
+  // === Slice composition ===
+  // Each slice owns a coherent concern. The rest of this object is
+  // legacy fields awaiting extraction in Phase 5a-10 through 5a-15.
+  // Slices spread first; 5a-16 cleans up once everything is
+  // extracted.
+  ...createThemeSlice(set),
+
   // CLI
   cliStatuses: [],
   setCliStatuses: (statuses) => set({ cliStatuses: statuses }),
@@ -340,13 +345,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   setShowSettings: (v) => set({ showSettings: v }),
   settingsTab: 'providers',
   setSettingsTab: (tab) => set({ settingsTab: tab }),
-
-  // Theme
-  theme: (localStorage.getItem('kangnam-theme') as 'light' | 'dark') || 'dark',
-  setTheme: (t) => {
-    localStorage.setItem('kangnam-theme', t)
-    set({ theme: t })
-  },
 
   // Dev mode — persisted in localStorage, activated via Ctrl+Shift+D
   devMode: localStorage.getItem('kangnam-dev-mode') === 'true',

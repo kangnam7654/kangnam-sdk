@@ -106,6 +106,9 @@ pub fn run() {
             commands::claude_commands::delete_skill_ref,
             commands::claude_commands::snapshot_skill,
             commands::claude_commands::list_skill_snapshots,
+            // Design family catalog (Phase 5b)
+            commands::design::design_skill_list,
+            commands::design::design_system_list,
         ])
         .setup(|app| {
             // ── System tray ──

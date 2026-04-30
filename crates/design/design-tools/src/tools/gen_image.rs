@@ -1,13 +1,13 @@
 //! `gen_image` — call the host image gen API and write the result.
 
 use async_trait::async_trait;
-use kangnam_harness_runtime::{DesignTool, ToolCtx, ToolResult};
+use kangnam_harness_runtime::{AgentTool, ToolCtx, ToolResult};
 use serde_json::{json, Value};
 
 pub struct GenImageTool;
 
 #[async_trait]
-impl DesignTool for GenImageTool {
+impl AgentTool for GenImageTool {
     fn name(&self) -> &str { "gen_image" }
 
     fn parameters(&self) -> Value {
@@ -30,8 +30,19 @@ impl DesignTool for GenImageTool {
             Some(s) => s.to_string(),
             None => return ToolResult::Failed { error: "missing `out`".into() },
         };
-        let abs = ctx.working_dir.join(&out_rel);
-        match ctx.image.generate(&prompt, &abs).await {
+        let abs = match ctx.resolve_path(&out_rel) {
+            Some(p) => p,
+            None => return ToolResult::Failed {
+                error: "gen_image requires a working directory".into(),
+            },
+        };
+        let image = match ctx.capabilities.image.as_ref() {
+            Some(i) => i,
+            None => return ToolResult::Failed {
+                error: "gen_image requires the image capability — host did not wire one".into(),
+            },
+        };
+        match image.generate(&prompt, &abs).await {
             Ok(resolved) => ToolResult::Success {
                 content: json!({
                     "prompt": prompt,

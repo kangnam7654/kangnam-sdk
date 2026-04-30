@@ -13,7 +13,7 @@
 //! contains.
 
 use async_trait::async_trait;
-use kangnam_harness_runtime::{DesignTool, ToolCtx, ToolResult};
+use kangnam_harness_runtime::{AgentTool, ToolCtx, ToolResult};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -27,7 +27,7 @@ struct TweakEdit {
 }
 
 #[async_trait]
-impl DesignTool for TweaksTool {
+impl AgentTool for TweaksTool {
     fn name(&self) -> &str { "tweaks" }
 
     fn parameters(&self) -> Value {
@@ -61,8 +61,13 @@ impl DesignTool for TweaksTool {
         };
         let mut applied = 0usize;
         for edit in &edits {
-            let path = ctx.working_dir.join(&edit.path);
-            if let Err(e) = ctx.fs.str_replace(&path, &edit.anchor, &edit.replacement).await {
+            let path = match ctx.resolve_path(&edit.path) {
+                Some(p) => p,
+                None => return ToolResult::Failed {
+                    error: "tweaks requires a working directory".into(),
+                },
+            };
+            if let Err(e) = ctx.capabilities.fs.str_replace(&path, &edit.anchor, &edit.replacement).await {
                 return ToolResult::Failed {
                     error: format!("str_replace failed for {}: {e}", edit.path),
                 };

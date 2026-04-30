@@ -2,13 +2,13 @@
 
 use async_trait::async_trait;
 use design_artifact::question_form::parse_question_form;
-use kangnam_harness_runtime::{AwaitKind, DesignTool, ToolCtx, ToolResult};
+use kangnam_harness_runtime::{AwaitKind, AgentTool, ToolCtx, ToolResult};
 use serde_json::{json, Value};
 
 pub struct AskTool;
 
 #[async_trait]
-impl DesignTool for AskTool {
+impl AgentTool for AskTool {
     fn name(&self) -> &str { "ask" }
 
     fn parameters(&self) -> Value {
@@ -44,7 +44,7 @@ impl DesignTool for AskTool {
             return ToolResult::Failed { error: format!("invalid form: {e}") };
         }
 
-        match ctx.bridge.register_question_form(&form_value).await {
+        match ctx.capabilities.bridge.register_question_form(&form_value).await {
             Ok((await_id, receiver)) => ToolResult::AwaitUser {
                 await_id,
                 kind: AwaitKind::QuestionForm,

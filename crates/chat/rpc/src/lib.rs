@@ -37,13 +37,13 @@ pub type PendingPermissions = HashMap<String, oneshot::Sender<bool>>;
 
 /// Map of in-flight `<question-form>` posts waiting for the user's
 /// answers payload. Keyed by the `await_id` minted by the
-/// `kangnam_harness_runtime::FrontendBridge::register_question_form`
+/// `kangnam_harness_runtime::InteractionBridge::register_question_form`
 /// implementation; resolved by `cli.questionFormResponse`.
 pub type PendingQuestionForms = HashMap<String, oneshot::Sender<serde_json::Value>>;
 
 /// Map of in-flight `preview` requests awaiting a screenshot + console
 /// payload from the host webview. Keyed by `await_id` minted by
-/// `kangnam_harness_runtime::FrontendBridge::register_preview`;
+/// `kangnam_harness_runtime::InteractionBridge::register_preview`;
 /// resolved by `cli.previewResult`.
 pub type PendingPreviews = HashMap<String, oneshot::Sender<serde_json::Value>>;
 

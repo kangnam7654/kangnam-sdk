@@ -11,14 +11,14 @@ pub mod gen_image;
 
 use std::sync::Arc;
 
-use kangnam_harness_runtime::DesignTool;
+use kangnam_harness_runtime::AgentTool;
 
 use crate::catalog::SkillCatalog;
 
 /// Build the complete set of eight tools, sharing the supplied skill
 /// catalog where needed (`ask` doesn't need it; `scaffold` and `skill`
 /// do).
-pub fn all_tools(catalog: Arc<dyn SkillCatalog>) -> Vec<Arc<dyn DesignTool>> {
+pub fn all_tools(catalog: Arc<dyn SkillCatalog>) -> Vec<Arc<dyn AgentTool>> {
     vec![
         Arc::new(ask::AskTool),
         Arc::new(scaffold::ScaffoldTool::new(catalog.clone())),

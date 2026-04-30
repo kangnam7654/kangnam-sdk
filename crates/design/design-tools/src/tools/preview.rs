@@ -2,13 +2,13 @@
 //! iframe and return screenshot + console errors.
 
 use async_trait::async_trait;
-use kangnam_harness_runtime::{AwaitKind, DesignTool, ToolCtx, ToolResult};
+use kangnam_harness_runtime::{AwaitKind, AgentTool, ToolCtx, ToolResult};
 use serde_json::{json, Value};
 
 pub struct PreviewTool;
 
 #[async_trait]
-impl DesignTool for PreviewTool {
+impl AgentTool for PreviewTool {
     fn name(&self) -> &str { "preview" }
 
     fn parameters(&self) -> Value {
@@ -33,12 +33,17 @@ impl DesignTool for PreviewTool {
             Some(s) => s.to_string(),
             None => return ToolResult::Failed { error: "missing `path`".into() },
         };
-        let abs = ctx.working_dir.join(&path);
+        let abs = match ctx.resolve_path(&path) {
+            Some(p) => p,
+            None => return ToolResult::Failed {
+                error: "preview requires a working directory".into(),
+            },
+        };
         let payload = json!({
             "path": abs.display().to_string(),
             "viewport": params.get("viewport").cloned().unwrap_or(Value::Null),
         });
-        match ctx.bridge.register_preview(&payload).await {
+        match ctx.capabilities.bridge.register_preview(&payload).await {
             Ok((await_id, receiver)) => ToolResult::AwaitUser {
                 await_id,
                 kind: AwaitKind::Preview,

@@ -15,7 +15,7 @@
 //! doesn't hallucinate a hex code.
 
 use async_trait::async_trait;
-use kangnam_harness_runtime::{DesignTool, ToolCtx, ToolResult};
+use kangnam_harness_runtime::{AgentTool, ToolCtx, ToolResult};
 use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -23,7 +23,7 @@ use std::collections::HashMap;
 pub struct BrandAssetExtractTool;
 
 #[async_trait]
-impl DesignTool for BrandAssetExtractTool {
+impl AgentTool for BrandAssetExtractTool {
     fn name(&self) -> &str { "brand_asset_extract" }
 
     fn parameters(&self) -> Value {
@@ -52,7 +52,7 @@ impl DesignTool for BrandAssetExtractTool {
             .and_then(|v| v.as_str())
             .unwrap_or("brand-spec.md");
 
-        let body_bytes = match ctx.web.fetch(&url).await {
+        let body_bytes = match ctx.capabilities.web.fetch(&url).await {
             Ok(b) => b,
             Err(e) => return ToolResult::Failed { error: format!("fetch failed: {e}") },
         };
@@ -93,8 +93,13 @@ impl DesignTool for BrandAssetExtractTool {
             count = palette.len(),
         );
 
-        let abs = ctx.working_dir.join(out_rel);
-        if let Err(e) = ctx.fs.write(&abs, spec.as_bytes()).await {
+        let abs = match ctx.resolve_path(out_rel) {
+            Some(p) => p,
+            None => return ToolResult::Failed {
+                error: "brand_asset_extract requires a working directory".into(),
+            },
+        };
+        if let Err(e) = ctx.capabilities.fs.write(&abs, spec.as_bytes()).await {
             return ToolResult::Failed { error: format!("write {} failed: {e}", abs.display()) };
         }
 

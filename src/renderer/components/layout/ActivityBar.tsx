@@ -65,6 +65,19 @@ const studioTab = {
   ),
 }
 
+const projectTab = {
+  id: 'project' as const,
+  label: 'Project (Design)',
+  icon: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 3h7v7H3z" />
+      <path d="M14 3h7v7h-7z" />
+      <path d="M14 14h7v7h-7z" />
+      <path d="M3 14h7v7H3z" />
+    </svg>
+  ),
+}
+
 export function ActivityBar() {
   const { sidePanelTab, sidePanelVisible, toggleSidePanel, setShowSettings, activeMainView, setActiveMainView } = useAppStore()
 
@@ -136,6 +149,46 @@ export function ActivityBar() {
         }}
       >
         {studioTab.icon}
+      </button>
+
+      {/* Design Project tab — Phase 5b. Click switches MainView to
+          'project'; the user opens the new-project modal via the empty
+          state inside ProjectView (Phase 5b-13). */}
+      <button
+        onClick={() => {
+          if (activeMainView === 'project') {
+            setActiveMainView('chat')
+            return
+          }
+          setActiveMainView('project')
+          // Auto-open the new-project modal when there's no active
+          // project yet so the empty state has an explicit action.
+          const w = window as unknown as { __openNewProject?: () => void }
+          if (!useAppStore.getState().activeProjectId && w.__openNewProject) {
+            w.__openNewProject()
+          }
+        }}
+        title={projectTab.label}
+        aria-label={projectTab.label}
+        className="no-drag"
+        style={{
+          width: 36,
+          height: 36,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: 'var(--radius-md)',
+          border: 'none',
+          background: activeMainView === 'project' ? 'var(--accent-soft)' : 'transparent',
+          color:
+            activeMainView === 'project'
+              ? 'var(--activity-icon-active)'
+              : 'var(--activity-icon)',
+          cursor: 'pointer',
+          transition: 'all 0.15s',
+        }}
+      >
+        {projectTab.icon}
       </button>
 
       <div style={{ flex: 1 }} />

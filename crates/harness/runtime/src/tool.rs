@@ -1,20 +1,33 @@
-//! `DesignTool` trait + execution context + result shape.
+//! `AgentTool` trait + execution context + result shape.
 //!
-//! Every executable tool implements [`DesignTool::execute`]. The host
-//! supplies a [`ToolCtx`] holding side-channel callbacks (fs / web /
-//! image gen / preview / pending-form registration). Tools return one
-//! of three variants:
+//! Domain-agnostic runtime for tools an AI agent can call. The host
+//! supplies a [`ToolCtx`] holding session metadata + side-channel
+//! capabilities (filesystem, web, image generation, user
+//! interaction, or any host-defined pluggable capability bundle).
+//! Tools return one of three variants:
 //!
-//! - [`ToolResult::Success`] — terminal, content is fed back to the model
-//! - [`ToolResult::AwaitUser`] — turn is suspended until the host posts
-//!   a response over the chat-rpc channel keyed by `await_id`
-//! - [`ToolResult::Failed`] — tool reports an error; harness wraps it
-//!   into the model's tool-result payload
+//! - [`ToolResult::Success`] — terminal, content is fed back to the
+//!   model as the tool_result content block.
+//! - [`ToolResult::AwaitUser`] — turn is suspended until the host
+//!   posts a response over the chat-rpc channel keyed by `await_id`.
+//!   Use cases: `<question-form>` posts, artifact previews, user
+//!   selections from a candidate list, approval prompts, etc.
+//! - [`ToolResult::Failed`] — tool ran to completion but reports
+//!   failure; harness wraps `error` into the model's tool-result
+//!   content block with `is_error: true`.
 //!
-//! `AwaitUser` is the new shape `harness-core::Tool` couldn't express.
-//! The chat-server side maintains a `HashMap<await_id, oneshot::Sender>`
-//! (mirroring the existing `PendingPermissions` map) and resumes the
-//! task once the matching response arrives.
+//! `AwaitUser` is the new shape `harness-core::Tool` couldn't
+//! express. The chat-server side maintains a
+//! `HashMap<await_id, oneshot::Sender>` and resumes the task once
+//! the matching response arrives.
+//!
+//! # Designed for multiple consumers
+//!
+//! This crate originated to back the `kangnam-sdk` design family
+//! (Phase 4) but is intentionally not design-specific. Other
+//! consumers — Travel Planner, research/automation agents, finance
+//! advisors — provide their own capability bundles and tool
+//! implementations on top of the same trait surface.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -43,9 +56,10 @@ pub enum ToolError {
     Other(String),
 }
 
-/// What the tool is asking the host to wait for. Tagged so the chat-rpc
-/// layer can route the eventual response to the right method
-/// (`cli.questionFormResponse` vs `cli.previewResult`, etc).
+/// What the tool is asking the host to wait for. Tagged so the
+/// chat-rpc layer can route the eventual response to the right
+/// method (e.g. `cli.questionFormResponse`, `cli.previewResult`,
+/// `cli.selectionResponse`, `cli.approvalResponse`, …).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AwaitKind {
@@ -55,9 +69,15 @@ pub enum AwaitKind {
     Preview,
     /// Generic permission prompt (already exists, kept here for symmetry).
     Permission,
+    /// User picks one or more items from a candidate list. Generic
+    /// — Travel Planner uses this for accommodation / spot picking.
+    Selection,
+    /// User approves or rejects a proposed change. Use for
+    /// itinerary patches, money transfers, risky writes, etc.
+    Approval,
 }
 
-/// Outcome of a single [`DesignTool::execute`] call.
+/// Outcome of a single [`AgentTool::execute`] call.
 ///
 /// `Debug` is implemented manually because `oneshot::Receiver<Value>`
 /// doesn't itself implement `Debug` — we render the await as
@@ -73,7 +93,8 @@ pub enum ToolResult {
         await_id: String,
         kind: AwaitKind,
         /// Payload sent to the frontend describing what's being awaited
-        /// (form schema for `ask`, artifact path for `preview`).
+        /// (form schema for QuestionForm, artifact path for Preview,
+        /// candidate list for Selection, etc).
         payload: Value,
         /// Receiver the harness `await`s on. The host wires the matching
         /// `oneshot::Sender` into its pending-await map and fires it
@@ -92,23 +113,104 @@ pub enum ToolResult {
 /// in fakes and the production runtime can apply hooks / permissions
 /// uniformly.
 ///
-/// All callback fields use `Arc<dyn ...>` so the context is cheap to
-/// clone across the suspend/resume boundary.
+/// # Capability bundle
+///
+/// `ToolCtx` is generic over a capability bundle `C`. The default,
+/// [`DefaultCapabilities`], carries the four capabilities the design
+/// family uses (filesystem, web fetch, image generation, interaction
+/// bridge). Other consumers — Travel Planner, research agents,
+/// finance advisors — define their own capability struct with their
+/// domain providers (map / accommodation / money advice / …) and
+/// instantiate `ToolCtx<TheirCapabilities>`.
+///
+/// ```ignore
+/// // Travel Planner
+/// pub struct TravelCapabilities {
+///     pub web: Arc<dyn WebSearch>,
+///     pub map: Arc<dyn MapProvider>,
+///     pub accommodation: Arc<dyn AccommodationProvider>,
+///     pub interaction: Arc<dyn InteractionBridge>,
+/// }
+///
+/// impl AgentTool<TravelCapabilities> for AccommodationSearchTool {
+///     async fn execute(&self, params: Value, ctx: &ToolCtx<TravelCapabilities>)
+///         -> ToolResult { /* ctx.capabilities.accommodation.search(...) */ }
+/// }
+/// ```
+///
+/// `working_dir` is `Option<PathBuf>` — capabilities that have no
+/// canonical workspace (Travel itinerary research, money advice)
+/// pass `None`.
 #[derive(Clone)]
-pub struct ToolCtx {
+pub struct ToolCtx<C = DefaultCapabilities> {
     /// Project working directory — the root tools should treat as the
-    /// canonical writable area. Absolute path.
-    pub working_dir: PathBuf,
+    /// canonical writable area when one applies. `None` for
+    /// non-workspace tools (e.g. pure web search, map lookup).
+    pub working_dir: Option<PathBuf>,
     /// Conversation / session id — included in await_id correlation
     /// keys to scope pending receivers per session.
     pub session_id: String,
+    /// App-supplied bundle of host capabilities. The design family
+    /// uses [`DefaultCapabilities`]; other domains define their own
+    /// struct.
+    pub capabilities: C,
+}
+
+/// The default capability bundle — design family + Travel Planner
+/// share the same shape because both need fs / web / interaction.
+///
+/// `image` is design-specific but kept here for now to avoid breaking
+/// design-tools; future split:
+/// - `CoreCapabilities` (fs, web, bridge) — minimum any consumer needs
+/// - `DesignCapabilities` (CoreCapabilities + image)
+/// - `TravelCapabilities` (CoreCapabilities + map + accommodation + …)
+///
+/// This split is deferred to a follow-up commit because the only
+/// current `image` consumer is `gen_image` and design-tools imports
+/// would churn. For now the field is `Option<Arc<dyn ImageCallbacks>>`
+/// so non-design consumers can pass `None`.
+#[derive(Clone)]
+pub struct DefaultCapabilities {
     pub fs: Arc<dyn FsCallbacks>,
     pub web: Arc<dyn WebCallbacks>,
-    pub image: Arc<dyn ImageCallbacks>,
-    /// Frontend bridge — used by `preview` and `ask` to push the
-    /// AwaitUser payload to the WS clients. The receiver half of the
-    /// oneshot is returned to the tool inside `ToolResult::AwaitUser`.
-    pub bridge: Arc<dyn FrontendBridge>,
+    pub image: Option<Arc<dyn ImageCallbacks>>,
+    /// Interaction bridge — used by tools that suspend the agent
+    /// turn awaiting a user response (forms, previews, selections,
+    /// approvals).
+    pub bridge: Arc<dyn InteractionBridge>,
+}
+
+impl<C> ToolCtx<C> {
+    /// Construct a `ToolCtx` with no working directory.
+    pub fn new(session_id: impl Into<String>, capabilities: C) -> Self {
+        Self {
+            working_dir: None,
+            session_id: session_id.into(),
+            capabilities,
+        }
+    }
+
+    /// Set a working directory.
+    pub fn with_working_dir(mut self, dir: PathBuf) -> Self {
+        self.working_dir = Some(dir);
+        self
+    }
+
+    /// Convenience: resolve a relative path inside `working_dir`.
+    /// Returns `None` if the context has no workspace — tools that
+    /// require one should check first and return a structured
+    /// `ToolError::InvalidArgs` so the agent gets a clear message.
+    pub fn resolve_path(&self, rel: impl AsRef<std::path::Path>) -> Option<PathBuf> {
+        self.working_dir.as_ref().map(|w| w.join(rel))
+    }
+
+    /// Convenience: workspace root, or an InvalidArgs error if the
+    /// caller's tool needs one.
+    pub fn require_working_dir(&self) -> Result<&PathBuf, ToolError> {
+        self.working_dir
+            .as_ref()
+            .ok_or_else(|| ToolError::InvalidArgs("tool requires a working directory".into()))
+    }
 }
 
 #[async_trait]
@@ -142,8 +244,41 @@ pub trait ImageCallbacks: Send + Sync {
     async fn generate(&self, prompt: &str, out: &std::path::Path) -> Result<PathBuf, ToolError>;
 }
 
+/// Suspend/resume bridge between agent tools and the host UI.
+///
+/// Implementors mint a fresh correlation id, push the payload to the
+/// host (typically over a JSON-RPC notification), and return the
+/// receiver half of a oneshot. The agent task `await`s the receiver;
+/// the host's chat-rpc handler fires the matching sender once the
+/// user has responded (`cli.questionFormResponse`,
+/// `cli.previewResult`, `cli.selectionResponse`, etc).
+///
+/// The named methods (`register_question_form`, `register_preview`)
+/// match the chat-rpc methods 1:1 so the dispatch is straightforward.
+/// Hosts that need additional interaction kinds can implement the
+/// blanket `register_await` directly.
 #[async_trait]
-pub trait FrontendBridge: Send + Sync {
+pub trait InteractionBridge: Send + Sync {
+    /// Register an arbitrary await of the supplied `kind` with the
+    /// host. Default impl dispatches to `register_question_form` /
+    /// `register_preview` for the two named cases; everything else
+    /// (Selection / Approval / Permission) requires the host to
+    /// override this method.
+    async fn register_await(
+        &self,
+        kind: AwaitKind,
+        payload: &Value,
+    ) -> Result<(String, oneshot::Receiver<Value>), ToolError> {
+        match kind {
+            AwaitKind::QuestionForm => self.register_question_form(payload).await,
+            AwaitKind::Preview => self.register_preview(payload).await,
+            other => Err(ToolError::Other(format!(
+                "InteractionBridge has no handler for AwaitKind::{:?}",
+                other
+            ))),
+        }
+    }
+
     /// Register a pending QuestionForm await and return a fresh
     /// correlation id + receiver. The host's chat-rpc layer looks up
     /// `await_id` when `cli.questionFormResponse` fires.
@@ -160,10 +295,24 @@ pub trait FrontendBridge: Send + Sync {
     ) -> Result<(String, oneshot::Receiver<Value>), ToolError>;
 }
 
+/// A tool an AI agent can call.
+///
+/// Implementors wire their own host capabilities into `execute` via
+/// the [`ToolCtx`] callbacks. Test fakes swap the callbacks for
+/// recorded mock implementations; production hosts wire fs / web /
+/// image / interaction bridges to real services.
+///
+/// Generic over a capability bundle `C`; the default,
+/// [`DefaultCapabilities`], works for the design family. Domains
+/// with their own provider types (Travel Planner's
+/// `TravelCapabilities`, research agents, …) implement
+/// `AgentTool<TheirCapabilities>` so the runtime can host both
+/// kinds of tools simultaneously.
 #[async_trait]
-pub trait DesignTool: Send + Sync {
+pub trait AgentTool<C = DefaultCapabilities>: Send + Sync {
     /// Stable string id used in registries and permission patterns
-    /// (`mcp__kangnam__preview`, `kangnam.brand_asset_extract`, etc).
+    /// (`mcp__kangnam__preview`, `kangnam.brand_asset_extract`,
+    /// `travel.accommodation_search`, etc).
     fn name(&self) -> &str;
 
     /// JSON Schema describing `params`. Returned to the model when the
@@ -171,7 +320,7 @@ pub trait DesignTool: Send + Sync {
     /// schema crate.
     fn parameters(&self) -> Value;
 
-    async fn execute(&self, params: Value, ctx: &ToolCtx) -> ToolResult;
+    async fn execute(&self, params: Value, ctx: &ToolCtx<C>) -> ToolResult;
 }
 
 #[cfg(test)]
@@ -198,7 +347,7 @@ mod tests {
     }
     struct FakeBridge;
     #[async_trait]
-    impl FrontendBridge for FakeBridge {
+    impl InteractionBridge for FakeBridge {
         async fn register_question_form(&self, _: &Value) -> Result<(String, oneshot::Receiver<Value>), ToolError> {
             let (_tx, rx) = oneshot::channel();
             Ok(("await-1".into(), rx))
@@ -211,18 +360,20 @@ mod tests {
 
     fn ctx() -> ToolCtx {
         ToolCtx {
-            working_dir: PathBuf::from("/tmp"),
+            working_dir: Some(PathBuf::from("/tmp")),
             session_id: "s1".into(),
-            fs: Arc::new(FakeFs),
-            web: Arc::new(FakeWeb),
-            image: Arc::new(FakeImg),
-            bridge: Arc::new(FakeBridge),
+            capabilities: DefaultCapabilities {
+                fs: Arc::new(FakeFs),
+                web: Arc::new(FakeWeb),
+                image: Some(Arc::new(FakeImg)),
+                bridge: Arc::new(FakeBridge),
+            },
         }
     }
 
     struct EchoTool;
     #[async_trait]
-    impl DesignTool for EchoTool {
+    impl AgentTool for EchoTool {
         fn name(&self) -> &str { "echo" }
         fn parameters(&self) -> Value { serde_json::json!({"type": "object"}) }
         async fn execute(&self, params: Value, _: &ToolCtx) -> ToolResult {
@@ -240,6 +391,29 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn register_await_dispatches_named_kinds() {
+        let bridge = FakeBridge;
+        let payload = serde_json::json!({});
+        let (id, _rx) = bridge.register_await(AwaitKind::QuestionForm, &payload).await.unwrap();
+        assert_eq!(id, "await-1");
+        let (id, _rx) = bridge.register_await(AwaitKind::Preview, &payload).await.unwrap();
+        assert_eq!(id, "await-2");
+    }
+
+    #[tokio::test]
+    async fn register_await_default_rejects_unknown_kinds() {
+        let bridge = FakeBridge;
+        let payload = serde_json::json!({});
+        let err = bridge
+            .register_await(AwaitKind::Selection, &payload)
+            .await
+            .unwrap_err();
+        match err {
+            ToolError::Other(msg) => assert!(msg.contains("Selection")),
+            other => panic!("expected Other, got {:?}", other),
+        }
+    }
 }
 
 impl std::fmt::Debug for ToolResult {

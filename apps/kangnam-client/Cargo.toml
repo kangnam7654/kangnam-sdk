@@ -40,4 +40,6 @@ urlencoding = "2"
 open = "5"
 kangnam-chat = { workspace = true, features = ["server"] }
 kangnam-harness = { workspace = true }
+design-skill = { workspace = true }
+design-system = { workspace = true }
 

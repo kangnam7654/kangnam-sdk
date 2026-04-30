@@ -2,13 +2,13 @@
 //! looping back into the model.
 
 use async_trait::async_trait;
-use kangnam_harness_runtime::{DesignTool, ToolCtx, ToolResult};
+use kangnam_harness_runtime::{AgentTool, ToolCtx, ToolResult};
 use serde_json::{json, Value};
 
 pub struct DoneTool;
 
 #[async_trait]
-impl DesignTool for DoneTool {
+impl AgentTool for DoneTool {
     fn name(&self) -> &str { "done" }
 
     fn parameters(&self) -> Value {

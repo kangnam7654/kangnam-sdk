@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use kangnam_harness_runtime::{DesignTool, ToolCtx, ToolResult};
+use kangnam_harness_runtime::{AgentTool, ToolCtx, ToolResult};
 use serde_json::{json, Value};
 
 use crate::catalog::SkillCatalog;
@@ -17,7 +17,7 @@ impl SkillTool {
 }
 
 #[async_trait]
-impl DesignTool for SkillTool {
+impl AgentTool for SkillTool {
     fn name(&self) -> &str { "skill" }
 
     fn parameters(&self) -> Value {

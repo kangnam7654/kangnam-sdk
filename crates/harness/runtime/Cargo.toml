@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Tool execution runtime for the kangnam-sdk harness — DesignTool trait, ToolCtx, suspend/resume, permission + hook evaluation."
+description = "Domain-agnostic AI agent tool execution runtime — AgentTool trait, ToolCtx, suspend/resume via InteractionBridge, permission + hook evaluation."
 
 [dependencies]
 kangnam-harness-core = { workspace = true }

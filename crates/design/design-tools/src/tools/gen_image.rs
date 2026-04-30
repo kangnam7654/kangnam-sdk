@@ -1,13 +1,13 @@
 //! `gen_image` — call the host image gen API and write the result.
 
 use async_trait::async_trait;
-use kangnam_harness_runtime::{DesignTool, ToolCtx, ToolResult};
+use kangnam_harness_runtime::{AgentTool, ToolCtx, ToolResult};
 use serde_json::{json, Value};
 
 pub struct GenImageTool;
 
 #[async_trait]
-impl DesignTool for GenImageTool {
+impl AgentTool for GenImageTool {
     fn name(&self) -> &str { "gen_image" }
 
     fn parameters(&self) -> Value {

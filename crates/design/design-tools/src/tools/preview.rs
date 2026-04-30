@@ -2,13 +2,13 @@
 //! iframe and return screenshot + console errors.
 
 use async_trait::async_trait;
-use kangnam_harness_runtime::{AwaitKind, DesignTool, ToolCtx, ToolResult};
+use kangnam_harness_runtime::{AwaitKind, AgentTool, ToolCtx, ToolResult};
 use serde_json::{json, Value};
 
 pub struct PreviewTool;
 
 #[async_trait]
-impl DesignTool for PreviewTool {
+impl AgentTool for PreviewTool {
     fn name(&self) -> &str { "preview" }
 
     fn parameters(&self) -> Value {

@@ -13,7 +13,7 @@
 //! contains.
 
 use async_trait::async_trait;
-use kangnam_harness_runtime::{DesignTool, ToolCtx, ToolResult};
+use kangnam_harness_runtime::{AgentTool, ToolCtx, ToolResult};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -27,7 +27,7 @@ struct TweakEdit {
 }
 
 #[async_trait]
-impl DesignTool for TweaksTool {
+impl AgentTool for TweaksTool {
     fn name(&self) -> &str { "tweaks" }
 
     fn parameters(&self) -> Value {

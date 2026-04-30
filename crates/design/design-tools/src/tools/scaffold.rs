@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use kangnam_harness_runtime::{DesignTool, ToolCtx, ToolResult};
+use kangnam_harness_runtime::{AgentTool, ToolCtx, ToolResult};
 use serde_json::{json, Value};
 
 use crate::catalog::SkillCatalog;
@@ -25,7 +25,7 @@ impl ScaffoldTool {
 }
 
 #[async_trait]
-impl DesignTool for ScaffoldTool {
+impl AgentTool for ScaffoldTool {
     fn name(&self) -> &str { "scaffold" }
 
     fn parameters(&self) -> Value {

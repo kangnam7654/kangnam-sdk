@@ -15,7 +15,7 @@
 //! doesn't hallucinate a hex code.
 
 use async_trait::async_trait;
-use kangnam_harness_runtime::{DesignTool, ToolCtx, ToolResult};
+use kangnam_harness_runtime::{AgentTool, ToolCtx, ToolResult};
 use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -23,7 +23,7 @@ use std::collections::HashMap;
 pub struct BrandAssetExtractTool;
 
 #[async_trait]
-impl DesignTool for BrandAssetExtractTool {
+impl AgentTool for BrandAssetExtractTool {
     fn name(&self) -> &str { "brand_asset_extract" }
 
     fn parameters(&self) -> Value {

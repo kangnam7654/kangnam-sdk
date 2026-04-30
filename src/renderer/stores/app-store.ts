@@ -38,6 +38,11 @@ import {
   type ConversationsSlice,
 } from './slices/conversations'
 import { createChatSlice, type ChatSlice } from './slices/chat'
+import { createProjectsSlice, type ProjectsSlice } from './slices/projects'
+import { createArtifactsSlice, type ArtifactsSlice } from './slices/artifacts'
+
+export type { Project } from './slices/projects'
+export type { ArtifactState } from './slices/artifacts'
 
 export interface Conversation {
   id: string
@@ -119,6 +124,15 @@ export type UnifiedMessage =
   | { type: 'turn_end'; usage?: { input_tokens: number; output_tokens: number } }
   | { type: 'error'; message: string }
   | { type: 'session_init'; session_id: string }
+  // Phase 0b chat-agent parity additions —
+  | { type: 'thinking_delta'; text: string }
+  | { type: 'tool_use_input'; id: string; input: unknown }
+  // Phase 3 + 5b design-family additions —
+  | { type: 'artifact_start'; id: string; kind: string }
+  | { type: 'artifact_delta'; id: string; text: string }
+  | { type: 'artifact_end'; id: string; manifest?: unknown }
+  | { type: 'question_form_posted'; id: string; schema: unknown }
+  | { type: 'turn_suspended_pending_form'; form_id: string }
 
 export interface SessionMeta {
   session_id: string
@@ -193,7 +207,9 @@ interface AppState
     MainViewSlice,
     AgentsPromptsSlice,
     ConversationsSlice,
-    ChatSlice {}
+    ChatSlice,
+    ProjectsSlice,
+    ArtifactsSlice {}
 
 export const useAppStore = create<AppState>((set, get) => ({
   ...createThemeSlice(set),
@@ -203,4 +219,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   ...createAgentsPromptsSlice(set, get),
   ...createConversationsSlice(set),
   ...createChatSlice(set),
+  ...createProjectsSlice(set),
+  ...createArtifactsSlice(set),
 }))

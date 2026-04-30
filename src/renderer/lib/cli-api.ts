@@ -39,6 +39,22 @@ export const cliApi = {
   permissionResponse: (id: string, allowed: boolean) =>
     rpc.call<void>('cli.permissionResponse', { id, allowed }),
 
+  /**
+   * Resolve a parked `<question-form>` posted by the design `ask`
+   * tool (Phase 4). `payload` is the user's answers — shape matches
+   * what the agent's question-form schema expects.
+   */
+  questionFormResponse: (id: string, payload: Record<string, unknown>) =>
+    rpc.call<void>('cli.questionFormResponse', { id, payload }),
+
+  /**
+   * Resolve a parked `preview` request from the design tool
+   * (Phase 4). `payload` carries `{ screenshot, console, errors }`
+   * captured from the sandboxed iframe.
+   */
+  previewResult: (id: string, payload: Record<string, unknown>) =>
+    rpc.call<void>('cli.previewResult', { id, payload }),
+
   stopSession: (sessionId: string) =>
     rpc.call<void>('cli.stopSession', { sessionId }),
 
@@ -93,6 +109,21 @@ export const cliApi = {
     rpc.onNotification((method, params) => {
       if (method === 'cli.permissionRequest') {
         callback(params as { id: string; tool: string; description: string; input?: unknown })
+      }
+    }),
+
+  /**
+   * Subscribe to design `preview` tool requests from the host MCP
+   * server (Phase 4d `mcp__kangnam__preview`). The PreviewIframe
+   * component (5b-11) listens here to render an artifact in a
+   * sandboxed iframe and reply via `previewResult(id, payload)`.
+   */
+  onPreviewRequest: (
+    callback: (req: { id: string; path: string; viewport?: { width: number; height: number } }) => void,
+  ): (() => void) =>
+    rpc.onNotification((method, params) => {
+      if (method === 'cli.previewRequest') {
+        callback(params as { id: string; path: string; viewport?: { width: number; height: number } })
       }
     }),
 

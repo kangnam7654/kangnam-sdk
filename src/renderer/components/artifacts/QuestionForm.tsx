@@ -27,6 +27,7 @@ import {
   type QuestionForm,
 } from '../../lib/artifacts/question-form'
 import { useAppStore } from '../../stores/app-store'
+import { DirectionCardView } from './DirectionCardView'
 
 interface Props {
   form: QuestionForm
@@ -321,10 +322,17 @@ function FieldView({ q, value, locked, formId, onUpdate, onToggleCheckbox }: Fie
         />
       ) : null}
 
-      {q.type === 'direction-cards' && q.options ? (
-        // Phase 5c will wire the rich swatch/font/mood card UI;
-        // for v1 we render the underlying radio list so the user
-        // can still respond.
+      {q.type === 'direction-cards' && q.cards && q.cards.length > 0 ? (
+        <DirectionCardView
+          cards={q.cards}
+          value={typeof value === 'string' ? value : undefined}
+          onPick={(id) => onUpdate(q.id, id)}
+          disabled={locked}
+        />
+      ) : q.type === 'direction-cards' && q.options ? (
+        // Fallback when the form supplies plain `options[]` instead of
+        // rich `cards[]` — e.g. legacy skills that haven't been
+        // upgraded yet. Renders chip radios as in 5b.
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {q.options.map((opt) => (
             <Chip

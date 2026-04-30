@@ -1,5 +1,5 @@
 [package]
-name = "canvas-pptx-writer"
+name = "design-export-pptx"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -16,11 +16,11 @@ quick-xml = "0.36"
 serde = { workspace = true }
 thiserror = { workspace = true }
 image = { version = "0.25", default-features = false, features = ["png"] }
-canvas-slide-doc = { path = "../canvas-slide-doc", optional = true }
+design-doc-slide = { path = "../design-doc-slide", optional = true }
 
 [features]
 default = ["slide-doc"]
-slide-doc = ["dep:canvas-slide-doc"]
+slide-doc = ["dep:design-doc-slide"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

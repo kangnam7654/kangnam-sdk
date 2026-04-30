@@ -16,7 +16,7 @@ pub fn core_xml(deck: &PptxDeck) -> Result<Vec<u8>, PptxWriteError> {
     write_text(&mut w, deck.title.as_deref().unwrap_or(""))?;
     close_elem(&mut w, "dc:title")?;
     open_elem(&mut w, "dc:creator", &[])?;
-    write_text(&mut w, "canvas-pptx-writer")?;
+    write_text(&mut w, "design-export-pptx")?;
     close_elem(&mut w, "dc:creator")?;
     close_elem(&mut w, "cp:coreProperties")?;
     Ok(into_bytes(w))
@@ -30,7 +30,7 @@ pub fn app_xml(deck: &PptxDeck) -> Result<Vec<u8>, PptxWriteError> {
         ("xmlns:vt", "http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"),
     ])?;
     open_elem(&mut w, "Application", &[])?;
-    write_text(&mut w, "canvas-pptx-writer")?;
+    write_text(&mut w, "design-export-pptx")?;
     close_elem(&mut w, "Application")?;
     open_elem(&mut w, "Slides", &[])?;
     write_text(&mut w, &deck.slides.len().to_string())?;

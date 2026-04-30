@@ -1,17 +1,14 @@
-//! Slide/Deck/Site document model for the Canvas SDK.
+//! Slide / Deck document model — PPTX-shaped IR for the kangnam-sdk design family.
 //!
-//! This crate is pure data + rendering: no I/O, no database, no HTTP.
+//! Pure data + serialization: no I/O, no rendering, no database. The HTML
+//! render path, DOM-manifest ingest, and zone override injection live in
+//! the sister `design-doc-site` crate, which re-uses the types defined here.
 
 pub mod slide;
 pub mod deck;
-pub mod site;
-pub mod html_render;
-pub mod manifest_ingest;
-pub mod inject;
 
 pub use slide::{
     Background, Fill, Frame, ImageFit, ShapeKind, SlideDoc, SlideElement, Stroke, TextAlign,
     TextStyle, CANVAS_HEIGHT, CANVAS_WIDTH,
 };
 pub use deck::Deck;
-pub use site::SiteDoc;

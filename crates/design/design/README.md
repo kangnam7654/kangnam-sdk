@@ -1,20 +1,23 @@
-# canvas
+# design
 
-Build AI slide editors in Rust.
+kangnam-sdk design family umbrella crate.
 
-Umbrella crate over the canvas-sdk workspace — bundles the pure data
-model (`canvas-slide-doc`), the streaming LLM client
-(`canvas-llm`), the generator + zone/section editors
-(`canvas-editor`), and the editable PPTX writer
-(`canvas-pptx-writer`) behind a single dependency and a feature-gated
-public surface.
+Bundles the pure-data slide model (`design-doc-slide`), the site model
+(`design-doc-site`), the streaming LLM client (`design-llm`), the
+generic HTML zone editor (`design-editor-html`), the slide / site
+generators (`design-editor-slide`, `design-editor-site`), and the
+editable PPTX writer (`design-export-pptx`) behind a single dependency
+and a feature-gated public surface.
+
+Replaces the legacy `canvas` umbrella from canvas-sdk after the
+2026-04-30 design-family rebrand.
 
 ## Example
 
 ```rust,no_run
 use std::sync::Arc;
-use canvas::editor::CanvasGenerator;
-use canvas::llm::FakeAiClient;
+use design::editor_slide::CanvasGenerator;
+use design::llm::FakeAiClient;
 
 # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 let ai = Arc::new(FakeAiClient::new(Vec::<String>::new()));
@@ -26,17 +29,19 @@ let _ = generator.build_prompt("표지 만들어줘", &[])?;
 
 ## Feature flags
 
-- `slides` — `Deck`, `SlideDoc`, `SiteDoc` + HTML render (default)
+- `slide` — `Deck`, `SlideDoc` + slide IR (default)
+- `site` — `SiteDoc` + HTML render + manifest ingest + zone inject (default; implies `slide`)
 - `llm` — `AiClient` + provider implementations (default)
-- `editor` — generator + zone / section editors (default; implies
-  `slides` + `llm`)
-- `pptx-write` — PPTX export (default; implies `slides`)
-- `test-util` — `canvas::llm::FakeAiClient` and editor test helpers
-- `full` — alias for `slides` + `llm` + `editor` + `pptx-write`
+- `editor-html` — generic HTML zone editor (default; implies `llm`)
+- `editor-slide` — slide deck generator + section editor (default; implies `slide` + `llm`)
+- `editor-site` — site (landing page) generator (default; implies `site` + `llm`)
+- `pptx-write` — PPTX export (default; implies `slide`)
+- `test-util` — `design::llm::FakeAiClient` and editor test helpers
+- `full` — alias for all of the above
 
-Default features enable all four. Write-only consumers that only need
+Default features enable everything. Write-only consumers that only need
 PPTX export can disable defaults:
 
 ```toml
-canvas = { version = "0.2", default-features = false, features = ["pptx-write"] }
+design = { version = "0.2", default-features = false, features = ["pptx-write"] }
 ```

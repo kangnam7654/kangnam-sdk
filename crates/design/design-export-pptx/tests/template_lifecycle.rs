@@ -11,7 +11,7 @@
 
 use std::io::{Cursor, Read, Write};
 
-use canvas_pptx_writer::*;
+use design_export_pptx::*;
 
 /// Build a valid 1-slide pptx using the v0.2 write path. Used as the base
 /// fixture for round-trip and add-slide tests.

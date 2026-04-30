@@ -1,10 +1,10 @@
-//! Bridge from [`canvas_slide_doc`] types to the neutral PPTX IR.
+//! Bridge from [`design_doc_slide`] types to the neutral PPTX IR.
 //!
 //! Gated behind the `slide-doc` Cargo feature (default-on). Write-only
 //! consumers that assemble their own `PptxDeck` can disable the feature
 //! to drop the `canvas-slide-doc` dependency entirely.
 
-use canvas_slide_doc::{
+use design_doc_slide::{
     Background as SdBackground, Deck, Fill as SdFill, ImageFit as SdFit, ShapeKind as SdShape,
     SlideDoc, SlideElement, TextAlign as SdAlign,
 };
@@ -174,7 +174,7 @@ pub(crate) fn parse_hex(s: &str) -> Result<pw::Color> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use canvas_slide_doc::{Background, Frame as SdFrame, SlideDoc, SlideElement, TextStyle};
+    use design_doc_slide::{Background, Frame as SdFrame, SlideDoc, SlideElement, TextStyle};
 
     #[test]
     fn text_element_converts_px_to_pt_correctly() {

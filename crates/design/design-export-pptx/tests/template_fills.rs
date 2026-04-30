@@ -3,7 +3,7 @@
 
 use std::io::{Cursor, Read};
 
-use canvas_pptx_writer::*;
+use design_export_pptx::*;
 
 // ── fixture helpers ────────────────────────────────────────────────────────
 

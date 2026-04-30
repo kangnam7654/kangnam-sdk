@@ -1,4 +1,4 @@
-//! canvas-pptx-writer — write editable .pptx files from a neutral IR.
+//! design-export-pptx — write editable .pptx files from a neutral IR.
 //!
 //! See the crate README for an overview and the `write_deck` docs for
 //! the entry point.

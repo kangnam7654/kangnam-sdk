@@ -1,4 +1,4 @@
-use canvas_pptx_writer::*;
+use design_export_pptx::*;
 
 fn slide_with(shape: ShapeKind) -> PptxDeck {
     PptxDeck {

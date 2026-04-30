@@ -1,25 +1,31 @@
 [package]
-name = "canvas"
+name = "design"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Build AI slide editors — umbrella crate bundling canvas-slide-doc, canvas-llm, canvas-editor, and canvas-pptx-writer"
-keywords = ["ai", "slides", "llm", "editor"]
+description = "kangnam-sdk design family umbrella — slide IR, site IR, generic HTML editor, slide/site editors, LLM client, PPTX export. Replaces the legacy `canvas` umbrella."
+keywords = ["ai", "design", "slides", "site", "pptx"]
 categories = ["multimedia"]
 
 [dependencies]
-canvas-slide-doc = { path = "../canvas-slide-doc", optional = true }
-canvas-llm = { path = "../canvas-llm", optional = true }
-canvas-editor = { path = "../canvas-editor", optional = true }
-canvas-pptx-writer = { path = "../canvas-pptx-writer", optional = true, default-features = false }
+design-doc-slide    = { path = "../design-doc-slide", optional = true }
+design-doc-site     = { path = "../design-doc-site", optional = true }
+design-llm          = { path = "../design-llm", optional = true }
+design-editor-html  = { path = "../design-editor-html", optional = true }
+design-editor-slide = { path = "../design-editor-slide", optional = true }
+design-editor-site  = { path = "../design-editor-site", optional = true }
+design-export-pptx  = { path = "../design-export-pptx", optional = true, default-features = false }
 
 [features]
-default    = ["slides", "llm", "editor", "pptx-write"]
-slides     = ["dep:canvas-slide-doc"]
-llm        = ["dep:canvas-llm"]
-editor     = ["dep:canvas-editor", "slides", "llm"]
-pptx-write = ["dep:canvas-pptx-writer", "canvas-pptx-writer/slide-doc", "slides"]
-test-util  = ["canvas-llm?/test-util", "canvas-editor?/test-util"]
-full       = ["slides", "llm", "editor", "pptx-write"]
+default       = ["slide", "site", "llm", "editor-html", "editor-slide", "editor-site", "pptx-write"]
+slide         = ["dep:design-doc-slide"]
+site          = ["dep:design-doc-site", "slide"]
+llm           = ["dep:design-llm"]
+editor-html   = ["dep:design-editor-html", "llm"]
+editor-slide  = ["dep:design-editor-slide", "slide", "llm"]
+editor-site   = ["dep:design-editor-site", "site", "llm"]
+pptx-write    = ["dep:design-export-pptx", "design-export-pptx/slide-doc", "slide"]
+test-util     = ["design-llm?/test-util", "design-editor-html?/test-util", "design-editor-slide?/test-util", "design-editor-site?/test-util"]
+full          = ["slide", "site", "llm", "editor-html", "editor-slide", "editor-site", "pptx-write"]

@@ -5,7 +5,6 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::html_render as slide_html;
 use crate::slide::SlideDoc;
 
 /// Container for N slides rendered as one presentation. `id` is the deck's
@@ -36,59 +35,18 @@ impl Deck {
     pub fn find_slide_mut(&mut self, slide_id: &str) -> Option<&mut SlideDoc> {
         self.slides.iter_mut().find(|s| s.id == slide_id)
     }
-
-    /// Render the full deck as one standalone HTML document with N sections.
-    ///
-    /// Each slide becomes a `<section class="slide" data-slide-id data-slide-index>`
-    /// so the navigator can `scrollIntoView` by slide_id and overrides can
-    /// scope by `section[data-slide-id="..."] [data-edit-zone="..."]`.
-    pub fn to_html(&self) -> String {
-        let mut out = String::with_capacity(4096);
-        out.push_str("<!DOCTYPE html>\n<html lang=\"ko\">\n<head>\n");
-        out.push_str("<meta charset=\"utf-8\">\n");
-        out.push_str("<meta name=\"viewport\" content=\"width=1280\">\n");
-        out.push_str("<title>Canvas Deck</title>\n");
-        out.push_str("<style>\n");
-        out.push_str(DECK_CSS);
-        out.push_str("</style>\n</head>\n<body>\n");
-
-        for (i, slide) in self.slides.iter().enumerate() {
-            out.push_str(&slide_html::render_section(slide, i));
-            out.push('\n');
-        }
-
-        out.push_str("</body>\n</html>\n");
-        out
-    }
 }
 
-/// CSS for the deck viewport — fixed-size sections + scroll-snap vertical so
-/// the navigator's `scrollIntoView` snaps to slide boundaries. Background
-/// for each slide is set on the `<section>` inline by `render_section`.
-const DECK_CSS: &str = r#"
-html, body { margin: 0; padding: 0; background: #f5f5f5; font-family: 'Pretendard', system-ui, -apple-system, sans-serif; }
-* { box-sizing: border-box; }
-body { scroll-snap-type: y mandatory; overflow-y: auto; height: 100vh; }
-section.slide {
-  position: relative;
-  width: 1280px;
-  height: 720px;
-  margin: 0 auto;
-  overflow: hidden;
-  scroll-snap-align: start;
-}
-section.slide [data-edit-zone] { position: absolute; }
-"#;
-
-// Generator prompt templates and DB-coupled `deck_from_version` helpers live
-// in the Canvas app (they depend on `canvas-editor` and `models::project::Version`
-// respectively). This crate stays pure data + rendering.
-
+// HTML rendering for `Deck` lives in `design-doc-site::deck_html` so the
+// data-only crate has no dependency on the rendering layer. Generator
+// prompt templates and DB-coupled `deck_from_version` helpers live in the
+// kangnam-client app (they depend on `design-editor-slide` and
+// `models::project::Version` respectively).
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::slide::{Frame, SlideElement, TextStyle, CANVAS_HEIGHT, CANVAS_WIDTH};
+    use crate::slide::{Frame, SlideElement, TextStyle};
 
     fn slide(id: &str, content: &str) -> SlideDoc {
         let mut doc = SlideDoc::empty(id);
@@ -141,56 +99,4 @@ mod tests {
         let parsed: Deck = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed, deck);
     }
-
-    #[test]
-    fn to_html_emits_one_section_per_slide_with_slide_id() {
-        let deck = Deck {
-            id: "d1".into(),
-            slides: vec![slide("slide-1", "one"), slide("slide-2", "two"), slide("slide-3", "three")],
-        };
-        let html = deck.to_html();
-        // Exactly 3 sections.
-        assert_eq!(
-            html.matches("<section").count(),
-            3,
-            "one <section> per slide, got html:\n{html}"
-        );
-        // Each slide id present.
-        assert!(html.contains(r#"data-slide-id="slide-1""#));
-        assert!(html.contains(r#"data-slide-id="slide-2""#));
-        assert!(html.contains(r#"data-slide-id="slide-3""#));
-        // Numbered 0..N in DOM order for the navigator.
-        assert!(html.contains(r#"data-slide-index="0""#));
-        assert!(html.contains(r#"data-slide-index="1""#));
-        assert!(html.contains(r#"data-slide-index="2""#));
-        // Scroll-snap wiring lands in CSS.
-        assert!(html.contains("scroll-snap-type"));
-        assert!(html.contains("scroll-snap-align"));
-    }
-
-    #[test]
-    fn to_html_dimensions_are_fixed_per_slide() {
-        let deck = Deck::from_single(slide("s", "only"));
-        let html = deck.to_html();
-        assert!(html.contains(&format!("width: {CANVAS_WIDTH}px")));
-        assert!(html.contains(&format!("height: {CANVAS_HEIGHT}px")));
-    }
-
-    #[test]
-    fn to_html_same_zone_id_across_sections_stays_distinct() {
-        // Two slides, each with a `data-edit-zone="title"`. Both must appear
-        // — override compositor scopes by section, so duplicate zone ids are
-        // fine at render time. The navigator / edit RPC disambiguates via
-        // slide_id, so the HTML has to carry both verbatim.
-        let deck = Deck {
-            id: "d1".into(),
-            slides: vec![slide("slide-1", "first title"), slide("slide-2", "second title")],
-        };
-        let html = deck.to_html();
-        let zone_count = html.matches(r#"data-edit-zone="title""#).count();
-        assert_eq!(zone_count, 2, "both sections keep their own 'title' zone");
-    }
-
-    // `deck_from_version` tests live with the helper in the Canvas app
-    // (they need `models::project::Version`).
 }

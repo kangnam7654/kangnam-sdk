@@ -1,6 +1,6 @@
 //! Produce a real .pptx for an empty deck and verify structural expectations.
 
-use canvas_pptx_writer::*;
+use design_export_pptx::*;
 
 #[test]
 fn empty_deck_writes_valid_zip_with_expected_parts() {

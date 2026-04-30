@@ -1,4 +1,4 @@
-use canvas_pptx_writer::*;
+use design_export_pptx::*;
 
 #[test]
 fn slide_with_text_embeds_characters_in_rich_text() {

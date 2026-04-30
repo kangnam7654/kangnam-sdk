@@ -1,11 +1,11 @@
 [package]
-name = "canvas-slide-doc"
+name = "design-doc-slide"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Slide/Deck/Site document model, HTML render, DOM-manifest ingest"
+description = "Slide/Deck document model — PPTX-shaped IR for the kangnam-sdk design family."
 
 [dependencies]
 serde = { workspace = true }

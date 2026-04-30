@@ -17,3 +17,8 @@ src-tauri/gen/schemas/
 
 # Superpowers internal state
 .superpowers/
+
+# External design references (huashu-design, open-design, open-codesign)
+# — cloned into references/design/ for inspection during design-family work.
+# Re-clone via the repos listed in ADR-003 / ADR-004; not tracked here.
+references/

@@ -10,7 +10,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use canvas_pptx_writer::{PptxTemplate, ImageMime, FontVariant};
+//! use design_export_pptx::{PptxTemplate, ImageMime, FontVariant};
 //! use std::path::Path;
 //!
 //! let mut t = PptxTemplate::load(Path::new("templates/resume.pptx"))?;
@@ -21,7 +21,7 @@
 //! // let pretendard = std::fs::read("Pretendard-Regular.ttf")?;
 //! // t.embed_font("Pretendard", FontVariant::Regular, pretendard)?;
 //! let bytes = t.pack()?;
-//! # Ok::<(), canvas_pptx_writer::PptxWriteError>(())
+//! # Ok::<(), design_export_pptx::PptxWriteError>(())
 //! ```
 
 mod xml_ops;
@@ -425,8 +425,8 @@ impl PptxTemplate {
     ///
     /// # Example
     /// ```no_run
-    /// use canvas_pptx_writer::{PptxTemplate, FontVariant};
-    /// # fn main() -> canvas_pptx_writer::Result<()> {
+    /// use design_export_pptx::{PptxTemplate, FontVariant};
+    /// # fn main() -> design_export_pptx::Result<()> {
     /// let mut tmpl = PptxTemplate::load_bytes(&[])?;
     /// let pretendard = std::fs::read("Pretendard-Regular.ttf").unwrap();
     /// tmpl.embed_font("Pretendard", FontVariant::Regular, pretendard)?;

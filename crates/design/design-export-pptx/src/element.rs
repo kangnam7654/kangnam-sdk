@@ -145,7 +145,7 @@ impl ShapeBox {
     ///
     /// Equivalent to:
     /// ```rust
-    /// # use canvas_pptx_writer::{ShapeBox, ShapeKind, Fill, Color, Frame};
+    /// # use design_export_pptx::{ShapeBox, ShapeKind, Fill, Color, Frame};
     /// # let frame = Frame::from_px(0.0, 0.0, 100.0, 50.0);
     /// # let shape = ShapeKind::Rect;
     /// # let fill = Fill::solid(Color::BLACK);

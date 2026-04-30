@@ -1,6 +1,7 @@
 pub mod agents;
 pub mod claude_commands;
 pub mod conv;
+pub mod artifact_export;
 pub mod design;
 pub mod mcp;
 pub mod project_files;

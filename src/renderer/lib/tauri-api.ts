@@ -483,6 +483,13 @@ const api = {
     fileWrite: (workingDir: string, relPath: string, body: string) =>
       invoke<void>('project_file_write', { workingDir, relPath, body }),
   },
+
+  // Artifact export (Phase 5c-17). The renderer wraps the resulting
+  // string in a Blob and triggers an a[download] click.
+  artifactExport: {
+    html: (body: string) => invoke<string>('artifact_export_html', { body }),
+    markdown: (body: string) => invoke<string>('artifact_export_markdown', { body }),
+  },
 }
 
 declare global {

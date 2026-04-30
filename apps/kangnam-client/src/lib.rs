@@ -114,6 +114,9 @@ pub fn run() {
             commands::project_files::project_files_list,
             commands::project_files::project_file_read,
             commands::project_files::project_file_write,
+            // Artifact export (Phase 5c-17)
+            commands::artifact_export::artifact_export_html,
+            commands::artifact_export::artifact_export_markdown,
         ])
         .setup(|app| {
             // ── System tray ──

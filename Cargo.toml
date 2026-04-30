@@ -40,11 +40,19 @@ kangnam-chat-agent    = { path = "crates/chat/agent" }
 kangnam-chat-rpc      = { path = "crates/chat/rpc" }
 kangnam-chat-server   = { path = "crates/chat/server" }
 kangnam-chat          = { path = "crates/chat/chat" }
-canvas                = { path = "crates/design/canvas" }
-canvas-editor         = { path = "crates/design/canvas-editor" }
-canvas-llm            = { path = "crates/design/canvas-llm" }
-canvas-pptx-writer    = { path = "crates/design/canvas-pptx-writer" }
-canvas-slide-doc      = { path = "crates/design/canvas-slide-doc" }
+design                = { path = "crates/design/design" }
+design-doc-slide      = { path = "crates/design/design-doc-slide" }
+design-doc-site       = { path = "crates/design/design-doc-site" }
+design-llm            = { path = "crates/design/design-llm" }
+design-editor-html    = { path = "crates/design/design-editor-html" }
+design-editor-slide   = { path = "crates/design/design-editor-slide" }
+design-editor-site    = { path = "crates/design/design-editor-site" }
+design-export-pptx    = { path = "crates/design/design-export-pptx" }
+design-direction      = { path = "crates/design/design-direction" }
+design-system         = { path = "crates/design/design-system" }
+design-skill          = { path = "crates/design/design-skill" }
+design-prompt         = { path = "crates/design/design-prompt" }
+design-artifact       = { path = "crates/design/design-artifact" }
 
 [profile.release]
 strip = true

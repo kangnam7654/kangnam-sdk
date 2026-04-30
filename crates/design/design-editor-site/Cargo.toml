@@ -1,0 +1,30 @@
+[package]
+name = "design-editor-site"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "LLM-driven site (landing page) generator for the kangnam-sdk design family."
+keywords = ["ai", "site", "llm", "editor"]
+categories = ["multimedia"]
+
+[dependencies]
+async-stream = "0.3"
+design-llm = { path = "../design-llm" }
+design-doc-slide = { path = "../design-doc-slide" }
+design-doc-site = { path = "../design-doc-site" }
+futures = "0.3"
+serde = { workspace = true }
+serde_json = { workspace = true }
+tera = "1"
+thiserror = { workspace = true }
+tracing = "0.1"
+uuid = { version = "1", features = ["v4"] }
+
+[features]
+default = []
+test-util = ["design-llm/test-util"]
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }

@@ -1,22 +1,48 @@
+use std::collections::HashMap;
 use std::path::Path;
-use tokio::process::Command;
 use std::process::Stdio;
+use std::sync::Mutex;
+use tokio::process::Command;
 
 use crate::adapter::CliAdapter;
-use crate::types::{UnifiedMessage, ClaudeEnhancedEvent, McpServerInfo, PluginInfo};
+use crate::types::{ClaudeEnhancedEvent, McpServerInfo, PluginInfo, UnifiedMessage};
+
+/// Per-content-block accumulator for `tool_use.input` partial-JSON deltas.
+/// Anthropic streams the JSON in `input_json_delta` chunks; we buffer them
+/// per `content_block_index` and emit a single [`UnifiedMessage::ToolUseInput`]
+/// at `content_block_stop` once the full JSON is available.
+#[derive(Default, Clone)]
+struct ToolUseAccumulator {
+    id: String,
+    /// Concatenated partial JSON. Parsed at stop time; if it parses we emit a
+    /// structured `Value`, otherwise the raw string is wrapped as a one-field
+    /// object so callers still get something they can render.
+    input_json: String,
+}
 
 pub struct ClaudeAdapter {
     mcp_port: u16,
     model: Option<String>,
+    /// Index → accumulator. Interior mutability so `parse_line(&self)` keeps
+    /// the [`CliAdapter`] trait shape but can stitch streaming events.
+    pending_tool_uses: Mutex<HashMap<u64, ToolUseAccumulator>>,
 }
 
 impl ClaudeAdapter {
     pub fn new() -> Self {
-        Self { mcp_port: 3001, model: None }
+        Self {
+            mcp_port: 3001,
+            model: None,
+            pending_tool_uses: Mutex::new(HashMap::new()),
+        }
     }
 
     pub fn with_port(port: u16) -> Self {
-        Self { mcp_port: port, model: None }
+        Self {
+            mcp_port: port,
+            model: None,
+            pending_tool_uses: Mutex::new(HashMap::new()),
+        }
     }
 
     pub fn with_model(mut self, model: Option<String>) -> Self {
@@ -25,10 +51,14 @@ impl ClaudeAdapter {
     }
 
     /// Parse a stream_event from Claude Code's NDJSON output
-    fn parse_stream_event(&self, value: &serde_json::Value) -> Result<Option<UnifiedMessage>, String> {
+    fn parse_stream_event(
+        &self,
+        value: &serde_json::Value,
+    ) -> Result<Option<UnifiedMessage>, String> {
         let event = value.get("event").ok_or("missing event field")?;
         let event_type = event.get("type").and_then(|t| t.as_str()).unwrap_or("");
         let parent_tool_use_id = value.get("parent_tool_use_id").and_then(|v| v.as_str());
+        let block_index = event.get("index").and_then(|v| v.as_u64());
 
         match event_type {
             "content_block_delta" => {
@@ -49,7 +79,32 @@ impl ClaudeAdapter {
                             }))
                         }
                     }
-                    // input_json_delta is partial tool input — skip
+                    "thinking_delta" => {
+                        // Anthropic extended-thinking stream chunk. Surface as a
+                        // dedicated variant so the UI can show reasoning
+                        // separately from final answer text.
+                        let text = delta.get("thinking").and_then(|t| t.as_str()).unwrap_or("");
+                        Ok(Some(UnifiedMessage::ThinkingDelta {
+                            text: text.to_string(),
+                        }))
+                    }
+                    "input_json_delta" => {
+                        // Append the partial JSON for the matching content
+                        // block. The structured input arrives at
+                        // content_block_stop.
+                        let partial = delta
+                            .get("partial_json")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
+                        if let Some(idx) = block_index {
+                            if let Ok(mut map) = self.pending_tool_uses.lock() {
+                                if let Some(acc) = map.get_mut(&idx) {
+                                    acc.input_json.push_str(partial);
+                                }
+                            }
+                        }
+                        Ok(None)
+                    }
                     _ => Ok(None),
                 }
             }
@@ -58,8 +113,16 @@ impl ClaudeAdapter {
                 let block_type = block.get("type").and_then(|t| t.as_str()).unwrap_or("");
                 match block_type {
                     "tool_use" => {
-                        let id = block.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                        let name = block.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                        let id = block
+                            .get("id")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
+                        let name = block
+                            .get("name")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
 
                         if name == "Agent" || name == "Task" {
                             Ok(Some(UnifiedMessage::AgentStart {
@@ -68,6 +131,22 @@ impl ClaudeAdapter {
                                 description: String::new(),
                             }))
                         } else {
+                            // Begin buffering input_json_delta chunks for this
+                            // block index. We still emit ToolUseStart now (with
+                            // empty input) so UI can show the call immediately;
+                            // the populated input is sent later via
+                            // ToolUseInput when content_block_stop arrives.
+                            if let Some(idx) = block_index {
+                                if let Ok(mut map) = self.pending_tool_uses.lock() {
+                                    map.insert(
+                                        idx,
+                                        ToolUseAccumulator {
+                                            id: id.clone(),
+                                            input_json: String::new(),
+                                        },
+                                    );
+                                }
+                            }
                             Ok(Some(UnifiedMessage::ToolUseStart {
                                 id,
                                 name,
@@ -77,6 +156,33 @@ impl ClaudeAdapter {
                     }
                     _ => Ok(None),
                 }
+            }
+            "content_block_stop" => {
+                // If we were accumulating input JSON for this block, emit a
+                // final ToolUseInput with the parsed payload. Subagent
+                // (Agent/Task) blocks are not buffered, so this is a no-op for
+                // them.
+                if let Some(idx) = block_index {
+                    let acc = self
+                        .pending_tool_uses
+                        .lock()
+                        .ok()
+                        .and_then(|mut map| map.remove(&idx));
+                    if let Some(acc) = acc {
+                        if acc.input_json.is_empty() {
+                            return Ok(None);
+                        }
+                        let parsed = serde_json::from_str::<serde_json::Value>(&acc.input_json)
+                            .unwrap_or_else(|_| {
+                                serde_json::json!({ "_raw_partial_json": acc.input_json })
+                            });
+                        return Ok(Some(UnifiedMessage::ToolUseInput {
+                            id: acc.id,
+                            input: parsed,
+                        }));
+                    }
+                }
+                Ok(None)
             }
             _ => Ok(None),
         }
@@ -88,33 +194,83 @@ impl ClaudeAdapter {
             Some(m) => m,
             None => return Ok(None),
         };
+        let _content = match message.get("content").and_then(|c| c.as_array()) {
+            Some(c) => c,
+            None => return Ok(None),
+        };
+
+        // Skip assistant turn messages — text is already streamed via
+        // stream_event text_delta. Emitting here would cause duplicate display.
+        Ok(None)
+    }
+
+    /// Parse a user-role message. Anthropic emits these to surface tool
+    /// results back into the conversation as `tool_result` content blocks
+    /// keyed by `tool_use_id`. Open-design's `claude-stream.js:133-145`
+    /// folds them into typed `tool_result` events; we mirror that.
+    fn parse_user(&self, value: &serde_json::Value) -> Result<Option<UnifiedMessage>, String> {
+        let message = match value.get("message") {
+            Some(m) => m,
+            None => return Ok(None),
+        };
         let content = match message.get("content").and_then(|c| c.as_array()) {
             Some(c) => c,
             None => return Ok(None),
         };
 
-        let mut text_parts = Vec::new();
-
         for block in content {
             let block_type = block.get("type").and_then(|t| t.as_str()).unwrap_or("");
-            if block_type == "text" {
-                if let Some(text) = block.get("text").and_then(|t| t.as_str()) {
-                    text_parts.push(text);
-                }
+            if block_type != "tool_result" {
+                continue;
             }
-            // tool_use blocks are handled via stream_event content_block_start
+            let id = block
+                .get("tool_use_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let is_error = block
+                .get("is_error")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            // `content` may be a plain string or an array of typed blocks
+            // (text/image). Concatenate text segments; ignore image blocks
+            // (we don't have a binary channel on UnifiedMessage::ToolResult).
+            let output = match block.get("content") {
+                Some(serde_json::Value::String(s)) => s.clone(),
+                Some(serde_json::Value::Array(parts)) => parts
+                    .iter()
+                    .filter_map(|p| {
+                        if p.get("type").and_then(|t| t.as_str()) == Some("text") {
+                            p.get("text").and_then(|t| t.as_str()).map(String::from)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(""),
+                _ => String::new(),
+            };
+            return Ok(Some(UnifiedMessage::ToolResult {
+                id,
+                output,
+                is_error,
+            }));
         }
-
-        // Skip assistant turn messages — text is already streamed via stream_event text_delta.
-        // Emitting here would cause duplicate display.
         Ok(None)
     }
 
     /// Parse a result message (session end)
     fn parse_result(&self, value: &serde_json::Value) -> Result<Option<UnifiedMessage>, String> {
-        let is_error = value.get("is_error").and_then(|v| v.as_bool()).unwrap_or(false);
+        let is_error = value
+            .get("is_error")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         if is_error {
-            let message = value.get("result").and_then(|v| v.as_str()).unwrap_or("Unknown error").to_string();
+            let message = value
+                .get("result")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown error")
+                .to_string();
             Ok(Some(UnifiedMessage::Error { message }))
         } else {
             Ok(Some(UnifiedMessage::TurnEnd {
@@ -124,42 +280,99 @@ impl ClaudeAdapter {
     }
 
     /// Parse a system/init event into SessionMeta
-    fn parse_system_init(&self, value: &serde_json::Value) -> Result<Option<ClaudeEnhancedEvent>, String> {
-        let session_id = value.get("session_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
-        let tools = value.get("tools")
+    fn parse_system_init(
+        &self,
+        value: &serde_json::Value,
+    ) -> Result<Option<ClaudeEnhancedEvent>, String> {
+        let session_id = value
+            .get("session_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let tools = value
+            .get("tools")
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
-        let skills = value.get("skills")
+        let skills = value
+            .get("skills")
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
-        let slash_commands = value.get("slash_commands")
+        let slash_commands = value
+            .get("slash_commands")
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
-        let agents = value.get("agents")
+        let agents = value
+            .get("agents")
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
-        let plugins = value.get("plugins")
+        let plugins = value
+            .get("plugins")
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().map(|p| PluginInfo {
-                name: p.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                path: p.get("path").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            }).collect())
+            .map(|arr| {
+                arr.iter()
+                    .map(|p| PluginInfo {
+                        name: p.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                        path: p.get("path").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
-        let mcp_servers = value.get("mcp_servers")
+        let mcp_servers = value
+            .get("mcp_servers")
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().map(|s| McpServerInfo {
-                name: s.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                status: s.get("status").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            }).collect())
+            .map(|arr| {
+                arr.iter()
+                    .map(|s| McpServerInfo {
+                        name: s.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                        status: s
+                            .get("status")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string(),
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
-        let model = value.get("model").and_then(|v| v.as_str()).unwrap_or("").to_string();
-        let permission_mode = value.get("permissionMode").and_then(|v| v.as_str()).unwrap_or("").to_string();
-        let cwd = value.get("cwd").and_then(|v| v.as_str()).unwrap_or("").to_string();
-        let claude_code_version = value.get("claude_code_version").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let model = value
+            .get("model")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let permission_mode = value
+            .get("permissionMode")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let cwd = value
+            .get("cwd")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let claude_code_version = value
+            .get("claude_code_version")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
 
         Ok(Some(ClaudeEnhancedEvent::SessionMeta {
             session_id,
@@ -177,70 +390,139 @@ impl ClaudeAdapter {
     }
 
     /// Parse system/task_* events
-    fn parse_system_task(&self, subtype: &str, value: &serde_json::Value) -> Result<Option<ClaudeEnhancedEvent>, String> {
+    fn parse_system_task(
+        &self,
+        subtype: &str,
+        value: &serde_json::Value,
+    ) -> Result<Option<ClaudeEnhancedEvent>, String> {
         match subtype {
-            "task_started" => {
-                Ok(Some(ClaudeEnhancedEvent::TaskStarted {
-                    task_id: value.get("task_id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    tool_use_id: value.get("tool_use_id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    description: value.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    task_type: value.get("task_type").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                }))
-            }
-            "task_progress" => {
-                Ok(Some(ClaudeEnhancedEvent::TaskProgress {
-                    task_id: value.get("task_id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    description: value.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    usage: value.get("usage").cloned(),
-                    last_tool_name: value.get("last_tool_name").and_then(|v| v.as_str()).map(String::from),
-                }))
-            }
-            "task_notification" => {
-                Ok(Some(ClaudeEnhancedEvent::TaskNotification {
-                    task_id: value.get("task_id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    status: value.get("status").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    summary: value.get("summary").and_then(|v| v.as_str()).map(String::from),
-                }))
-            }
+            "task_started" => Ok(Some(ClaudeEnhancedEvent::TaskStarted {
+                task_id: value
+                    .get("task_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                tool_use_id: value
+                    .get("tool_use_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                description: value
+                    .get("description")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                task_type: value
+                    .get("task_type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+            })),
+            "task_progress" => Ok(Some(ClaudeEnhancedEvent::TaskProgress {
+                task_id: value
+                    .get("task_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                description: value
+                    .get("description")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                usage: value.get("usage").cloned(),
+                last_tool_name: value
+                    .get("last_tool_name")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+            })),
+            "task_notification" => Ok(Some(ClaudeEnhancedEvent::TaskNotification {
+                task_id: value
+                    .get("task_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                status: value
+                    .get("status")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                summary: value
+                    .get("summary")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+            })),
             _ => Ok(None),
         }
     }
 
     /// Parse system/hook_* events
-    fn parse_system_hook(&self, subtype: &str, value: &serde_json::Value) -> Result<Option<ClaudeEnhancedEvent>, String> {
+    fn parse_system_hook(
+        &self,
+        subtype: &str,
+        value: &serde_json::Value,
+    ) -> Result<Option<ClaudeEnhancedEvent>, String> {
         match subtype {
-            "hook_started" => {
-                Ok(Some(ClaudeEnhancedEvent::HookStarted {
-                    hook_id: value.get("hook_id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    hook_name: value.get("hook_name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    hook_event: value.get("hook_event").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                }))
-            }
-            "hook_progress" => {
-                Ok(Some(ClaudeEnhancedEvent::HookProgress {
-                    hook_id: value.get("hook_id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    stdout: value.get("stdout").and_then(|v| v.as_str()).map(String::from),
-                    stderr: value.get("stderr").and_then(|v| v.as_str()).map(String::from),
-                }))
-            }
-            "hook_response" => {
-                Ok(Some(ClaudeEnhancedEvent::HookResponse {
-                    hook_id: value.get("hook_id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                }))
-            }
+            "hook_started" => Ok(Some(ClaudeEnhancedEvent::HookStarted {
+                hook_id: value
+                    .get("hook_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                hook_name: value
+                    .get("hook_name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                hook_event: value
+                    .get("hook_event")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+            })),
+            "hook_progress" => Ok(Some(ClaudeEnhancedEvent::HookProgress {
+                hook_id: value
+                    .get("hook_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                stdout: value
+                    .get("stdout")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                stderr: value
+                    .get("stderr")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+            })),
+            "hook_response" => Ok(Some(ClaudeEnhancedEvent::HookResponse {
+                hook_id: value
+                    .get("hook_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+            })),
             _ => Ok(None),
         }
     }
 
     /// Parse a result message into ResultSummary
-    fn parse_result_summary(&self, value: &serde_json::Value) -> Result<Option<ClaudeEnhancedEvent>, String> {
-        let cost_usd = value.get("total_cost_usd").and_then(|v| v.as_f64())
+    fn parse_result_summary(
+        &self,
+        value: &serde_json::Value,
+    ) -> Result<Option<ClaudeEnhancedEvent>, String> {
+        let cost_usd = value
+            .get("total_cost_usd")
+            .and_then(|v| v.as_f64())
             .or_else(|| value.get("cost_usd").and_then(|v| v.as_f64()));
         let usage = value.get("usage").cloned();
         let duration_ms = value.get("duration_ms").and_then(|v| v.as_u64());
-        let num_turns = value.get("num_turns").and_then(|v| v.as_u64()).map(|v| v as u32);
+        let num_turns = value
+            .get("num_turns")
+            .and_then(|v| v.as_u64())
+            .map(|v| v as u32);
         let model_usage = value.get("modelUsage").cloned();
-        let permission_denials = value.get("permission_denials")
+        let permission_denials = value
+            .get("permission_denials")
             .and_then(|v| v.as_array())
             .map(|arr| arr.clone())
             .unwrap_or_default();
@@ -256,7 +538,10 @@ impl ClaudeAdapter {
     }
 
     /// Parse a rate_limit_event
-    fn parse_rate_limit(&self, value: &serde_json::Value) -> Result<Option<ClaudeEnhancedEvent>, String> {
+    fn parse_rate_limit(
+        &self,
+        value: &serde_json::Value,
+    ) -> Result<Option<ClaudeEnhancedEvent>, String> {
         let rate_limit_info = value.get("rate_limit_info");
         let status = rate_limit_info
             .and_then(|v| v.get("status"))
@@ -281,7 +566,6 @@ impl ClaudeAdapter {
             rate_limit_type,
         }))
     }
-
 }
 
 impl CliAdapter for ClaudeAdapter {
@@ -300,8 +584,10 @@ impl CliAdapter for ClaudeAdapter {
         cmd.env("PATH", kangnam_router::cli_utils::build_path_env());
         cmd.args([
             "-p",
-            "--output-format", "stream-json",
-            "--input-format", "stream-json",
+            "--output-format",
+            "stream-json",
+            "--input-format",
+            "stream-json",
             "--verbose",
             "--include-partial-messages",
             "--include-hook-events",
@@ -335,8 +621,8 @@ impl CliAdapter for ClaudeAdapter {
             return Ok(None);
         }
 
-        let value: serde_json::Value = serde_json::from_str(line)
-            .map_err(|e| format!("JSON parse error: {}", e))?;
+        let value: serde_json::Value =
+            serde_json::from_str(line).map_err(|e| format!("JSON parse error: {}", e))?;
 
         let msg_type = value.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
@@ -344,15 +630,23 @@ impl CliAdapter for ClaudeAdapter {
             "system" => {
                 let subtype = value.get("subtype").and_then(|s| s.as_str()).unwrap_or("");
                 if subtype == "init" {
-                    let session_id = value.get("session_id").and_then(|s| s.as_str()).unwrap_or("").to_string();
+                    let session_id = value
+                        .get("session_id")
+                        .and_then(|s| s.as_str())
+                        .unwrap_or("")
+                        .to_string();
                     Ok(Some(UnifiedMessage::SessionInit { session_id }))
                 } else {
                     // Display text content from system messages (e.g., /context, /cost output)
-                    let text = value.get("message").and_then(|m| m.as_str())
+                    let text = value
+                        .get("message")
+                        .and_then(|m| m.as_str())
                         .or_else(|| value.get("text").and_then(|t| t.as_str()));
                     if let Some(text) = text {
                         if !text.is_empty() {
-                            return Ok(Some(UnifiedMessage::TextDelta { text: text.to_string() }));
+                            return Ok(Some(UnifiedMessage::TextDelta {
+                                text: text.to_string(),
+                            }));
                         }
                     }
                     Ok(None)
@@ -360,6 +654,7 @@ impl CliAdapter for ClaudeAdapter {
             }
             "stream_event" => self.parse_stream_event(&value),
             "assistant" => self.parse_assistant(&value),
+            "user" => self.parse_user(&value),
             "result" => self.parse_result(&value),
             _ => Ok(None),
         }
@@ -412,8 +707,8 @@ impl CliAdapter for ClaudeAdapter {
             return Ok(None);
         }
 
-        let value: serde_json::Value = serde_json::from_str(line)
-            .map_err(|e| format!("JSON parse error: {}", e))?;
+        let value: serde_json::Value =
+            serde_json::from_str(line).map_err(|e| format!("JSON parse error: {}", e))?;
 
         let msg_type = value.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
@@ -615,5 +910,131 @@ mod tests {
             }
             other => panic!("Expected AgentStart for 'Task', got {:?}", other),
         }
+    }
+
+    /// Phase 0b parity fix #1: thinking_delta deltas surface as a dedicated
+    /// `ThinkingDelta` variant. Previously these were silently dropped by the
+    /// `_ => Ok(None)` arm in parse_stream_event.
+    #[test]
+    fn parity_thinking_delta_emits_thinking_delta_variant() {
+        let line = r#"{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"Let me reconsider the approach…"}}}"#;
+        let result = adapter().parse_line(line).unwrap().unwrap();
+        match result {
+            UnifiedMessage::ThinkingDelta { text } => {
+                assert_eq!(text, "Let me reconsider the approach…");
+            }
+            other => panic!("Expected ThinkingDelta, got {:?}", other),
+        }
+    }
+
+    /// Phase 0b parity fix #2: user-role messages with `tool_use_id` content
+    /// blocks emit `ToolResult`. Previously the "user" msg_type fell through
+    /// the dispatcher's `_ => Ok(None)` arm.
+    #[test]
+    fn parity_user_role_tool_result_string_content() {
+        let line = r#"{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_01","content":"file contents here","is_error":false}]}}"#;
+        let result = adapter().parse_line(line).unwrap().unwrap();
+        match result {
+            UnifiedMessage::ToolResult {
+                id,
+                output,
+                is_error,
+            } => {
+                assert_eq!(id, "toolu_01");
+                assert_eq!(output, "file contents here");
+                assert!(!is_error);
+            }
+            other => panic!("Expected ToolResult, got {:?}", other),
+        }
+    }
+
+    /// Same as above but content is an array of typed text blocks (Anthropic
+    /// emits this shape when a tool's response includes multiple parts or
+    /// images). Text segments concatenate; non-text segments are skipped.
+    #[test]
+    fn parity_user_role_tool_result_array_content() {
+        let line = r#"{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_02","is_error":true,"content":[{"type":"text","text":"line1"},{"type":"text","text":"\nline2"},{"type":"image","source":{"type":"base64","media_type":"image/png","data":"…"}}]}]}}"#;
+        let result = adapter().parse_line(line).unwrap().unwrap();
+        match result {
+            UnifiedMessage::ToolResult {
+                id,
+                output,
+                is_error,
+            } => {
+                assert_eq!(id, "toolu_02");
+                assert_eq!(output, "line1\nline2");
+                assert!(is_error);
+            }
+            other => panic!("Expected ToolResult, got {:?}", other),
+        }
+    }
+
+    /// Phase 0b parity fix #3: `input_json_delta` chunks accumulate per
+    /// content-block index and emit a final `ToolUseInput` at
+    /// content_block_stop. The initial `ToolUseStart` still fires (with
+    /// empty input) so consumers see the call begin immediately.
+    #[test]
+    fn parity_tool_use_input_accumulates_and_emits_at_stop() {
+        let adapter = adapter();
+
+        // Start a tool_use block at index 0.
+        let start = r#"{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_xyz","name":"Read","input":{}}}}"#;
+        let r1 = adapter.parse_line(start).unwrap().unwrap();
+        match &r1 {
+            UnifiedMessage::ToolUseStart { id, name, input } => {
+                assert_eq!(id, "toolu_xyz");
+                assert_eq!(name, "Read");
+                assert_eq!(*input, serde_json::Value::Object(serde_json::Map::new()));
+            }
+            other => panic!("Expected ToolUseStart, got {:?}", other),
+        }
+
+        // Stream the JSON in 3 fragments. Each parse returns Ok(None).
+        let frag = |s: &str| {
+            format!(
+                r#"{{"type":"stream_event","event":{{"type":"content_block_delta","index":0,"delta":{{"type":"input_json_delta","partial_json":"{}"}}}}}}"#,
+                s.replace('"', r#"\""#)
+            )
+        };
+        for partial in [r#"{"file_p"#, r#"ath":"/tm"#, r#"p/x.txt"}"#] {
+            let line = frag(partial);
+            assert!(adapter.parse_line(&line).unwrap().is_none());
+        }
+
+        // content_block_stop emits ToolUseInput with the parsed JSON.
+        let stop = r#"{"type":"stream_event","event":{"type":"content_block_stop","index":0}}"#;
+        let r2 = adapter.parse_line(stop).unwrap().unwrap();
+        match r2 {
+            UnifiedMessage::ToolUseInput { id, input } => {
+                assert_eq!(id, "toolu_xyz");
+                assert_eq!(
+                    input,
+                    serde_json::json!({"file_path": "/tmp/x.txt"}),
+                    "expected accumulated JSON to parse"
+                );
+            }
+            other => panic!("Expected ToolUseInput, got {:?}", other),
+        }
+
+        // Subsequent stop with no pending accumulator is a no-op.
+        let stop_again = r#"{"type":"stream_event","event":{"type":"content_block_stop","index":0}}"#;
+        assert!(adapter.parse_line(stop_again).unwrap().is_none());
+    }
+
+    /// Subagent (Agent/Task) tool_use blocks are NOT buffered for input
+    /// accumulation — they emit AgentStart immediately and have no
+    /// ToolUseInput follow-up. Verify content_block_stop is a no-op here.
+    #[test]
+    fn parity_tool_use_subagent_skips_input_accumulation() {
+        let adapter = adapter();
+        let start = r#"{"type":"stream_event","event":{"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"tu-task","name":"Task"}}}"#;
+        let r1 = adapter.parse_line(start).unwrap().unwrap();
+        assert!(matches!(r1, UnifiedMessage::AgentStart { .. }));
+
+        let stop = r#"{"type":"stream_event","event":{"type":"content_block_stop","index":1}}"#;
+        assert!(
+            adapter.parse_line(stop).unwrap().is_none(),
+            "subagent stop should be a no-op (no accumulator entry)"
+        );
     }
 }

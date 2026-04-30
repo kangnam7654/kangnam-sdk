@@ -8,10 +8,27 @@ pub enum UnifiedMessage {
     /// Streaming text chunk from the assistant
     TextDelta { text: String },
 
-    /// Tool call started (file read, edit, bash, etc.)
+    /// Streaming "thinking" (extended-reasoning) chunk from the assistant.
+    /// Anthropic emits these in `content_block_delta/thinking_delta` events
+    /// when extended thinking is enabled. Surfaced as a separate channel so
+    /// the UI can present reasoning distinctly from final answer text.
+    ThinkingDelta { text: String },
+
+    /// Tool call started (file read, edit, bash, etc.). `input` is initially
+    /// empty for streaming providers; the populated input arrives later as
+    /// [`UnifiedMessage::ToolUseInput`] once the partial-JSON deltas finish
+    /// accumulating.
     ToolUseStart {
         id: String,
         name: String,
+        input: serde_json::Value,
+    },
+
+    /// Final, fully-parsed input for a tool call previously announced by
+    /// [`UnifiedMessage::ToolUseStart`]. Emitted at `content_block_stop`
+    /// after all `input_json_delta` chunks have accumulated.
+    ToolUseInput {
+        id: String,
         input: serde_json::Value,
     },
 

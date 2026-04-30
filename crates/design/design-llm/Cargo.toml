@@ -1,0 +1,34 @@
+[package]
+name = "design-llm"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Streaming AI client abstraction + provider impls (Gemini CLI, Claude CLI, LM Studio) for the kangnam-sdk design family."
+keywords = ["llm", "ai", "streaming", "gemini", "claude"]
+categories = ["api-bindings"]
+
+[dependencies]
+async-stream = "0.3"
+base64 = "0.22"
+futures = "0.3"
+regex-lite = "0.1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { version = "1", features = ["process", "io-util", "rt", "macros", "time"] }
+tokio-stream = { version = "0.1", features = ["io-util"] }
+tracing = "0.1"
+uuid = { version = "1", features = ["v4"] }
+
+[features]
+default = []
+# Expose FakeAiClient (in-memory test double). Gated so production builds
+# don't ship the test harness.
+test-util = []
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

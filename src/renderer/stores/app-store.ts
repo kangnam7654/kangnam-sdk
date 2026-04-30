@@ -8,6 +8,10 @@ import {
   createAgentsPromptsSlice,
   type AgentsPromptsSlice,
 } from './slices/agents-prompts'
+import {
+  createConversationsSlice,
+  type ConversationsSlice,
+} from './slices/conversations'
 
 export interface Conversation {
   id: string
@@ -161,7 +165,8 @@ interface AppState
     LayoutSlice,
     SettingsSlice,
     MainViewSlice,
-    AgentsPromptsSlice {
+    AgentsPromptsSlice,
+    ConversationsSlice {
   // CLI
   cliStatuses: CliStatus[]
   setCliStatuses: (statuses: CliStatus[]) => void
@@ -182,12 +187,6 @@ interface AppState
   clearMessages: () => void
   pendingPermission: UnifiedMessage | null
   setPendingPermission: (msg: UnifiedMessage | null) => void
-
-  // Conversations
-  conversations: Conversation[]
-  setConversations: (convs: Conversation[]) => void
-  activeConversationId: string | null
-  setActiveConversationId: (id: string | null) => void
 
   // Pending attachments (for passing from Composer to onNew)
   pendingAttachments: AttachmentData[]
@@ -225,6 +224,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   ...createSettingsSlice(set),
   ...createMainViewSlice(set),
   ...createAgentsPromptsSlice(set, get),
+  ...createConversationsSlice(set),
 
   // CLI
   cliStatuses: [],
@@ -268,12 +268,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   clearMessages: () => set({ messages: [] }),
   pendingPermission: null,
   setPendingPermission: (msg) => set({ pendingPermission: msg }),
-
-  // Conversations
-  conversations: [],
-  setConversations: (convs) => set({ conversations: convs }),
-  activeConversationId: null,
-  setActiveConversationId: (id) => set({ activeConversationId: id }),
 
   // Pending attachments
   pendingAttachments: [],

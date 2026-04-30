@@ -8,6 +8,8 @@ import { SafetyDialog } from './SafetyDialog'
 import { TopBar } from './TopBar'
 import { MessageInput } from './MessageInput'
 import { useChatSession } from '../../hooks/useChatSession'
+import { QuestionFormView } from '../artifacts/QuestionForm'
+import type { QuestionForm } from '../../lib/artifacts/question-form'
 
 /**
  * The chat pane content — wires up the four streaming subscriptions
@@ -151,22 +153,53 @@ export function ChatContent() {
             </div>
           ) : (
             <>
-              {messages.map((msg, i) => (
-                // The chat-ui MessageRenderer doesn't know about the
-                // design-family variants (artifact_*, question_form_*,
-                // thinking_delta, tool_use_input, turn_suspended_*).
-                // Its switch default returns null so unknown types are
-                // safely ignored at runtime — Phase 5b-09 plugs in the
-                // dedicated renderers for the design variants.
-                <MessageRenderer
-                  key={i}
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  message={msg as any}
-                  isLast={i === messages.length - 1}
-                  isStreaming={isStreaming}
-                  renderMarkdown={(content) => <MarkdownPreview content={content} />}
-                />
-              ))}
+              {messages.map((msg, i) => {
+                // Design-family variants get dedicated renderers.
+                // The chat-ui MessageRenderer's switch default returns
+                // null so falling through is safe, but rendering the
+                // typed component here surfaces the form / artifact
+                // affordance the user actually needs.
+                if (msg.type === 'question_form_posted') {
+                  // The schema is whatever the agent emitted between
+                  // the <question-form> tags; the chat-server has
+                  // already validated it via design_artifact::parse_question_form.
+                  const schema = msg.schema as Partial<QuestionForm> | undefined
+                  if (!schema || !Array.isArray(schema.questions)) return null
+                  const form: QuestionForm = {
+                    id: msg.id,
+                    title: schema.title ?? '확인이 필요해요',
+                    description: schema.description,
+                    questions: schema.questions ?? [],
+                    submitLabel: schema.submitLabel,
+                  }
+                  return <QuestionFormView key={i} form={form} interactive />
+                }
+                if (
+                  msg.type === 'artifact_start' ||
+                  msg.type === 'artifact_delta' ||
+                  msg.type === 'artifact_end' ||
+                  msg.type === 'turn_suspended_pending_form' ||
+                  msg.type === 'tool_use_input' ||
+                  msg.type === 'thinking_delta'
+                ) {
+                  // Phase 5b: artifact_* events drive the PreviewIframe
+                  // pane (5b-11), not the chat list. thinking_delta and
+                  // tool_use_input are status-only — we ignore in-list
+                  // for now, ChatContent's stream summary surfaces them
+                  // separately if needed.
+                  return null
+                }
+                return (
+                  <MessageRenderer
+                    key={i}
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    message={msg as any}
+                    isLast={i === messages.length - 1}
+                    isStreaming={isStreaming}
+                    renderMarkdown={(content) => <MarkdownPreview content={content} />}
+                  />
+                )
+              })}
               {isStreaming && messages[messages.length - 1]?.type !== 'text_delta' && messages[messages.length - 1]?.type !== 'agent_progress' && (
                 <StreamingIndicator />
               )}

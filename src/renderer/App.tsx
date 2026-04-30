@@ -87,9 +87,20 @@ export default function App() {
           </>
         )}
 
-        {/* Main content area: Studio or Chat */}
+        {/* Main content area: Studio, Chat, or — once Phase 5b lands —
+            Project / Hub. Unknown variants fall back to Chat so this
+            switch is exhaustive without forcing the type. */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-          {activeMainView === 'studio' ? <StudioView /> : <ChatView />}
+          {activeMainView === 'studio' ? (
+            <StudioView />
+          ) : activeMainView === 'project' || activeMainView === 'hub' ? (
+            // Placeholders until Phase 5b/c land — render Chat so the
+            // app stays functional if a stale localStorage value
+            // selects one of the new variants.
+            <ChatView />
+          ) : (
+            <ChatView />
+          )}
         </div>
 
         {rightPanelVisible && (

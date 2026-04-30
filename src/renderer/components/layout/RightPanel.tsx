@@ -1,10 +1,11 @@
 import { useAppStore, type RightPanelTab } from '../../stores/app-store'
 import { TaskPanel } from '../sidebar/TaskPanel'
 
+// Phase 5c will re-add `files` and `tools` for the design FileWorkspace
+// + ToolCard. Keep this list narrow until then so a tab click never
+// lands on an empty pane.
 const tabs: { id: RightPanelTab; label: string }[] = [
   { id: 'terminal', label: 'Terminal' },
-  { id: 'files', label: 'Files' },
-  { id: 'tools', label: 'Tools' },
   { id: 'agents', label: 'Agents' },
   { id: 'tasks', label: 'Tasks' },
 ]
@@ -64,8 +65,6 @@ export function RightPanel() {
       <div style={{ flex: 1, overflow: 'auto' }}>
         {rightPanelTab === 'tasks' && <TaskPanel />}
         {rightPanelTab === 'terminal' && <Placeholder label="Terminal Log (Phase 4)" />}
-        {rightPanelTab === 'files' && <Placeholder label="File Changes (Phase 4)" />}
-        {rightPanelTab === 'tools' && <Placeholder label="Tool Timeline (Phase 4)" />}
         {rightPanelTab === 'agents' && <Placeholder label="Agent Tracker (Phase 4)" />}
       </div>
     </div>

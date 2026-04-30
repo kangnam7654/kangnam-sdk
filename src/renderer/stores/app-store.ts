@@ -116,8 +116,26 @@ export interface ResultSummary {
 }
 
 export type SidePanelTab = 'chats' | 'files' | 'skills' | 'agents' | 'mcp'
-export type RightPanelTab = 'terminal' | 'files' | 'tools' | 'agents' | 'tasks'
-export type MainView = 'chat' | 'studio'
+/**
+ * Tabs available in the right-side panel.
+ *
+ * `files` and `tools` were placeholder-only in the original layout.
+ * They will be re-introduced by Phase 5c (FileWorkspace + ToolCard for
+ * the design FileViewer), so the enum is intentionally narrow until
+ * that work lands.
+ */
+export type RightPanelTab = 'terminal' | 'agents' | 'tasks'
+/**
+ * Top-level view modes the main pane swaps between.
+ *
+ * - `chat` / `studio` are wired today.
+ * - `project` / `hub` are reserved for the design family Phase 5b/c —
+ *   `project` will host the per-project workspace + preview iframe;
+ *   `hub` will host the Designs Hub (last-N preview cache). Until
+ *   those land, the App-level switch falls back to `chat` for the new
+ *   variants so widening the type can't crash older renderer paths.
+ */
+export type MainView = 'chat' | 'studio' | 'project' | 'hub'
 export type StudioBottomTab = 'cli' | 'tests' | 'viewer' | 'optimize'
 
 export interface StudioState {

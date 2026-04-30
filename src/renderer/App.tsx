@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useAppStore } from './stores/app-store'
 import { cliApi } from './lib/cli-api'
 
@@ -9,6 +9,8 @@ import { ResizeHandle } from './components/layout/ResizeHandle'
 import { StatusBar } from './components/layout/StatusBar'
 import { ChatView } from './components/chat/ChatView'
 import { StudioView } from './components/studio/StudioView'
+import { ProjectView } from './components/projects/ProjectView'
+import { NewProjectPanel } from './components/projects/NewProjectPanel'
 import { SettingsPanel } from './components/settings/SettingsPanel'
 import { SearchOverlay } from './components/sidebar/SearchPanel'
 
@@ -74,6 +76,19 @@ export default function App() {
     setRightPanelWidth(Math.min(500, Math.max(260, rightPanelWidth + delta)))
   }
 
+  // NewProjectPanel modal visibility — App-local since the modal is
+  // a top-level overlay. Opened via a future ActivityBar entry; for
+  // now exposed on the global so a temporary debug action / shortcut
+  // can summon it during development.
+  const [newProjectOpen, setNewProjectOpen] = useState(false)
+  useEffect(() => {
+    const w = window as unknown as { __openNewProject?: () => void }
+    w.__openNewProject = () => setNewProjectOpen(true)
+    return () => {
+      delete w.__openNewProject
+    }
+  }, [])
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden', background: 'var(--bg-main)' }}>
       {/* Main row: Activity Bar + Side Panel + Chat + Right Panel */}
@@ -87,17 +102,17 @@ export default function App() {
           </>
         )}
 
-        {/* Main content area: Studio, Chat, or — once Phase 5b lands —
-            Project / Hub. Unknown variants fall back to Chat so this
-            switch is exhaustive without forcing the type. */}
+        {/* Main content area: Studio / Chat / Project. Hub lands in
+            Phase 5c; until then we fall back to ProjectView when 'hub'
+            is selected so a stale localStorage value still works. */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           {activeMainView === 'studio' ? (
             <StudioView />
-          ) : activeMainView === 'project' || activeMainView === 'hub' ? (
-            // Placeholders until Phase 5b/c land — render Chat so the
-            // app stays functional if a stale localStorage value
-            // selects one of the new variants.
-            <ChatView />
+          ) : activeMainView === 'project' ? (
+            <ProjectView />
+          ) : activeMainView === 'hub' ? (
+            // Phase 5c will plug in <DesignsHubView />.
+            <ProjectView />
           ) : (
             <ChatView />
           )}
@@ -117,6 +132,7 @@ export default function App() {
       {/* Overlays */}
       <SettingsPanel />
       <SearchOverlay />
+      {newProjectOpen ? <NewProjectPanel onClose={() => setNewProjectOpen(false)} /> : null}
     </div>
   )
 }

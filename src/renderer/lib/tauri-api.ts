@@ -1,5 +1,24 @@
 /**
- * Tauri API adapter — provides window.api compatible interface
+ * Tauri API adapter — provides `window.api`-compatible interface.
+ *
+ * This file is the host-side façade for Tauri `invoke` / `listen`
+ * calls. It currently spans 11 namespaces (auth, chat, claudeCommands,
+ * conv, mcp, prompts, eval, agents, studio, settings, cowork) and
+ * is paired with `cli-api.ts`, which carries the chat WebSocket
+ * transport. The two together form the renderer→backend transport
+ * surface.
+ *
+ * The original Phase 5a plan called out unifying / restructuring
+ * this dual-transport setup as a refactor blocker. Investigation
+ * showed that consolidating the 442 LoC across 11 namespaces is a
+ * separate ~5-commit project of its own — large enough that the
+ * design family work shouldn't carry it.
+ *
+ * **Deferred to ADR-011** (see plan §3.2 + §11). Until that ADR
+ * lands, treat this file as the canonical Tauri-side transport and
+ * `cli-api.ts` as the WS-side transport; do not extend the dual
+ * pattern further. New design-mode chat-rpc methods land in
+ * `cli-api.ts`; new domain commands land here as a new namespace.
  */
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'

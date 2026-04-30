@@ -116,7 +116,15 @@ export interface ResultSummary {
 }
 
 export type SidePanelTab = 'chats' | 'files' | 'skills' | 'agents' | 'mcp'
-export type RightPanelTab = 'terminal' | 'files' | 'tools' | 'agents' | 'tasks'
+/**
+ * Tabs available in the right-side panel.
+ *
+ * `files` and `tools` were placeholder-only in the original layout.
+ * They will be re-introduced by Phase 5c (FileWorkspace + ToolCard for
+ * the design FileViewer), so the enum is intentionally narrow until
+ * that work lands.
+ */
+export type RightPanelTab = 'terminal' | 'agents' | 'tasks'
 /**
  * Top-level view modes the main pane swaps between.
  *

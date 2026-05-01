@@ -489,6 +489,17 @@ const api = {
   artifactExport: {
     html: (body: string) => invoke<string>('artifact_export_html', { body }),
     markdown: (body: string) => invoke<string>('artifact_export_markdown', { body }),
+    htmlInline: (body: string, assets: { path: string; mime: string; bytes_b64: string }[]) =>
+      invoke<string>('artifact_export_html_inline', { body, assets }),
+    /** Returns base64-encoded ZIP bytes — wrap in Blob client-side. */
+    zip: (html: string, assets: { path: string; mime: string; bytes_b64: string }[]) =>
+      invoke<string>('artifact_export_zip', { html, assets }),
+    /** Reads bytes for each rel_path under working_dir; base64 encoded. */
+    collectAssets: (workingDir: string, relPaths: string[]) =>
+      invoke<{ path: string; mime: string; bytes_b64: string }[]>('artifact_collect_assets', {
+        workingDir,
+        relPaths,
+      }),
   },
 }
 

@@ -2,6 +2,7 @@ import { useAppStore, type RightPanelTab } from '../../stores/app-store'
 import { TaskPanel } from '../sidebar/TaskPanel'
 import { FileWorkspace } from '../files/FileWorkspace'
 import { ToolLogPanel } from '../chat/ToolLogPanel'
+import { TweakPanel } from '../tweaks/TweakPanel'
 
 const tabs: { id: RightPanelTab; label: string }[] = [
   { id: 'terminal', label: 'Terminal' },
@@ -9,6 +10,7 @@ const tabs: { id: RightPanelTab; label: string }[] = [
   { id: 'tasks', label: 'Tasks' },
   { id: 'files', label: 'Files' },
   { id: 'tools', label: 'Tools' },
+  { id: 'tweaks', label: 'Tweaks' },
 ]
 
 export function RightPanel() {
@@ -69,8 +71,34 @@ export function RightPanel() {
         {rightPanelTab === 'agents' && <Placeholder label="Agent Tracker (Phase 4)" />}
         {rightPanelTab === 'files' && <FileWorkspace />}
         {rightPanelTab === 'tools' && <ToolLogPanel />}
+        {rightPanelTab === 'tweaks' && <TweakPanelHost />}
       </div>
     </div>
+  )
+}
+
+/**
+ * Selects the latest in-flight artifact (or null) and feeds the
+ * active project's workingDir/path into TweakPanel for persistence.
+ */
+function TweakPanelHost() {
+  const artifactId = useAppStore((s) => {
+    const ids = Object.keys(s.artifacts)
+    if (ids.length === 0) return null
+    // Latest by startedAt — usually only one in-flight at a time.
+    return ids.reduce((prev, cur) =>
+      (s.artifacts[cur]?.startedAt ?? 0) > (s.artifacts[prev]?.startedAt ?? 0) ? cur : prev,
+    )
+  })
+  const project = useAppStore((s) =>
+    s.activeProjectId ? s.projects.find((p) => p.id === s.activeProjectId) : undefined,
+  )
+  return (
+    <TweakPanel
+      artifactId={artifactId}
+      workingDir={project?.workingDir}
+      path={project?.pendingPrompt ? null : null}
+    />
   )
 }
 

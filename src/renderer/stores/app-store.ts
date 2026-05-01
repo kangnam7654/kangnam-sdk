@@ -176,8 +176,9 @@ export type SidePanelTab = 'chats' | 'files' | 'skills' | 'agents' | 'mcp'
  * - `files`: FileWorkspace tree + viewer for the active project
  *   (`design-mode-v2` body of work).
  * - `tools`: ToolCard log of recent tool_use / tool_result pairs.
+ * - `tweaks`: live @tweak controls for the active artifact (5d-02).
  */
-export type RightPanelTab = 'terminal' | 'agents' | 'tasks' | 'files' | 'tools'
+export type RightPanelTab = 'terminal' | 'agents' | 'tasks' | 'files' | 'tools' | 'tweaks'
 /**
  * Top-level view modes the main pane swaps between.
  *

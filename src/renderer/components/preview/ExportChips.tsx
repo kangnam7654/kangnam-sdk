@@ -20,14 +20,30 @@ interface Props {
   iframeRef?: React.RefObject<HTMLIFrameElement | null>
 }
 
+interface InputAsset {
+  path: string
+  mime: string
+  bytes_b64: string
+}
+
 interface ExportApi {
   html: (body: string) => Promise<string>
   markdown: (body: string) => Promise<string>
+  htmlInline?: (body: string, assets: InputAsset[]) => Promise<string>
+  zip?: (html: string, assets: InputAsset[]) => Promise<string>
 }
 
 function getApi(): ExportApi | null {
   const api = (window as unknown as { api?: { artifactExport?: ExportApi } }).api?.artifactExport
   return api ?? null
+}
+
+/** Decode a base64 string into a Uint8Array suitable for new Blob(). */
+function b64ToBytes(b64: string): Uint8Array {
+  const bin = atob(b64)
+  const out = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+  return out
 }
 
 function downloadBlob(content: string, mime: string, filename: string) {
@@ -45,7 +61,7 @@ function downloadBlob(content: string, mime: string, filename: string) {
 }
 
 export function ExportChips({ artifactBody, artifactKind, iframeRef }: Props) {
-  const [busy, setBusy] = useState<null | 'html' | 'md' | 'pdf'>(null)
+  const [busy, setBusy] = useState<null | 'html' | 'md' | 'pdf' | 'zip'>(null)
   const [error, setError] = useState<string | null>(null)
 
   async function exportHtml() {
@@ -84,6 +100,37 @@ export function ExportChips({ artifactBody, artifactKind, iframeRef }: Props) {
     }
   }
 
+  async function exportZip() {
+    const api = getApi()
+    if (!api?.zip) {
+      setError('호스트가 ZIP export API를 제공하지 않습니다.')
+      return
+    }
+    setBusy('zip')
+    setError(null)
+    try {
+      // v1 doesn't yet collect referenced assets — passes empty array.
+      // A later commit can scan the body for asset paths and call
+      // window.api.artifactExport.collectAssets when workingDir is known.
+      const b64 = await api.zip(artifactBody, [])
+      const bytes = b64ToBytes(b64)
+      const blob = new Blob([bytes], { type: 'application/zip' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${artifactKind ?? 'artifact'}.zip`
+      a.style.display = 'none'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (e) {
+      setError(String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
   function exportPdf() {
     setBusy('pdf')
     setError(null)
@@ -109,6 +156,9 @@ export function ExportChips({ artifactBody, artifactKind, iframeRef }: Props) {
       </Chip>
       <Chip onClick={exportMd} busy={busy === 'md'}>
         MD
+      </Chip>
+      <Chip onClick={exportZip} busy={busy === 'zip'}>
+        ZIP
       </Chip>
       <Chip onClick={exportPdf} busy={busy === 'pdf'}>
         PDF

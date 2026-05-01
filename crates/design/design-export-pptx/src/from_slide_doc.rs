@@ -34,11 +34,31 @@ pub fn from_deck(deck: &Deck) -> Result<pw::PptxDeck> {
 
 /// Convert a single [`SlideDoc`] into a [`pw::PptxSlide`].
 pub fn from_slide_doc(doc: &SlideDoc) -> Result<pw::PptxSlide> {
+    let mut elements: Vec<pw::PptxElement> =
+        doc.elements.iter().map(convert_element).collect::<Result<_>>()?;
+    let background = match &doc.background {
+        SdBackground::Image { src } => {
+            // Phase 6b-04: try to embed a data URI as a full-bleed
+            // image at the front of the element list (renders behind
+            // everything else), and use white as the writer-level bg.
+            if let Some((mime, bytes)) = decode_data_uri(src) {
+                let bleed = pw::ImageBox {
+                    frame: pw::Frame::from_px(0.0, 0.0, doc.width_px as f32, doc.height_px as f32),
+                    bytes,
+                    mime,
+                    fit: pw::ImageFit::Cover,
+                };
+                elements.insert(0, pw::PptxElement::Image(bleed));
+            }
+            pw::Background::Solid { color: pw::Color::WHITE }
+        }
+        other => convert_bg(other)?,
+    };
     Ok(pw::PptxSlide {
         width_emu: pw::geometry::px_to_emu(doc.width_px as f32),
         height_emu: pw::geometry::px_to_emu(doc.height_px as f32),
-        background: convert_bg(&doc.background)?,
-        elements: doc.elements.iter().map(convert_element).collect::<Result<_>>()?,
+        background,
+        elements,
         speaker_notes: doc.speaker_notes.clone(),
     })
 }
@@ -103,23 +123,31 @@ fn convert_element(e: &SlideElement) -> Result<pw::PptxElement> {
             }))
         }
         SlideElement::Image { frame, src, fit, .. } => {
-            // v1: Canvas Image elements are placeholder URLs; we skip
-            // embedding and emit a transparent rect so the slide layout
-            // stays intact. When Canvas starts providing raw bytes,
-            // populate PptxElement::Image.
-            let _ = (src,);
-            let _fit = match fit {
+            // Phase 6b-03: try to decode a `data:image/...;base64,...`
+            // URI so the image actually embeds in the PPTX. Other URL
+            // schemes (https, file) still fall back to a transparent
+            // rect since the writer doesn't fetch.
+            let pw_fit = match fit {
                 SdFit::Cover => pw::ImageFit::Cover,
                 SdFit::Contain => pw::ImageFit::Contain,
                 SdFit::Fill => pw::ImageFit::Fill,
             };
-            Ok(pw::PptxElement::Shape(pw::ShapeBox {
-                frame: pw::Frame::from_px(frame.x, frame.y, frame.w, frame.h),
-                shape: pw::ShapeKind::Rect,
-                fill: pw::Fill::None,
-                stroke: None,
-                shadow: None,
-            }))
+            if let Some((mime, bytes)) = decode_data_uri(src) {
+                Ok(pw::PptxElement::Image(pw::ImageBox {
+                    frame: pw::Frame::from_px(frame.x, frame.y, frame.w, frame.h),
+                    bytes,
+                    mime,
+                    fit: pw_fit,
+                }))
+            } else {
+                Ok(pw::PptxElement::Shape(pw::ShapeBox {
+                    frame: pw::Frame::from_px(frame.x, frame.y, frame.w, frame.h),
+                    shape: pw::ShapeKind::Rect,
+                    fill: pw::Fill::None,
+                    stroke: None,
+                    shadow: None,
+                }))
+            }
         }
     }
 }
@@ -148,6 +176,29 @@ fn convert_bg(bg: &SdBackground) -> Result<pw::Background> {
 /// Accepts `#RRGGBB`, `#RRGGBBAA` (alpha stripped — PPTX `srgbClr` is
 /// RGB-only), and the bare forms without `#`. 3-char shorthand (`#RGB`)
 /// is expanded.
+/// Decode a `data:image/<png|jpeg>;base64,<...>` URI into raw bytes +
+/// MIME enum. Returns None for non-data URIs, unsupported MIME types,
+/// or malformed base64.
+fn decode_data_uri(src: &str) -> Option<(pw::ImageMime, Vec<u8>)> {
+    use base64::Engine as _;
+    let rest = src.strip_prefix("data:")?;
+    let (header, payload) = rest.split_once(',')?;
+    let mime = if header.contains("image/png") {
+        pw::ImageMime::Png
+    } else if header.contains("image/jpeg") || header.contains("image/jpg") {
+        pw::ImageMime::Jpeg
+    } else {
+        return None;
+    };
+    if !header.contains(";base64") {
+        return None;
+    }
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(payload)
+        .ok()?;
+    Some((mime, bytes))
+}
+
 pub(crate) fn parse_hex(s: &str) -> Result<pw::Color> {
     let stripped = s.strip_prefix('#').unwrap_or(s);
     let rgb6: &str = match stripped.len() {

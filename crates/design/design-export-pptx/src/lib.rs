@@ -4,7 +4,9 @@
 //! the entry point.
 
 pub mod color;
+pub mod color_convert;
 pub mod deck;
+pub mod from_html;
 pub mod element;
 pub mod error;
 pub mod geometry;
@@ -12,6 +14,7 @@ pub mod template;
 pub mod writer;
 
 pub use color::{Background, Color, Fill, GradientStop, Stroke};
+pub use color_convert::parse_css_color;
 pub use deck::{PptxDeck, PptxSlide};
 pub use element::{
     ImageBox, ImageFit, ImageMime, OuterShadow, PptxElement, ShapeBox, ShapeKind, TextAlign,
@@ -20,6 +23,7 @@ pub use element::{
 pub use error::{PptxWriteError, Result};
 pub use geometry::Frame;
 pub use template::{FontVariant, PptxTemplate, SlideRef};
+pub use from_html::from_html;
 pub use writer::{write_deck, write_deck_to_bytes};
 
 #[cfg(feature = "slide-doc")]

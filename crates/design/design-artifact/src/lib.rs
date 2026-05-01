@@ -27,4 +27,4 @@ pub use question_form::{
 };
 pub use lint::{lint_artifact, LintFinding, LintSeverity};
 pub use srcdoc::{wrap_srcdoc, SrcdocOpts};
-pub use export::{export_html, export_markdown};
+pub use export::{export_html, export_html_inline, export_markdown, export_zip, Asset};

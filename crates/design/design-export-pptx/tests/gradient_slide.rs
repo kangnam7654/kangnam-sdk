@@ -21,6 +21,7 @@ fn gradient_background_renders_two_stops_and_angle() {
                 angle_deg: 45.0,
             },
             elements: vec![],
+            speaker_notes: None,
         }],
     };
     let xml = slide_xml(&d);
@@ -50,6 +51,8 @@ fn gradient_shape_fill_renders_two_stops() {
                 },
                 None,
             ))],
+        
+        speaker_notes: None,
         }],
     };
     let xml = slide_xml(&d);

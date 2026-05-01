@@ -106,6 +106,7 @@ mod tests {
             height_emu: 6_858_000,
             background: Background::Solid { color: Color(0xAB, 0xCD, 0xEF) },
             elements: vec![],
+            speaker_notes: None,
         };
         let xml = String::from_utf8(build(&s, &[]).unwrap()).unwrap();
         assert!(xml.contains(r#"<a:srgbClr val="ABCDEF"/>"#));
@@ -122,6 +123,7 @@ mod tests {
                 angle_deg: 90.0,
             },
             elements: vec![],
+            speaker_notes: None,
         };
         let xml = String::from_utf8(build(&s, &[]).unwrap()).unwrap();
         assert!(xml.contains(r#"<a:srgbClr val="000000"/>"#));

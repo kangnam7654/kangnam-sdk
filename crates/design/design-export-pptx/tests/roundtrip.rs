@@ -37,6 +37,8 @@ fn python_pptx_reads_our_output() {
                     None,
                 )),
             ],
+        
+        speaker_notes: None,
         }],
     };
     let bytes = write_deck_to_bytes(&deck).unwrap();

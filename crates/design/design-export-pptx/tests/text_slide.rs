@@ -20,6 +20,8 @@ fn slide_with_text_embeds_characters_in_rich_text() {
                     s
                 },
             })],
+        
+        speaker_notes: None,
         }],
     };
     let bytes = write_deck_to_bytes(&deck).unwrap();
@@ -51,6 +53,8 @@ fn text_newlines_become_explicit_line_breaks() {
                 content: "line1\nline2".into(),
                 style: TextStyle::default(),
             })],
+        
+        speaker_notes: None,
         }],
     };
     let bytes = write_deck_to_bytes(&deck).unwrap();

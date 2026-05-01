@@ -16,6 +16,7 @@ quick-xml = "0.36"
 serde = { workspace = true }
 thiserror = { workspace = true }
 image = { version = "0.25", default-features = false, features = ["png"] }
+base64 = { workspace = true }
 design-doc-slide = { path = "../design-doc-slide", optional = true }
 
 [features]

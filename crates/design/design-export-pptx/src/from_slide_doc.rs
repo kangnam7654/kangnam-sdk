@@ -199,28 +199,20 @@ fn decode_data_uri(src: &str) -> Option<(pw::ImageMime, Vec<u8>)> {
     Some((mime, bytes))
 }
 
+/// Parse a CSS color string into an RGB [`pw::Color`].
+///
+/// Phase 6c-01 widened the accepted set beyond hex:
+/// - `#RRGGBB`, `#RRGGBBAA` (alpha stripped), `#RGB` shorthand
+/// - `oklch(L C H)` / `oklch(L C H / A)` (alpha stripped)
+/// - `oklab(L a b)` / `oklab(L a b / A)`
+/// - `color(display-p3 R G B)` / `color(srgb R G B)`
+/// - `rgb(R, G, B)` / `rgba(R, G, B, A)`
+///
+/// All conversions reduce to PPTX-friendly sRGB (PowerPoint `srgbClr`
+/// is sRGB-only). The OKLch ground-truth design tokens that come out
+/// of design-system catalog scans round-trip through this path.
 pub(crate) fn parse_hex(s: &str) -> Result<pw::Color> {
-    let stripped = s.strip_prefix('#').unwrap_or(s);
-    let rgb6: &str = match stripped.len() {
-        6 => stripped,
-        // 8-char RRGGBBAA — drop the alpha byte
-        8 => &stripped[..6],
-        // 3-char shorthand — expand RR GG BB
-        3 => {
-            return pw::Color::from_hex(&format!(
-                "{}{}{}{}{}{}",
-                &stripped[0..1],
-                &stripped[0..1],
-                &stripped[1..2],
-                &stripped[1..2],
-                &stripped[2..3],
-                &stripped[2..3],
-            ))
-            .ok_or_else(|| FromSlideDocError::InvalidHex(s.into()));
-        }
-        _ => return Err(FromSlideDocError::InvalidHex(s.into())),
-    };
-    pw::Color::from_hex(rgb6).ok_or_else(|| FromSlideDocError::InvalidHex(s.into()))
+    pw::parse_css_color(s).ok_or_else(|| FromSlideDocError::InvalidHex(s.into()))
 }
 
 #[cfg(test)]

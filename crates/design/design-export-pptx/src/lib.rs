@@ -4,6 +4,7 @@
 //! the entry point.
 
 pub mod color;
+pub mod color_convert;
 pub mod deck;
 pub mod element;
 pub mod error;
@@ -12,6 +13,7 @@ pub mod template;
 pub mod writer;
 
 pub use color::{Background, Color, Fill, GradientStop, Stroke};
+pub use color_convert::parse_css_color;
 pub use deck::{PptxDeck, PptxSlide};
 pub use element::{
     ImageBox, ImageFit, ImageMime, OuterShadow, PptxElement, ShapeBox, ShapeKind, TextAlign,

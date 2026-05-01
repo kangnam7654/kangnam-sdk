@@ -16,6 +16,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { useAppStore } from '../../stores/app-store'
+import { DesignSystemPreviewModal } from './DesignSystemPreviewModal'
 
 interface CatalogEntry {
   id: string
@@ -52,6 +53,7 @@ export function NewProjectPanel({ onClose }: Props) {
   const [designSystemId, setDesignSystemId] = useState<string | null>(null)
   const [brief, setBrief] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [previewSystemId, setPreviewSystemId] = useState<string | null>(null)
 
   // Fetch skill/DS catalogs from the host. Phase 5b-14 lands the
   // Tauri commands; until then `window.api.design` is undefined and
@@ -173,13 +175,36 @@ export function NewProjectPanel({ onClose }: Props) {
               없음
             </Pill>
             {designSystems.map((d) => (
-              <Pill
+              <span
                 key={d.id}
-                on={designSystemId === d.id}
-                onClick={() => setDesignSystemId(d.id)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 0 }}
               >
-                {d.name}
-              </Pill>
+                <Pill
+                  on={designSystemId === d.id}
+                  onClick={() => setDesignSystemId(d.id)}
+                >
+                  {d.name}
+                </Pill>
+                <button
+                  type="button"
+                  onClick={() => setPreviewSystemId(d.id)}
+                  title="미리보기"
+                  style={{
+                    marginLeft: -22,
+                    width: 20,
+                    height: 20,
+                    fontSize: 10,
+                    border: 'none',
+                    borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.15)',
+                    color: 'inherit',
+                    cursor: 'pointer',
+                    opacity: 0.7,
+                  }}
+                >
+                  ?
+                </button>
+              </span>
             ))}
           </div>
         </Field>
@@ -211,6 +236,12 @@ export function NewProjectPanel({ onClose }: Props) {
           </button>
         </div>
       </div>
+      {previewSystemId ? (
+        <DesignSystemPreviewModal
+          systemId={previewSystemId}
+          onClose={() => setPreviewSystemId(null)}
+        />
+      ) : null}
     </div>
   )
 }

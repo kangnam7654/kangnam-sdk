@@ -172,12 +172,12 @@ export type SidePanelTab = 'chats' | 'files' | 'skills' | 'agents' | 'mcp'
 /**
  * Tabs available in the right-side panel.
  *
- * `files` and `tools` were placeholder-only in the original layout.
- * They will be re-introduced by Phase 5c (FileWorkspace + ToolCard for
- * the design FileViewer), so the enum is intentionally narrow until
- * that work lands.
+ * Re-introduced in Phase 5c:
+ * - `files`: FileWorkspace tree + viewer for the active project
+ *   (`design-mode-v2` body of work).
+ * - `tools`: ToolCard log of recent tool_use / tool_result pairs.
  */
-export type RightPanelTab = 'terminal' | 'agents' | 'tasks'
+export type RightPanelTab = 'terminal' | 'agents' | 'tasks' | 'files' | 'tools'
 /**
  * Top-level view modes the main pane swaps between.
  *

@@ -10,6 +10,7 @@ import { MessageInput } from './MessageInput'
 import { useChatSession } from '../../hooks/useChatSession'
 import { QuestionFormView } from '../artifacts/QuestionForm'
 import type { QuestionForm } from '../../lib/artifacts/question-form'
+import { UnfinishedTodosPanel } from './UnfinishedTodosPanel'
 
 /**
  * The chat pane content — wires up the four streaming subscriptions
@@ -153,6 +154,7 @@ export function ChatContent() {
             </div>
           ) : (
             <>
+              <UnfinishedTodosPanel />
               {messages.map((msg, i) => {
                 // Design-family variants get dedicated renderers.
                 // The chat-ui MessageRenderer's switch default returns

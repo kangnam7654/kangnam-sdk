@@ -1135,6 +1135,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "design-tools"
+version = "0.2.1"
+dependencies = [
+ "async-trait",
+ "design-artifact",
+ "design-skill",
+ "kangnam-harness-runtime",
+ "regex",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
 name = "deunicode"
 version = "1.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2684,6 +2700,9 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "chrono",
+ "design-artifact",
+ "design-skill",
+ "design-system",
  "dirs",
  "futures",
  "kangnam-chat",
@@ -2726,6 +2745,19 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
+name = "kangnam-harness-runtime"
+version = "0.2.1"
+dependencies = [
+ "async-trait",
+ "kangnam-harness-core",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
  "uuid",
 ]
 

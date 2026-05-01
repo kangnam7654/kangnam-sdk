@@ -109,6 +109,14 @@ pub fn run() {
             // Design family catalog (Phase 5b)
             commands::design::design_skill_list,
             commands::design::design_system_list,
+            commands::design::design_system_get,
+            // Project FileWorkspace (Phase 5c-07)
+            commands::project_files::project_files_list,
+            commands::project_files::project_file_read,
+            commands::project_files::project_file_write,
+            // Artifact export (Phase 5c-17)
+            commands::artifact_export::artifact_export_html,
+            commands::artifact_export::artifact_export_markdown,
         ])
         .setup(|app| {
             // ── System tray ──

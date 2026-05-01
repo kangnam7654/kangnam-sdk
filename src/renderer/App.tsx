@@ -10,6 +10,7 @@ import { StatusBar } from './components/layout/StatusBar'
 import { ChatView } from './components/chat/ChatView'
 import { StudioView } from './components/studio/StudioView'
 import { ProjectView } from './components/projects/ProjectView'
+import { HubView } from './components/hub/HubView'
 import { NewProjectPanel } from './components/projects/NewProjectPanel'
 import { SettingsPanel } from './components/settings/SettingsPanel'
 import { SearchOverlay } from './components/sidebar/SearchPanel'
@@ -102,17 +103,14 @@ export default function App() {
           </>
         )}
 
-        {/* Main content area: Studio / Chat / Project. Hub lands in
-            Phase 5c; until then we fall back to ProjectView when 'hub'
-            is selected so a stale localStorage value still works. */}
+        {/* Main content area: Studio / Chat / Project / Hub. */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           {activeMainView === 'studio' ? (
             <StudioView />
           ) : activeMainView === 'project' ? (
             <ProjectView />
           ) : activeMainView === 'hub' ? (
-            // Phase 5c will plug in <DesignsHubView />.
-            <ProjectView />
+            <HubView />
           ) : (
             <ChatView />
           )}

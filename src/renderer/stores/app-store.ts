@@ -40,6 +40,7 @@ import {
 import { createChatSlice, type ChatSlice } from './slices/chat'
 import { createProjectsSlice, type ProjectsSlice } from './slices/projects'
 import { createArtifactsSlice, type ArtifactsSlice } from './slices/artifacts'
+import { createCommentsSlice, type CommentsSlice } from './slices/comments'
 
 export type { Project } from './slices/projects'
 export type { ArtifactState } from './slices/artifacts'
@@ -176,8 +177,9 @@ export type SidePanelTab = 'chats' | 'files' | 'skills' | 'agents' | 'mcp'
  * - `files`: FileWorkspace tree + viewer for the active project
  *   (`design-mode-v2` body of work).
  * - `tools`: ToolCard log of recent tool_use / tool_result pairs.
+ * - `tweaks`: live @tweak controls for the active artifact (5d-02).
  */
-export type RightPanelTab = 'terminal' | 'agents' | 'tasks' | 'files' | 'tools'
+export type RightPanelTab = 'terminal' | 'agents' | 'tasks' | 'files' | 'tools' | 'tweaks'
 /**
  * Top-level view modes the main pane swaps between.
  *
@@ -209,7 +211,8 @@ interface AppState
     ConversationsSlice,
     ChatSlice,
     ProjectsSlice,
-    ArtifactsSlice {}
+    ArtifactsSlice,
+    CommentsSlice {}
 
 export const useAppStore = create<AppState>((set, get) => ({
   ...createThemeSlice(set),
@@ -221,4 +224,5 @@ export const useAppStore = create<AppState>((set, get) => ({
   ...createChatSlice(set),
   ...createProjectsSlice(set),
   ...createArtifactsSlice(set),
+  ...createCommentsSlice(set, () => get()),
 }))

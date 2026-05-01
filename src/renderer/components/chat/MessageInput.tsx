@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAppStore } from '../../stores/app-store'
 import { cliApi } from '../../lib/cli-api'
+import { SketchEditor } from '../sketch/SketchEditor'
 
 /**
  * Composer for outgoing chat messages — auto-resizing textarea, an
@@ -21,6 +22,7 @@ export function MessageInput() {
   const [text, setText] = useState('')
   const [effortLevel, setEffortLevel] = useState<EffortLevel>('high')
   const [effortDropdownOpen, setEffortDropdownOpen] = useState(false)
+  const [sketchOpen, setSketchOpen] = useState(false)
   const { currentSessionId, addMessage, isStreaming, setIsStreaming } = useAppStore()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const effortDropdownRef = useRef<HTMLDivElement>(null)
@@ -137,6 +139,31 @@ export function MessageInput() {
           aria-label="Message input"
         />
 
+        {/* Sketch button (5d-04) — opens canvas, attaches PNG as message */}
+        <button
+          onClick={() => setSketchOpen(true)}
+          title="스케치 첨부 — 캔버스로 그리고 메시지에 첨부"
+          aria-label="Sketch attachment"
+          style={{
+            flexShrink: 0,
+            width: 28,
+            height: 28,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border)',
+            background: 'transparent',
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 3l5 5" />
+            <path d="M2 22l16-16 4 4-16 16H2v-4z" />
+          </svg>
+        </button>
+
         {/* Effort level selector */}
         <div ref={effortDropdownRef} style={{ position: 'relative', flexShrink: 0 }}>
           <button
@@ -247,6 +274,23 @@ export function MessageInput() {
           )}
         </button>
       </div>
+      {sketchOpen ? (
+        <SketchEditor
+          onCancel={() => setSketchOpen(false)}
+          onSave={(dataUri) => {
+            // Append the data URI as a markdown image into the composer
+            // so the user can edit the prompt body before send. Models
+            // that accept image_url params can pick this up; for the
+            // CLI bridge that doesn't, the URI is logged inline so the
+            // user can still copy it elsewhere.
+            setText((cur) => {
+              const md = `![sketch](${dataUri})`
+              return cur ? `${cur}\n\n${md}` : md
+            })
+            setSketchOpen(false)
+          }}
+        />
+      ) : null}
     </div>
   )
 }

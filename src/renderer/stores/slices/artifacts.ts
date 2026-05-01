@@ -42,6 +42,8 @@ export interface ArtifactsSlice {
   clearArtifacts: () => void
   /** Targeted removal — used when the host saves an artifact to disk. */
   removeArtifact: (id: string) => void
+  /** Replace body in place — used by TweakPanel to flush edits (5d-02). */
+  setArtifactBody: (id: string, body: string) => void
 }
 
 type ArtifactsSet = (
@@ -100,6 +102,18 @@ export function createArtifactsSlice(set: ArtifactsSet): ArtifactsSlice {
         const next = { ...s.artifacts }
         delete next[id]
         return { artifacts: next }
+      }),
+
+    setArtifactBody: (id, body) =>
+      set((s) => {
+        const cur = s.artifacts[id]
+        if (!cur) return {}
+        return {
+          artifacts: {
+            ...s.artifacts,
+            [id]: { ...cur, body },
+          },
+        }
       }),
   }
 }

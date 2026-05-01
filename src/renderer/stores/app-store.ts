@@ -40,6 +40,7 @@ import {
 import { createChatSlice, type ChatSlice } from './slices/chat'
 import { createProjectsSlice, type ProjectsSlice } from './slices/projects'
 import { createArtifactsSlice, type ArtifactsSlice } from './slices/artifacts'
+import { createCommentsSlice, type CommentsSlice } from './slices/comments'
 
 export type { Project } from './slices/projects'
 export type { ArtifactState } from './slices/artifacts'
@@ -210,7 +211,8 @@ interface AppState
     ConversationsSlice,
     ChatSlice,
     ProjectsSlice,
-    ArtifactsSlice {}
+    ArtifactsSlice,
+    CommentsSlice {}
 
 export const useAppStore = create<AppState>((set, get) => ({
   ...createThemeSlice(set),
@@ -222,4 +224,5 @@ export const useAppStore = create<AppState>((set, get) => ({
   ...createChatSlice(set),
   ...createProjectsSlice(set),
   ...createArtifactsSlice(set),
+  ...createCommentsSlice(set, () => get()),
 }))

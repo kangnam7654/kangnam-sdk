@@ -25,6 +25,7 @@ import { buildSrcdoc } from '../../lib/runtime/srcdoc'
 import { useAppStore } from '../../stores/app-store'
 import { FrameToolbar, PhoneFrame, type FrameMode } from './PhoneFrame'
 import { ExportChips } from './ExportChips'
+import { PinOverlay } from '../comment/PinOverlay'
 
 interface ConsoleMsg {
   kind: 'console' | 'error' | 'unhandled-rejection' | 'ready'
@@ -61,6 +62,8 @@ export function PreviewIframe({
   hideFrameToggle = false,
 }: Props) {
   const artifact = useAppStore((s) => (artifactId ? s.artifacts[artifactId] : undefined))
+  const commentMode = useAppStore((s) => s.commentMode)
+  const setCommentMode = useAppStore((s) => s.setCommentMode)
   const [consoleBuf, setConsoleBuf] = useState<ConsoleMsg[]>([])
   const [frame, setFrame] = useState<FrameMode>(initialFrame)
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -164,6 +167,27 @@ export function PreviewIframe({
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {artifact?.body ? (
+              <button
+                type="button"
+                onClick={() => setCommentMode(!commentMode)}
+                title={commentMode ? '코멘트 모드 끄기' : '코멘트 모드 켜기 — 클릭으로 핀 추가'}
+                style={{
+                  fontSize: 10,
+                  padding: '3px 8px',
+                  borderRadius: 4,
+                  border: '1px solid var(--border)',
+                  background: commentMode ? 'var(--accent)' : 'var(--bg-surface)',
+                  color: commentMode ? '#fff' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  fontWeight: 500,
+                }}
+              >
+                💬 Comment
+              </button>
+            ) : null}
+            {artifact?.body ? (
               <ExportChips
                 artifactBody={artifact.body}
                 artifactKind={artifact.kind}
@@ -184,13 +208,16 @@ export function PreviewIframe({
             maxWidth={containerSize?.w}
             maxHeight={containerSize?.h}
           >
-            <iframe
-              ref={iframeRef}
-              srcDoc={srcdoc}
-              sandbox="allow-scripts"
-              style={{ width: '100%', height: '100%', border: 'none' }}
-              title="design artifact preview"
-            />
+            <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+              <iframe
+                ref={iframeRef}
+                srcDoc={srcdoc}
+                sandbox="allow-scripts"
+                style={{ width: '100%', height: '100%', border: 'none' }}
+                title="design artifact preview"
+              />
+              {artifactId ? <PinOverlay artifactId={artifactId} /> : null}
+            </div>
           </PhoneFrame>
         ) : (
           <div

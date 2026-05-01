@@ -15,6 +15,7 @@ mod core_props;
 mod image;
 mod layout;
 mod master;
+mod notes;
 mod presentation;
 mod relationships;
 mod shape;
@@ -58,23 +59,58 @@ pub fn write_deck_to_bytes(deck: &PptxDeck) -> Result<Vec<u8>> {
         // Global image counter — `imageN.ext` is deck-wide so each file is unique.
         let mut global_image_idx: u32 = 0;
 
+        // Emit notesMaster if any slide has speaker_notes.
+        let any_notes = deck.slides.iter().any(|s| s.speaker_notes.is_some());
+        if any_notes {
+            add(&mut zip, "ppt/notesMasters/notesMaster1.xml", &notes::notes_master_xml())?;
+            add(
+                &mut zip,
+                "ppt/notesMasters/_rels/notesMaster1.xml.rels",
+                &notes::notes_master_rels()?,
+            )?;
+        }
+
         for (idx, s) in deck.slides.iter().enumerate() {
             let n = idx + 1;
             let slide_images = collect_slide_images(idx, s, &mut global_image_idx)?;
+            let has_notes = s.speaker_notes.is_some();
 
             // Slide XML
             add(&mut zip, &format!("ppt/slides/slide{n}.xml"), &slide::build(s, &slide_images)?)?;
 
-            // Slide rels
+            // Slide rels — image rels start at rId2; notesSlide rel
+            // (when present) takes the next id after images.
             let rels_tuples: Vec<(String, String)> = slide_images.iter()
                 .map(|si| (si.rel_id.clone(), si.filename.clone()))
                 .collect();
-            add(&mut zip, &format!("ppt/slides/_rels/slide{n}.xml.rels"),
-                &relationships::slide_rels(&rels_tuples)?)?;
+            let notes_rel_id = if has_notes {
+                Some(format!("rId{}", 2 + slide_images.len()))
+            } else {
+                None
+            };
+            add(
+                &mut zip,
+                &format!("ppt/slides/_rels/slide{n}.xml.rels"),
+                &relationships::slide_rels_with_notes(&rels_tuples, notes_rel_id.as_deref(), n)?,
+            )?;
 
             // Media bytes
             for si in &slide_images {
                 add(&mut zip, &format!("ppt/media/{}", si.filename), &si.bytes)?;
+            }
+
+            // Notes slide
+            if has_notes {
+                add(
+                    &mut zip,
+                    &format!("ppt/notesSlides/notesSlide{n}.xml"),
+                    &notes::notes_slide_xml(s),
+                )?;
+                add(
+                    &mut zip,
+                    &format!("ppt/notesSlides/_rels/notesSlide{n}.xml.rels"),
+                    &notes::notes_slide_rels(n)?,
+                )?;
             }
         }
 

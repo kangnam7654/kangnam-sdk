@@ -55,6 +55,22 @@ pub fn build(deck: &PptxDeck) -> Result<Vec<u8>, PptxWriteError> {
             ("ContentType", "application/vnd.openxmlformats-officedocument.presentationml.slide+xml"),
         ])?;
     }
+    // Notes overrides — only emit when at least one slide has notes.
+    let any_notes = deck.slides.iter().any(|s| s.speaker_notes.is_some());
+    if any_notes {
+        empty_elem(&mut w, "Override", &[
+            ("PartName", "/ppt/notesMasters/notesMaster1.xml"),
+            ("ContentType", "application/vnd.openxmlformats-officedocument.presentationml.notesMaster+xml"),
+        ])?;
+        for (i, s) in deck.slides.iter().enumerate() {
+            if s.speaker_notes.is_none() { continue; }
+            let path = format!("/ppt/notesSlides/notesSlide{}.xml", i + 1);
+            empty_elem(&mut w, "Override", &[
+                ("PartName", &path),
+                ("ContentType", "application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml"),
+            ])?;
+        }
+    }
     empty_elem(&mut w, "Override", &[
         ("PartName", "/docProps/core.xml"),
         ("ContentType", "application/vnd.openxmlformats-package.core-properties+xml"),

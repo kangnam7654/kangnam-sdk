@@ -17,6 +17,10 @@ pub struct PptxSlide {
     pub height_emu: Emu,
     pub background: Background,
     pub elements: Vec<PptxElement>,
+    /// PowerPoint speaker notes — emitted into `ppt/notesSlides/notesSlideN.xml`
+    /// when present (Phase 6b-01).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub speaker_notes: Option<String>,
 }
 
 impl PptxSlide {
@@ -27,7 +31,17 @@ impl PptxSlide {
             height_emu: px_to_emu(720.0),
             background: Background::Solid { color: Color::WHITE },
             elements: Vec::new(),
+            speaker_notes: None,
         }
+    }
+}
+
+impl Default for PptxSlide {
+    /// Default to a blank 16:9 slide so callers can use `..Default::default()`
+    /// when they only want to set a subset of fields. Mirrors the Phase 6b
+    /// addition of `speaker_notes` so existing callers don't need to update.
+    fn default() -> Self {
+        Self::blank_1280_720()
     }
 }
 

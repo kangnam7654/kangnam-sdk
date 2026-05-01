@@ -17,6 +17,8 @@ fn image_slide_embeds_png_in_media_folder() {
                 mime: ImageMime::Png,
                 fit: ImageFit::Contain,
             })],
+        
+        speaker_notes: None,
         }],
     };
     let bytes = write_deck_to_bytes(&deck).unwrap();
@@ -53,6 +55,8 @@ fn png_declared_as_jpeg_fails_mime_check() {
                 mime: ImageMime::Jpeg,       // lie
                 fit: ImageFit::Contain,
             })],
+        
+        speaker_notes: None,
         }],
     };
     let err = write_deck_to_bytes(&deck).unwrap_err();

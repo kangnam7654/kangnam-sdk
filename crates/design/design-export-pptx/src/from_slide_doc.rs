@@ -39,6 +39,7 @@ pub fn from_slide_doc(doc: &SlideDoc) -> Result<pw::PptxSlide> {
         height_emu: pw::geometry::px_to_emu(doc.height_px as f32),
         background: convert_bg(&doc.background)?,
         elements: doc.elements.iter().map(convert_element).collect::<Result<_>>()?,
+        speaker_notes: doc.speaker_notes.clone(),
     })
 }
 

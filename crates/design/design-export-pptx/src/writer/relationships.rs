@@ -54,13 +54,30 @@ pub fn presentation_rels(deck: &PptxDeck) -> Result<Vec<u8>, PptxWriteError> {
             ("Target", &target),
         ])?;
     }
+    // notesMaster rel — only when any slide has speaker_notes (Phase 6b-02).
+    let any_notes = deck.slides.iter().any(|s| s.speaker_notes.is_some());
+    if any_notes {
+        let rid = format!("rId{}", deck.slides.len() + 3);
+        empty_elem(&mut w, "Relationship", &[
+            ("Id", &rid),
+            ("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesMaster"),
+            ("Target", "notesMasters/notesMaster1.xml"),
+        ])?;
+    }
     close_elem(&mut w, "Relationships")?;
     Ok(into_bytes(w))
 }
 
-/// `ppt/slides/_rels/slideN.xml.rels` — slide → layout + embedded images.
-/// `slide_images` is a list of `(rId, media_filename)` pairs (e.g. `("rId2", "image1.png")`).
-pub fn slide_rels(slide_images: &[(String, String)]) -> Result<Vec<u8>, PptxWriteError> {
+/// `ppt/slides/_rels/slideN.xml.rels` — slide → layout + embedded
+/// images + (optionally) notesSlide.
+///
+/// Renamed from `slide_rels` in Phase 6b-02 — when `notes_rid` is None
+/// and `slide_n` is unused, behavior is identical to the pre-6b output.
+pub fn slide_rels_with_notes(
+    slide_images: &[(String, String)],
+    notes_rid: Option<&str>,
+    slide_n: usize,
+) -> Result<Vec<u8>, PptxWriteError> {
     let mut w = new_writer();
     write_decl(&mut w)?;
     open_elem(&mut w, "Relationships", &[("xmlns", NS)])?;
@@ -74,6 +91,14 @@ pub fn slide_rels(slide_images: &[(String, String)]) -> Result<Vec<u8>, PptxWrit
         empty_elem(&mut w, "Relationship", &[
             ("Id", rid.as_str()),
             ("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"),
+            ("Target", &target),
+        ])?;
+    }
+    if let Some(rid) = notes_rid {
+        let target = format!("../notesSlides/notesSlide{slide_n}.xml");
+        empty_elem(&mut w, "Relationship", &[
+            ("Id", rid),
+            ("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide"),
             ("Target", &target),
         ])?;
     }
@@ -140,15 +165,23 @@ mod tests {
 
     #[test]
     fn slide_rels_with_no_images_has_only_layout_rel() {
-        let s = String::from_utf8(slide_rels(&[]).unwrap()).unwrap();
+        let s = String::from_utf8(slide_rels_with_notes(&[], None, 1).unwrap()).unwrap();
         assert!(s.contains(r#"Target="../slideLayouts/slideLayout1.xml""#));
         assert!(!s.contains("../media/"));
+        assert!(!s.contains("notesSlide"));
     }
 
     #[test]
     fn slide_rels_with_images_emits_media_targets() {
         let imgs = vec![("rId2".into(), "image1.png".into())];
-        let s = String::from_utf8(slide_rels(&imgs).unwrap()).unwrap();
+        let s = String::from_utf8(slide_rels_with_notes(&imgs, None, 1).unwrap()).unwrap();
         assert!(s.contains(r#"Target="../media/image1.png""#));
+    }
+
+    #[test]
+    fn slide_rels_with_notes_includes_notes_relationship() {
+        let s =
+            String::from_utf8(slide_rels_with_notes(&[], Some("rId2"), 1).unwrap()).unwrap();
+        assert!(s.contains(r#"Target="../notesSlides/notesSlide1.xml""#));
     }
 }

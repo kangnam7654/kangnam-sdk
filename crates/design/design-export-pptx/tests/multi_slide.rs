@@ -14,6 +14,8 @@ fn three_slide_deck_has_three_slide_parts_and_three_rels() {
                 content: format!("Slide {ch}"),
                 style: { let mut s = TextStyle::default(); s.font_size_pt = 48.0; s },
             })],
+        
+        speaker_notes: None,
         });
     }
     let deck = PptxDeck { title: Some("Three".into()), slides };

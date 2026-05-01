@@ -13,6 +13,8 @@ fn slide_with(shape: ShapeKind) -> PptxDeck {
                 Fill::solid(Color(0x3B, 0x82, 0xF6)),
                 None,
             ))],
+        
+        speaker_notes: None,
         }],
     }
 }

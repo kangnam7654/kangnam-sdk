@@ -6,13 +6,14 @@ members = [
     "crates/harness/*",
     "crates/router",
     "crates/design/*",
+    "crates/fortune/*",
     "crates/pii-crypto",
 ]
 exclude = ["crates/design/canvas-sdk-target"]
 
 [workspace.package]
 version = "0.3.0"
-edition = "2021"
+edition = "2024"
 rust-version = "1.85"
 authors = ["Kangnam Kim <kangnam7654@naver.com>"]
 license = "MIT"
@@ -32,6 +33,8 @@ tokio = { version = "1", features = ["rt", "macros"] }
 tempfile = "3"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 base64 = "0.22"
+rand = "0.8"
+sha2 = "0.10"
 
 # ── workspace internal crates ──
 kangnam-harness-core    = { path = "crates/harness/core" }
@@ -58,6 +61,8 @@ design-skill          = { path = "crates/design/design-skill" }
 design-prompt         = { path = "crates/design/design-prompt" }
 design-artifact       = { path = "crates/design/design-artifact" }
 design-tools          = { path = "crates/design/design-tools" }
+saju-engine           = { path = "crates/fortune/saju-engine" }
+tarot-engine          = { path = "crates/fortune/tarot-engine" }
 pii-crypto            = { path = "crates/pii-crypto" }
 
 [profile.release]

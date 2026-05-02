@@ -1,0 +1,18 @@
+{
+  "id": "chatcmpl-copilot-1",
+  "model": "claude-sonnet-4.6",
+  "choices": [{
+    "index": 0,
+    "message": {
+      "role": "assistant",
+      "content": "Checking the weather.",
+      "tool_calls": [{
+        "id": "call_01",
+        "type": "function",
+        "function": {"name": "get_weather", "arguments": "{\"city\":\"seoul\"}"}
+      }]
+    },
+    "finish_reason": "tool_calls"
+  }],
+  "usage": {"prompt_tokens": 50, "completion_tokens": 20, "total_tokens": 70}
+}

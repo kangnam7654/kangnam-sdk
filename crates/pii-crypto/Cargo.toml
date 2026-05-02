@@ -1,10 +1,10 @@
 [package]
 name = "pii-crypto"
 version.workspace = true
-edition = "2024"
+edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-repository = "https://github.com/kangnam7654/pii-crypto"
+repository.workspace = true
 description = "AES-256-GCM envelope encryption for personally identifiable information (PII). Random 12-byte nonce prepended to ciphertext."
 
 [lints.rust]

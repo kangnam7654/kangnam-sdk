@@ -11,20 +11,21 @@ categories = ["multimedia"]
 
 [dependencies]
 async-stream = "0.3"
-design-llm = { path = "../design-llm" }
-design-doc-slide = { path = "../design-doc-slide" }
-design-doc-site = { path = "../design-doc-site" }
+design-llm = { workspace = true }
+design-doc-slide = { workspace = true }
+design-doc-site = { workspace = true }
 futures = "0.3"
 serde = { workspace = true }
 serde_json = { workspace = true }
 tera = "1"
 thiserror = { workspace = true }
 tracing = "0.1"
-uuid = { version = "1", features = ["v4"] }
+uuid = { workspace = true }
 
 [features]
 default = []
 test-util = ["design-llm/test-util"]
 
 [dev-dependencies]
-tokio = { version = "1", features = ["full"] }
+design-llm = { workspace = true, features = ["test-util"] }
+tokio = { workspace = true, features = ["rt-multi-thread"] }

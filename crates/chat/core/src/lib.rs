@@ -45,6 +45,7 @@
 //! pick them up only when you want Claude Code / Codex subprocess
 //! integration, the suspend/resume tool flow, or a hosted WS endpoint.
 
+pub mod error;
 pub mod json_rpc;
 pub mod storage;
 pub mod types;
@@ -61,5 +62,6 @@ pub mod sqlite_storage;
 #[cfg(feature = "postgres")]
 pub mod postgres_storage;
 
-pub use storage::{Storage, StorageError, StorageResult};
+pub use error::{Result, StorageError};
+pub use storage::Storage;
 pub use types::{Conversation, Message, NewMessage, SearchResult};

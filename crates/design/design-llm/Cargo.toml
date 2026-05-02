@@ -11,17 +11,17 @@ categories = ["api-bindings"]
 
 [dependencies]
 async-stream = "0.3"
-base64 = "0.22"
+base64 = { workspace = true }
 futures = "0.3"
 regex-lite = "0.1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-tokio = { version = "1", features = ["process", "io-util", "rt", "macros", "time"] }
+tokio = { workspace = true, features = ["process", "io-util", "time"] }
 tokio-stream = { version = "0.1", features = ["io-util"] }
 tracing = "0.1"
-uuid = { version = "1", features = ["v4"] }
+uuid = { workspace = true }
 
 [features]
 default = []
@@ -31,4 +31,4 @@ test-util = []
 
 [dev-dependencies]
 tempfile = { workspace = true }
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["rt-multi-thread"] }

@@ -1,0 +1,29 @@
+[package]
+name = "kangnam-router"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Multi-provider LLM HTTP client library — Claude, Codex, Copilot, Gemini with shared trait and dummy provider for tests. (Vendored copy of llm-router for the kangnam-sdk monorepo.)"
+
+[lints.rust]
+unsafe_code = "deny"
+
+[dependencies]
+tokio = { version = "1", features = ["rt", "macros", "io-util", "process", "time"] }
+futures = "0.3"
+async-stream = "0.3"
+reqwest = { version = "0.12", features = ["json", "rustls-tls", "stream"], default-features = false }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+tracing = "0.1"
+dirs = "6"
+infer = "0.16"
+base64 = "0.22"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "test-util"] }
+wiremock = "0.6"

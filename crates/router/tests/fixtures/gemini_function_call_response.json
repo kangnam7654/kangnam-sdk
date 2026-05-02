@@ -1,0 +1,12 @@
+{
+  "candidates": [{
+    "content": {
+      "parts": [
+        {"text": "Checking the weather."},
+        {"functionCall": {"name": "get_weather", "args": {"city": "seoul"}}}
+      ],
+      "role": "model"
+    },
+    "finishReason": "STOP"
+  }]
+}

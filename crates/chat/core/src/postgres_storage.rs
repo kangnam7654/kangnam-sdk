@@ -29,7 +29,8 @@ use async_trait::async_trait;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::storage::{derive_auto_title, now_ts, Storage, StorageError, StorageResult};
+use crate::error::{Result, StorageError};
+use crate::storage::{derive_auto_title, now_ts, Storage};
 use crate::types::{Conversation, Message, NewMessage, SearchResult};
 
 impl From<sqlx::Error> for StorageError {
@@ -60,7 +61,7 @@ const MIGRATION_SQL: &str = include_str!("postgres_migrations.sql");
 
 #[async_trait]
 impl Storage for PostgresStorage {
-    async fn migrate(&self) -> StorageResult<()> {
+    async fn migrate(&self) -> Result<()> {
         sqlx::raw_sql(MIGRATION_SQL)
             .execute(&self.pool)
             .await
@@ -68,7 +69,7 @@ impl Storage for PostgresStorage {
         Ok(())
     }
 
-    async fn list_conversations(&self) -> StorageResult<Vec<Conversation>> {
+    async fn list_conversations(&self) -> Result<Vec<Conversation>> {
         let rows = sqlx::query_as::<_, ConversationRow>(
             "SELECT id, title, cli_provider, model, pinned, created_at, updated_at \
              FROM chat_conversations ORDER BY pinned DESC, updated_at DESC",
@@ -82,7 +83,7 @@ impl Storage for PostgresStorage {
         &self,
         cli_provider: &str,
         model: Option<&str>,
-    ) -> StorageResult<Conversation> {
+    ) -> Result<Conversation> {
         let id = Uuid::new_v4().to_string();
         let now = now_ts();
         sqlx::query(
@@ -107,7 +108,7 @@ impl Storage for PostgresStorage {
         })
     }
 
-    async fn get_conversation(&self, id: &str) -> StorageResult<Option<Conversation>> {
+    async fn get_conversation(&self, id: &str) -> Result<Option<Conversation>> {
         let row = sqlx::query_as::<_, ConversationRow>(
             "SELECT id, title, cli_provider, model, pinned, created_at, updated_at \
              FROM chat_conversations WHERE id = $1",
@@ -118,7 +119,7 @@ impl Storage for PostgresStorage {
         Ok(row.map(Into::into))
     }
 
-    async fn conversation_exists(&self, id: &str) -> StorageResult<bool> {
+    async fn conversation_exists(&self, id: &str) -> Result<bool> {
         let exists: bool =
             sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM chat_conversations WHERE id = $1)")
                 .bind(id)
@@ -127,7 +128,7 @@ impl Storage for PostgresStorage {
         Ok(exists)
     }
 
-    async fn ensure_conversation(&self, id: &str, cli_provider: &str) -> StorageResult<()> {
+    async fn ensure_conversation(&self, id: &str, cli_provider: &str) -> Result<()> {
         let now = now_ts();
         sqlx::query(
             "INSERT INTO chat_conversations \
@@ -143,7 +144,7 @@ impl Storage for PostgresStorage {
         Ok(())
     }
 
-    async fn delete_conversation(&self, id: &str) -> StorageResult<()> {
+    async fn delete_conversation(&self, id: &str) -> Result<()> {
         sqlx::query("DELETE FROM chat_conversations WHERE id = $1")
             .bind(id)
             .execute(&self.pool)
@@ -151,14 +152,14 @@ impl Storage for PostgresStorage {
         Ok(())
     }
 
-    async fn delete_all_conversations(&self) -> StorageResult<()> {
+    async fn delete_all_conversations(&self) -> Result<()> {
         sqlx::query("DELETE FROM chat_conversations")
             .execute(&self.pool)
             .await?;
         Ok(())
     }
 
-    async fn update_title(&self, id: &str, title: &str) -> StorageResult<()> {
+    async fn update_title(&self, id: &str, title: &str) -> Result<()> {
         let now = now_ts();
         sqlx::query(
             "UPDATE chat_conversations SET title = $1, updated_at = $2 WHERE id = $3",
@@ -171,7 +172,7 @@ impl Storage for PostgresStorage {
         Ok(())
     }
 
-    async fn toggle_pin(&self, id: &str) -> StorageResult<()> {
+    async fn toggle_pin(&self, id: &str) -> Result<()> {
         sqlx::query(
             "UPDATE chat_conversations SET pinned = CASE WHEN pinned = 0 THEN 1 ELSE 0 END \
              WHERE id = $1",
@@ -186,7 +187,7 @@ impl Storage for PostgresStorage {
         &self,
         conversation_id: &str,
         user_message: &str,
-    ) -> StorageResult<()> {
+    ) -> Result<()> {
         let Some(new_title) = derive_auto_title(user_message) else {
             return Ok(());
         };
@@ -206,7 +207,7 @@ impl Storage for PostgresStorage {
         Ok(())
     }
 
-    async fn get_messages(&self, conversation_id: &str) -> StorageResult<Vec<Message>> {
+    async fn get_messages(&self, conversation_id: &str) -> Result<Vec<Message>> {
         let rows = sqlx::query_as::<_, MessageRow>(
             "SELECT id, conversation_id, role, content, tool_use_id, tool_name, tool_args, \
              token_count, attachments, created_at \
@@ -222,7 +223,7 @@ impl Storage for PostgresStorage {
         &self,
         conversation_id: &str,
         msg: NewMessage<'_>,
-    ) -> StorageResult<Message> {
+    ) -> Result<Message> {
         let id = Uuid::new_v4().to_string();
         let now = now_ts();
 
@@ -272,7 +273,7 @@ impl Storage for PostgresStorage {
         })
     }
 
-    async fn search_messages(&self, query: &str) -> StorageResult<Vec<SearchResult>> {
+    async fn search_messages(&self, query: &str) -> Result<Vec<SearchResult>> {
         let trimmed = query.trim();
         if trimmed.is_empty() {
             return Ok(vec![]);

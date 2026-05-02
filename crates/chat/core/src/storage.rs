@@ -20,31 +20,13 @@
 //!   simple LIKE search and full-load reads. Add as needed.
 
 use async_trait::async_trait;
-use thiserror::Error;
 
+use crate::error::Result;
 use crate::types::{Conversation, Message, NewMessage, SearchResult};
-
-/// Errors a storage backend can surface to callers.
-///
-/// Backend-specific error types convert into `Backend(String)` via
-/// `From` impls in their respective modules. `NotFound` is reserved
-/// for "this id doesn't exist" so callers can branch on it without
-/// string-matching.
-#[derive(Debug, Error)]
-pub enum StorageError {
-    #[error("not found")]
-    NotFound,
-    #[error("backend error: {0}")]
-    Backend(String),
-    #[error("serialization error: {0}")]
-    Serialization(String),
-}
-
-pub type StorageResult<T> = Result<T, StorageError>;
 
 /// Async, object-safe persistence interface.
 ///
-/// All methods return `StorageResult` so callers can branch on
+/// All methods return `Result` so callers can branch on
 /// `NotFound` without parsing error strings. Implementors are
 /// expected to be cheaply cloneable (e.g. wrap a `sqlx::PgPool` or
 /// `Arc<Mutex<rusqlite::Connection>>`) so callers can hand out
@@ -52,23 +34,23 @@ pub type StorageResult<T> = Result<T, StorageError>;
 #[async_trait]
 pub trait Storage: Send + Sync {
     /// Run any backend-specific schema setup. Idempotent.
-    async fn migrate(&self) -> StorageResult<()>;
+    async fn migrate(&self) -> Result<()>;
 
     // -- conversations --
 
-    async fn list_conversations(&self) -> StorageResult<Vec<Conversation>>;
+    async fn list_conversations(&self) -> Result<Vec<Conversation>>;
 
     async fn create_conversation(
         &self,
         cli_provider: &str,
         model: Option<&str>,
-    ) -> StorageResult<Conversation>;
+    ) -> Result<Conversation>;
 
-    async fn get_conversation(&self, id: &str) -> StorageResult<Option<Conversation>>;
+    async fn get_conversation(&self, id: &str) -> Result<Option<Conversation>>;
 
     /// True if a conversation with this id exists. Cheaper than
     /// `get_conversation` because it doesn't allocate a row.
-    async fn conversation_exists(&self, id: &str) -> StorageResult<bool>;
+    async fn conversation_exists(&self, id: &str) -> Result<bool>;
 
     /// Insert a conversation row with the given id if it doesn't
     /// already exist. Used by chat-rpc's lazy-create path on first
@@ -77,15 +59,15 @@ pub trait Storage: Send + Sync {
         &self,
         id: &str,
         cli_provider: &str,
-    ) -> StorageResult<()>;
+    ) -> Result<()>;
 
-    async fn delete_conversation(&self, id: &str) -> StorageResult<()>;
+    async fn delete_conversation(&self, id: &str) -> Result<()>;
 
-    async fn delete_all_conversations(&self) -> StorageResult<()>;
+    async fn delete_all_conversations(&self) -> Result<()>;
 
-    async fn update_title(&self, id: &str, title: &str) -> StorageResult<()>;
+    async fn update_title(&self, id: &str, title: &str) -> Result<()>;
 
-    async fn toggle_pin(&self, id: &str) -> StorageResult<()>;
+    async fn toggle_pin(&self, id: &str) -> Result<()>;
 
     /// If the conversation's title is still the placeholder
     /// (`"New Chat"`), derive a title from the first non-empty line
@@ -94,19 +76,19 @@ pub trait Storage: Send + Sync {
         &self,
         conversation_id: &str,
         user_message: &str,
-    ) -> StorageResult<()>;
+    ) -> Result<()>;
 
     // -- messages --
 
-    async fn get_messages(&self, conversation_id: &str) -> StorageResult<Vec<Message>>;
+    async fn get_messages(&self, conversation_id: &str) -> Result<Vec<Message>>;
 
     async fn add_message(
         &self,
         conversation_id: &str,
         msg: NewMessage<'_>,
-    ) -> StorageResult<Message>;
+    ) -> Result<Message>;
 
-    async fn search_messages(&self, query: &str) -> StorageResult<Vec<SearchResult>>;
+    async fn search_messages(&self, query: &str) -> Result<Vec<SearchResult>>;
 }
 
 // -- shared helpers --

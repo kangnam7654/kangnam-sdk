@@ -1,0 +1,13 @@
+{
+  "candidates": [{
+    "content": {
+      "parts": [
+        {"text": "Step 1: analyze the problem carefully...", "thought": true},
+        {"text": "Final answer: 42."}
+      ],
+      "role": "model"
+    },
+    "finishReason": "STOP"
+  }],
+  "usageMetadata": {"promptTokenCount": 50, "candidatesTokenCount": 30}
+}

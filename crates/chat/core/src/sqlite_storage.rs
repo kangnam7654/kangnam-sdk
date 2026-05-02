@@ -16,7 +16,8 @@ use async_trait::async_trait;
 use rusqlite::{params, Connection};
 use uuid::Uuid;
 
-use crate::storage::{derive_auto_title, now_ts, Storage, StorageError, StorageResult};
+use crate::error::{Result, StorageError};
+use crate::storage::{derive_auto_title, now_ts, Storage};
 use crate::types::{Conversation, Message, NewMessage, SearchResult};
 
 impl From<rusqlite::Error> for StorageError {
@@ -42,7 +43,7 @@ impl SqliteStorage {
     }
 
     /// Open an in-memory SQLite database. Useful for tests.
-    pub fn in_memory() -> StorageResult<Self> {
+    pub fn in_memory() -> Result<Self> {
         let conn = Connection::open_in_memory().map_err(StorageError::from)?;
         conn.pragma_update(None, "foreign_keys", "ON")
             .map_err(StorageError::from)?;
@@ -57,9 +58,9 @@ impl SqliteStorage {
     }
 }
 
-async fn block_on<F, T>(f: F) -> StorageResult<T>
+async fn block_on<F, T>(f: F) -> Result<T>
 where
-    F: FnOnce() -> StorageResult<T> + Send + 'static,
+    F: FnOnce() -> Result<T> + Send + 'static,
     T: Send + 'static,
 {
     tokio::task::spawn_blocking(f)
@@ -69,7 +70,7 @@ where
 
 #[async_trait]
 impl Storage for SqliteStorage {
-    async fn migrate(&self) -> StorageResult<()> {
+    async fn migrate(&self) -> Result<()> {
         let conn = self.conn.clone();
         block_on(move || {
             let mut guard = conn
@@ -80,7 +81,7 @@ impl Storage for SqliteStorage {
         .await
     }
 
-    async fn list_conversations(&self) -> StorageResult<Vec<Conversation>> {
+    async fn list_conversations(&self) -> Result<Vec<Conversation>> {
         let conn = self.conn.clone();
         block_on(move || {
             let guard = conn
@@ -113,7 +114,7 @@ impl Storage for SqliteStorage {
         &self,
         cli_provider: &str,
         model: Option<&str>,
-    ) -> StorageResult<Conversation> {
+    ) -> Result<Conversation> {
         let provider = cli_provider.to_string();
         let model = model.map(|s| s.to_string());
         let conn = self.conn.clone();
@@ -141,7 +142,7 @@ impl Storage for SqliteStorage {
         .await
     }
 
-    async fn get_conversation(&self, id: &str) -> StorageResult<Option<Conversation>> {
+    async fn get_conversation(&self, id: &str) -> Result<Option<Conversation>> {
         let id = id.to_string();
         self.with_conn_async(move |conn| {
             match conn.query_row(
@@ -168,7 +169,7 @@ impl Storage for SqliteStorage {
         .await
     }
 
-    async fn conversation_exists(&self, id: &str) -> StorageResult<bool> {
+    async fn conversation_exists(&self, id: &str) -> Result<bool> {
         let id = id.to_string();
         self.with_conn_async(move |conn| {
             conn.query_row(
@@ -180,7 +181,7 @@ impl Storage for SqliteStorage {
         .await
     }
 
-    async fn ensure_conversation(&self, id: &str, cli_provider: &str) -> StorageResult<()> {
+    async fn ensure_conversation(&self, id: &str, cli_provider: &str) -> Result<()> {
         let id = id.to_string();
         let provider = cli_provider.to_string();
         self.with_conn_async(move |conn| {
@@ -196,7 +197,7 @@ impl Storage for SqliteStorage {
         .await
     }
 
-    async fn delete_conversation(&self, id: &str) -> StorageResult<()> {
+    async fn delete_conversation(&self, id: &str) -> Result<()> {
         let id = id.to_string();
         self.with_conn_async(move |conn| {
             conn.execute("DELETE FROM conversations WHERE id = ?1", params![id])?;
@@ -205,7 +206,7 @@ impl Storage for SqliteStorage {
         .await
     }
 
-    async fn delete_all_conversations(&self) -> StorageResult<()> {
+    async fn delete_all_conversations(&self) -> Result<()> {
         self.with_conn_async(move |conn| {
             conn.execute("DELETE FROM conversations", [])?;
             Ok(())
@@ -213,7 +214,7 @@ impl Storage for SqliteStorage {
         .await
     }
 
-    async fn update_title(&self, id: &str, title: &str) -> StorageResult<()> {
+    async fn update_title(&self, id: &str, title: &str) -> Result<()> {
         let id = id.to_string();
         let title = title.to_string();
         self.with_conn_async(move |conn| {
@@ -227,7 +228,7 @@ impl Storage for SqliteStorage {
         .await
     }
 
-    async fn toggle_pin(&self, id: &str) -> StorageResult<()> {
+    async fn toggle_pin(&self, id: &str) -> Result<()> {
         let id = id.to_string();
         self.with_conn_async(move |conn| {
             conn.execute(
@@ -244,7 +245,7 @@ impl Storage for SqliteStorage {
         &self,
         conversation_id: &str,
         user_message: &str,
-    ) -> StorageResult<()> {
+    ) -> Result<()> {
         let derived = derive_auto_title(user_message);
         let conversation_id = conversation_id.to_string();
         self.with_conn_async(move |conn| {
@@ -270,7 +271,7 @@ impl Storage for SqliteStorage {
         .await
     }
 
-    async fn get_messages(&self, conversation_id: &str) -> StorageResult<Vec<Message>> {
+    async fn get_messages(&self, conversation_id: &str) -> Result<Vec<Message>> {
         let conversation_id = conversation_id.to_string();
         self.with_conn_async(move |conn| {
             let mut stmt = conn.prepare(
@@ -304,7 +305,7 @@ impl Storage for SqliteStorage {
         &self,
         conversation_id: &str,
         msg: NewMessage<'_>,
-    ) -> StorageResult<Message> {
+    ) -> Result<Message> {
         // Owned copies — the closure outlives `'_`.
         let conversation_id = conversation_id.to_string();
         let role = msg.role.to_string();
@@ -356,7 +357,7 @@ impl Storage for SqliteStorage {
         .await
     }
 
-    async fn search_messages(&self, query: &str) -> StorageResult<Vec<SearchResult>> {
+    async fn search_messages(&self, query: &str) -> Result<Vec<SearchResult>> {
         let trimmed = query.trim().to_string();
         if trimmed.is_empty() {
             return Ok(vec![]);
@@ -393,9 +394,9 @@ impl SqliteStorage {
     /// duration of one rusqlite call. The closure receives a borrowed
     /// `&Connection` so it can use `conn.execute` / `conn.query_row`
     /// directly without re-locking.
-    async fn with_conn_async<F, T>(&self, f: F) -> StorageResult<T>
+    async fn with_conn_async<F, T>(&self, f: F) -> Result<T>
     where
-        F: FnOnce(&Connection) -> Result<T, rusqlite::Error> + Send + 'static,
+        F: FnOnce(&Connection) -> std::result::Result<T, rusqlite::Error> + Send + 'static,
         T: Send + 'static,
     {
         let conn = self.conn.clone();

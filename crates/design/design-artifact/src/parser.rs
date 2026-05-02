@@ -61,7 +61,6 @@ pub struct ArtifactParser {
 #[derive(Debug)]
 struct OpenArtifact {
     id: String,
-    kind: ArtifactKind,
     /// Whether this is a `<question-form>` (we accumulate its body and emit
     /// it as a single QuestionFormPosted event at end).
     is_question_form: bool,
@@ -243,7 +242,6 @@ impl ArtifactParser {
             let is_question_form = !is_artifact;
             self.open = Some(OpenArtifact {
                 id: id.clone(),
-                kind: kind.clone(),
                 is_question_form,
                 qform_buf: String::new(),
             });

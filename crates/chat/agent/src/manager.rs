@@ -238,7 +238,7 @@ impl CliManager {
                 match parsed {
                     Ok(Some(ref msg)) => {
                         // Collect text for history
-                        if let UnifiedMessage::TextDelta { ref text } = msg {
+                        if let UnifiedMessage::TextDelta { text } = msg {
                             response_text.push_str(text);
                         }
                         sink.emit_message(msg.clone());

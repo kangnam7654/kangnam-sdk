@@ -974,7 +974,7 @@ dependencies = [
 
 [[package]]
 name = "design"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "design-doc-site",
  "design-doc-slide",
@@ -987,7 +987,7 @@ dependencies = [
 
 [[package]]
 name = "design-artifact"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "base64 0.22.1",
  "serde",
@@ -998,7 +998,7 @@ dependencies = [
 
 [[package]]
 name = "design-direction"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1006,7 +1006,7 @@ dependencies = [
 
 [[package]]
 name = "design-doc-site"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "design-doc-slide",
  "serde",
@@ -1016,7 +1016,7 @@ dependencies = [
 
 [[package]]
 name = "design-doc-slide"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1025,7 +1025,7 @@ dependencies = [
 
 [[package]]
 name = "design-editor-html"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "async-stream",
  "design-llm",
@@ -1041,7 +1041,7 @@ dependencies = [
 
 [[package]]
 name = "design-editor-site"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "async-stream",
  "design-doc-site",
@@ -1059,7 +1059,7 @@ dependencies = [
 
 [[package]]
 name = "design-editor-slide"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "async-stream",
  "design-doc-site",
@@ -1077,7 +1077,7 @@ dependencies = [
 
 [[package]]
 name = "design-export-pptx"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "base64 0.22.1",
  "design-doc-slide",
@@ -1092,7 +1092,7 @@ dependencies = [
 
 [[package]]
 name = "design-llm"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "async-stream",
  "base64 0.22.1",
@@ -1111,7 +1111,7 @@ dependencies = [
 
 [[package]]
 name = "design-prompt"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1119,7 +1119,7 @@ dependencies = [
 
 [[package]]
 name = "design-skill"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "kangnam-harness-core",
  "serde",
@@ -1130,7 +1130,7 @@ dependencies = [
 
 [[package]]
 name = "design-system"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1139,7 +1139,7 @@ dependencies = [
 
 [[package]]
 name = "design-tools"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "design-artifact",
@@ -2626,7 +2626,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-chat"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "kangnam-chat-agent",
  "kangnam-chat-core",
@@ -2636,7 +2636,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-chat-agent"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -2650,7 +2650,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-chat-core"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "rusqlite",
@@ -2664,7 +2664,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-chat-rpc"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "dirs",
@@ -2679,7 +2679,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-chat-server"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -2697,7 +2697,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-client"
-version = "0.1.3"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -2734,7 +2734,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-harness"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "kangnam-harness-core",
  "kangnam-harness-store",
@@ -2742,7 +2742,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-harness-core"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "chrono",
  "serde",
@@ -2753,7 +2753,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-harness-runtime"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "kangnam-harness-core",
@@ -2766,7 +2766,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-harness-store"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2780,7 +2780,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-router"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "async-stream",
  "base64 0.22.1",

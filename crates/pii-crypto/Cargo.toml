@@ -1,0 +1,17 @@
+[package]
+name = "pii-crypto"
+version.workspace = true
+edition = "2024"
+rust-version.workspace = true
+license.workspace = true
+repository = "https://github.com/kangnam7654/pii-crypto"
+description = "AES-256-GCM envelope encryption for personally identifiable information (PII). Random 12-byte nonce prepended to ciphertext."
+
+[lints.rust]
+unsafe_code = "deny"
+
+[dependencies]
+aes-gcm = "0.10"
+base64.workspace = true
+rand = "0.8"
+thiserror.workspace = true

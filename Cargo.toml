@@ -6,6 +6,7 @@ members = [
     "crates/harness/*",
     "crates/router",
     "crates/design/*",
+    "crates/pii-crypto",
 ]
 exclude = ["crates/design/canvas-sdk-target"]
 
@@ -57,6 +58,7 @@ design-skill          = { path = "crates/design/design-skill" }
 design-prompt         = { path = "crates/design/design-prompt" }
 design-artifact       = { path = "crates/design/design-artifact" }
 design-tools          = { path = "crates/design/design-tools" }
+pii-crypto            = { path = "crates/pii-crypto" }
 
 [profile.release]
 strip = true

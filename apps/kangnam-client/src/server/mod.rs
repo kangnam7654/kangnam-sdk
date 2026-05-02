@@ -16,6 +16,11 @@ pub async fn start_server(
         cli_manager: state.cli_manager.clone(),
         db: state.db.clone(),
         pending_permissions: state.pending_permissions.clone(),
+        // Phase 3 design-mode suspend/resume infra: question-form + preview
+        // tool turn-suspend maps. Defaulted to None — Tauri desktop will
+        // initialize these when frontend wires the design tool flow.
+        pending_question_forms: None,
+        pending_previews: None,
         broadcast_tx: state.broadcast_tx.clone(),
         enhanced_broadcast_tx: state.enhanced_broadcast_tx.clone(),
         // Tauri desktop is single-user / local-only — no WS upgrade auth or

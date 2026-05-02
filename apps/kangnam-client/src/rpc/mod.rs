@@ -31,6 +31,10 @@ pub async fn dispatch(
         cli_manager: &state.cli_manager,
         db: &state.db,
         pending_permissions: &state.pending_permissions,
+        // Phase 3 design-mode suspend/resume infra not wired on Tauri yet —
+        // question-form / preview tools land via WS server context only.
+        pending_question_forms: None,
+        pending_previews: None,
         make_sink: &make_sink,
         // Tauri desktop is single-user / local-only — no per-user auth or
         // per-turn billing guard. Hosts that need either pass `Some(...)`.

@@ -8,7 +8,7 @@
 
 use std::path::{Path, PathBuf};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[tauri::command]
 pub fn artifact_export_html(body: String) -> Result<String, String> {
@@ -22,7 +22,7 @@ pub fn artifact_export_markdown(body: String) -> Result<String, String> {
 
 /// One asset to inline / archive — frontend supplies bytes as a base64
 /// string so the JSON-RPC bridge can carry binary payloads.
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct InputAsset {
     pub path: String,
     pub mime: String,

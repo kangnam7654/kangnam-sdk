@@ -1,5 +1,6 @@
 use crate::{
-    self as saju, branches, daeun, daily, gongmang, interpreter, lucky, monthly, shinsal, ten_gods,
+    self as saju, branches, daeun, daily, gongmang, interpretation, interpreter, lucky, monthly,
+    shinsal, ten_gods,
     types::*,
 };
 use chrono::Datelike;
@@ -203,6 +204,13 @@ impl SajuEngine {
                 .insert("hour".into(), json!({"stem": day_master_info(fp.hour.stem), "branch": branch_info(fp.hour.branch)}));
         }
 
+        // 종합 해석 — 일간·오행·십신을 합성한 5단락 + 1줄 헤드라인.
+        // 카피 출처는 data/interpretation_copy.json (자평진전·적천수·궁통보감
+        // ·명리정종·오행대의 정통 명리 인용 베이스). 클라이언트(웹·iOS·AI 채팅)
+        // 가 같은 텍스트를 공유하도록 엔진이 들고 있는다.
+        let comp = interpretation::compose(&fp, &balance, &gods);
+        let interpretation_value = interpretation::to_json(&comp);
+
         let result = json!({
             "four_pillars": four_pillars,
             "four_pillars_detail": four_pillars_detail,
@@ -230,6 +238,7 @@ impl SajuEngine {
             "gongmang": gongmang_to_json(&gm),
             "shinsal": ss.iter().map(shinsal_to_json).collect::<Vec<_>>(),
             "lucky": lucky_to_json(&lk),
+            "interpretation": interpretation_value,
         });
 
         (result, version.to_string())

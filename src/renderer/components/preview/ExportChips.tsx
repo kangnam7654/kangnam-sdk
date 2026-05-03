@@ -114,7 +114,12 @@ export function ExportChips({ artifactBody, artifactKind, iframeRef }: Props) {
       // window.api.artifactExport.collectAssets when workingDir is known.
       const b64 = await api.zip(artifactBody, [])
       const bytes = b64ToBytes(b64)
-      const blob = new Blob([bytes], { type: 'application/zip' })
+      // TypeScript 5.7+ narrowed `Uint8Array<ArrayBufferLike>` so it no longer
+      // satisfies `BlobPart` directly (the underlying buffer might be a
+      // SharedArrayBuffer). Copy into a fresh ArrayBuffer to satisfy the type.
+      const ab = new ArrayBuffer(bytes.byteLength)
+      new Uint8Array(ab).set(bytes)
+      const blob = new Blob([ab], { type: 'application/zip' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url

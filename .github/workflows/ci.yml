@@ -13,26 +13,37 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
+      # tauri (apps/kangnam-client)가 webkit2gtk·gtk·appindicator 시스템 라이브러리를
+      # 링크하므로 workspace 빌드에 필요. 순수 Rust crate만 테스트하더라도 workspace
+      # resolver가 모든 크레이트의 의존성을 평가하기 때문에 시스템 deps 누락 시 실패.
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libssl-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libssl-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
       - name: Run tests
-        run: cd src-tauri && cargo test
+        run: cargo test --workspace --locked
       - name: Run clippy
-        run: cd src-tauri && cargo clippy -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
         continue-on-error: true
 
   test-frontend:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - run: npm ci
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - name: Type check
-        run: npm run typecheck
+        run: pnpm typecheck
       - name: Run tests
-        run: npm test
+        run: pnpm test

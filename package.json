@@ -33,7 +33,6 @@
     "vitest": "^4.1.1"
   },
   "dependencies": {
-    "@kangnam/chat-ui": "https://github.com/kangnam7654/chat-sdk/releases/download/v0.1.0/kangnam-chat-ui-0.1.0.tgz",
     "@fontsource/noto-serif-kr": "^5.2.9",
     "@fontsource/pretendard": "^5.2.5",
     "@modelcontextprotocol/sdk": "^1.27.1",

@@ -8,7 +8,7 @@ use crate::types::{SpreadType, TarotReading};
 pub struct TarotEngine;
 
 /// 엔진 버전. 캐시 무효화 기준으로 사용된다.
-pub const TAROT_ENGINE_VERSION: &str = "tarot-v2.0";
+pub const TAROT_ENGINE_VERSION: &str = "tarot-v2.1";
 
 impl TarotEngine {
     /// Generate a tarot reading for the given reading_type and input.
@@ -57,10 +57,23 @@ impl TarotEngine {
         } else {
             reading_type
         };
-        let seed_input = format!(
-            "{}|{}|{}|{}|{}",
-            birth_date, birth_time, calendar_type, seed_spread, today_kst
-        );
+        // 재뽑기 nonce. 0(미지정)이면 기존 시드 그대로 — 하위 호환.
+        let draw_index = input
+            .get("options")
+            .and_then(|o| o.get("draw_index"))
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        let seed_input = if draw_index == 0 {
+            format!(
+                "{}|{}|{}|{}|{}",
+                birth_date, birth_time, calendar_type, seed_spread, today_kst
+            )
+        } else {
+            format!(
+                "{}|{}|{}|{}|{}|d{}",
+                birth_date, birth_time, calendar_type, seed_spread, today_kst, draw_index
+            )
+        };
 
         let selected_position = input
             .get("options")
@@ -450,5 +463,104 @@ mod tests {
                 assert_eq!(card["arcana"], "Major", "{}: arcana must be Major", rt);
             }
         }
+    }
+
+    #[test]
+    fn test_engine_version_bumped() {
+        assert_eq!(TAROT_ENGINE_VERSION, "tarot-v2.1");
+    }
+
+    #[test]
+    fn test_draw_index_zero_matches_no_draw_index() {
+        // 하위 호환: draw_index=0 또는 미지정 → 동일 카드
+        let engine = TarotEngine;
+        let input_no_di = json!({
+            "birth_date": "1990-01-01",
+            "birth_time": "12:00",
+            "calendar_type": "solar",
+        });
+        let input_di_zero = json!({
+            "birth_date": "1990-01-01",
+            "birth_time": "12:00",
+            "calendar_type": "solar",
+            "options": { "draw_index": 0 },
+        });
+        let (a, _) = engine.generate("tarot_one", &input_no_di);
+        let (b, _) = engine.generate("tarot_one", &input_di_zero);
+        assert_eq!(
+            a["cards"][0]["card_id"], b["cards"][0]["card_id"],
+            "draw_index=0 must equal omitted draw_index"
+        );
+        assert_eq!(
+            a["cards"][0]["is_reversed"], b["cards"][0]["is_reversed"],
+            "draw_index=0 must equal omitted draw_index (reversal)"
+        );
+    }
+
+    #[test]
+    fn test_draw_index_changes_card() {
+        // 같은 사용자 + 같은 날 + draw_index 다르면 카드도 달라야 함.
+        // 22장 풀이라 1/22 확률로 우연히 겹칠 수 있어, fixture는 미리 검증된
+        // birth_date를 사용한다. 셋 중 하나라도 겹치면 fixture를 조정할 것.
+        let engine = TarotEngine;
+        let base = |di: u64| {
+            json!({
+                "birth_date": "1990-01-01",
+                "birth_time": "12:00",
+                "calendar_type": "solar",
+                "options": { "draw_index": di },
+            })
+        };
+        let (r0, _) = engine.generate("tarot_one", &base(0));
+        let (r1, _) = engine.generate("tarot_one", &base(1));
+        let (r2, _) = engine.generate("tarot_one", &base(2));
+        let id0 = r0["cards"][0]["card_id"].as_u64().unwrap();
+        let id1 = r1["cards"][0]["card_id"].as_u64().unwrap();
+        let id2 = r2["cards"][0]["card_id"].as_u64().unwrap();
+        assert_ne!(id0, id1, "draw_index=1 must differ from 0 (got {})", id0);
+        assert_ne!(id0, id2, "draw_index=2 must differ from 0 (got {})", id0);
+        assert_ne!(id1, id2, "draw_index=2 must differ from 1 (got {})", id1);
+    }
+
+    #[test]
+    fn test_draw_index_deterministic() {
+        // 같은 (birth_date, today, draw_index) → 같은 카드
+        let engine = TarotEngine;
+        let make = || {
+            json!({
+                "birth_date": "1990-01-01",
+                "birth_time": "12:00",
+                "calendar_type": "solar",
+                "options": { "draw_index": 7 },
+            })
+        };
+        let (a, _) = engine.generate("tarot_one", &make());
+        let (b, _) = engine.generate("tarot_one", &make());
+        assert_eq!(a["cards"][0]["card_id"], b["cards"][0]["card_id"]);
+        assert_eq!(a["cards"][0]["is_reversed"], b["cards"][0]["is_reversed"]);
+    }
+
+    #[test]
+    fn test_draw_index_isolated_per_user() {
+        // 다른 birth_date + 같은 draw_index → 그 사용자만의 다른 카드
+        let engine = TarotEngine;
+        let user_a = json!({
+            "birth_date": "1990-01-01",
+            "birth_time": "12:00",
+            "calendar_type": "solar",
+            "options": { "draw_index": 1 },
+        });
+        let user_b = json!({
+            "birth_date": "1991-06-15",
+            "birth_time": "12:00",
+            "calendar_type": "solar",
+            "options": { "draw_index": 1 },
+        });
+        let (a, _) = engine.generate("tarot_one", &user_a);
+        let (b, _) = engine.generate("tarot_one", &user_b);
+        assert_ne!(
+            a["cards"][0]["card_id"], b["cards"][0]["card_id"],
+            "different birth_date with same draw_index should produce different cards"
+        );
     }
 }

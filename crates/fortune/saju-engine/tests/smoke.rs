@@ -63,6 +63,39 @@ fn saju_full_returns_object() {
 }
 
 #[test]
+fn saju_returns_simple_interpretation_tier() {
+    // free `saju` 응답은 interpretation.headline + summary 만, sections 없음.
+    let (result, _v) = SajuEngine.generate("saju", &minimal_input());
+    let interp = result.get("interpretation").expect("interpretation field");
+    assert!(interp.get("headline").is_some(), "headline required");
+    assert!(
+        interp.get("summary").is_some(),
+        "saju (simple) tier must include summary"
+    );
+    assert!(
+        interp.get("sections").is_none(),
+        "saju (simple) tier must NOT include sections"
+    );
+}
+
+#[test]
+fn saju_full_returns_detail_interpretation_tier() {
+    // paid `saju_full` 응답은 interpretation.headline + sections 5개, summary 없음.
+    let (result, _v) = SajuEngine.generate("saju_full", &minimal_input());
+    let interp = result.get("interpretation").expect("interpretation field");
+    assert!(interp.get("headline").is_some(), "headline required");
+    assert!(
+        interp.get("summary").is_none(),
+        "saju_full (detail) tier must NOT include summary"
+    );
+    let sections = interp
+        .get("sections")
+        .and_then(|v| v.as_array())
+        .expect("saju_full must include sections array");
+    assert_eq!(sections.len(), 5, "detail tier has 5 sections");
+}
+
+#[test]
 fn weekly_returns_object() {
     assert_shape("weekly", &minimal_input());
 }

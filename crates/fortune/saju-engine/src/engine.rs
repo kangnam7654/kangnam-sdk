@@ -8,6 +8,13 @@ use serde_json::{Value, json};
 
 pub struct SajuEngine;
 
+/// 종합 해석 tier — `saju` 는 simple, `saju_full` 은 detail.
+#[derive(Clone, Copy)]
+enum InterpTier {
+    Simple,
+    Detail,
+}
+
 impl SajuEngine {
     pub fn generate(&self, reading_type: &str, input: &Value) -> (Value, String) {
         let version = "saju-v1.0".to_string();
@@ -15,7 +22,8 @@ impl SajuEngine {
         match reading_type {
             "daily" => self.generate_daily(input, &version),
             "daily_detail" => self.generate_daily_detail(input, &version),
-            "saju" | "saju_full" => self.generate_saju(input, &version),
+            "saju" => self.generate_saju(input, &version, InterpTier::Simple),
+            "saju_full" => self.generate_saju(input, &version, InterpTier::Detail),
             "weekly" => self.generate_weekly(input, &version),
             "monthly" => self.generate_monthly(input, &version),
             "compatibility" => self.generate_compatibility(input, &version),
@@ -177,7 +185,7 @@ impl SajuEngine {
         (result, version.to_string())
     }
 
-    fn generate_saju(&self, input: &Value, version: &str) -> (Value, String) {
+    fn generate_saju(&self, input: &Value, version: &str, tier: InterpTier) -> (Value, String) {
         let Some((year, month, day, hour, has_birth_time)) = Self::parse_birth_data(input) else {
             return (
                 json!({"error": "사주 분석에는 생년월일시 정보가 필요합니다."}),
@@ -224,11 +232,15 @@ impl SajuEngine {
                 .insert("hour".into(), json!({"stem": day_master_info(fp.hour.stem), "branch": branch_info(fp.hour.branch)}));
         }
 
-        // 종합 해석 — 일간·오행·십신을 합성한 5단락 + 1줄 헤드라인.
-        // 카피 출처는 data/interpretation_copy.json (자평진전·적천수·궁통보감
-        // ·명리정종·오행대의 정통 명리 인용 베이스). 클라이언트(웹·iOS·AI 채팅)
-        // 가 같은 텍스트를 공유하도록 엔진이 들고 있는다.
-        let comp = interpretation::compose(&fp, &balance, &gods);
+        // 종합 해석 — tier 에 따라 simple(headline + 한 단락 요약) 혹은
+        // detail(headline + 5섹션) 중 하나로 분기. 카피 출처는 동일하게
+        // data/interpretation_copy.json (자평진전·적천수·궁통보감·명리정종
+        // ·오행대의 정통 명리 인용 베이스). free `saju` → simple, paid
+        // `saju_full` → detail.
+        let comp = match tier {
+            InterpTier::Simple => interpretation::compose_simple(&fp, &balance, &gods),
+            InterpTier::Detail => interpretation::compose_detail(&fp, &balance, &gods),
+        };
         let interpretation_value = interpretation::to_json(&comp);
 
         let result = json!({

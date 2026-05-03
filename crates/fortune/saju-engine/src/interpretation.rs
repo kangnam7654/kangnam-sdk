@@ -56,9 +56,13 @@ struct ElementWeakCopy {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)] // role_at_* / gloss 는 향후 궁위별 detail 확장 때 사용 예정 — 데이터는 보존
 struct TenGodCopy {
-    #[allow(dead_code)] // role_at_* are reserved for future per-position rendering
     gloss: String,
+    role_at_year: Option<String>,
+    role_at_month: Option<String>,
+    role_at_day: Option<String>,
+    role_at_hour: Option<String>,
     relation_meaning: String,
     work_meaning: String,
     money_meaning: Option<String>,
@@ -82,6 +86,11 @@ pub struct InterpretationSection {
 #[derive(Serialize)]
 pub struct Interpretation {
     pub headline: String,
+    /// Simple-tier 한 단락 요약. Detail tier 에서는 None.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+    /// Detail-tier 5섹션. Simple tier 에서는 비어있고 직렬화에서 빠진다.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub sections: Vec<InterpretationSection>,
 }
 
@@ -436,7 +445,8 @@ fn compose_remedies(weakest: ElementKey) -> String {
 
 // ─── Public entry ────────────────────────────────────────────────────────────
 
-pub fn compose(
+/// Detail tier — headline + 5섹션 (본성·관계·일·돈·보완책). Paid `saju_full` 응답.
+pub fn compose_detail(
     pillars: &FourPillars,
     balance: &ElementBalance,
     gods: &[(&'static str, TenGod)],
@@ -448,6 +458,7 @@ pub fn compose(
 
     Interpretation {
         headline: compose_headline(dm, dominant),
+        summary: None,
         sections: vec![
             InterpretationSection {
                 key: "nature",
@@ -476,6 +487,98 @@ pub fn compose(
             },
         ],
     }
+}
+
+/// Simple tier — headline + 한 단락 요약. Free `saju` 응답.
+///
+/// 일간 metaphor + 강한 오행이 더해주는 결 + 가장 두드러진 십신 한 줄 + 약한 오행
+/// remedy 압축의 3~4문장 묶음. detail tier 의 building block 들을 재사용해 카피
+/// 출처는 동일하다 (interpretation_copy.json).
+pub fn compose_simple(
+    pillars: &FourPillars,
+    balance: &ElementBalance,
+    gods: &[(&'static str, TenGod)],
+) -> Interpretation {
+    let dm = pillars.day.stem;
+    let dominant = dominant_element(balance);
+    let weakest = weakest_element(balance);
+    let counts = GodCounts::from_gods(gods);
+
+    let dm_copy = COPY
+        .day_masters
+        .get(day_master_key(dm))
+        .expect("missing day_master copy");
+    let dom_copy = COPY
+        .elements_strong
+        .get(dominant.ko())
+        .expect("missing elements_strong copy");
+    let weak_copy = COPY
+        .elements_weak
+        .get(weakest.ko())
+        .expect("missing elements_weak copy");
+
+    let mut sentences: Vec<String> = Vec::with_capacity(3);
+
+    sentences.push(format!(
+        "{}({}) 일간은 {}로 표현되는 결입니다.",
+        dm.korean(),
+        dm.element().korean(),
+        dm_copy.metaphor,
+    ));
+
+    sentences.push(format!(
+        "{} 기운이 두텁게 깔려 {}",
+        dominant.ko(),
+        dom_copy.dominant_strength,
+    ));
+
+    if let Some(gk) = dominant_god_key(&counts) {
+        if let Some(g) = COPY.ten_gods.get(gk) {
+            sentences.push(format!("{} — 십신 중 가장 두드러진 결입니다.", g.gloss));
+        }
+    }
+
+    sentences.push(format!(
+        "보완책으로는 약한 {} 기운을 위해 {} 색을 가까이 두고, {} 같은 습관을 더해보세요.",
+        weakest.ko(),
+        weak_copy.remedy_color,
+        weak_copy.remedy_habits,
+    ));
+
+    Interpretation {
+        headline: compose_headline(dm, dominant),
+        summary: Some(sentences.join(" ")),
+        sections: vec![],
+    }
+}
+
+/// Pick the most-frequent ten-god (excluding 일간 self) deterministically.
+/// Tie-break: canonical order (비견 → 정인). Returns None if all counts are 0.
+fn dominant_god_key(c: &GodCounts) -> Option<&'static str> {
+    let pairs: [(&'static str, u32); 10] = [
+        ("비견", c.bigyeon),
+        ("겁재", c.geupjae),
+        ("식신", c.sikshin),
+        ("상관", c.sanggwan),
+        ("편재", c.pyeonjae),
+        ("정재", c.jeongjae),
+        ("편관", c.pyeongwan),
+        ("정관", c.jeonggwan),
+        ("편인", c.pyeonin),
+        ("정인", c.jeongin),
+    ];
+    let mut best: Option<(&'static str, u32)> = None;
+    for (k, v) in pairs {
+        if v == 0 {
+            continue;
+        }
+        match best {
+            None => best = Some((k, v)),
+            Some((_, bv)) if v > bv => best = Some((k, v)),
+            _ => {}
+        }
+    }
+    best.map(|(k, _)| k)
 }
 
 /// Convert to `serde_json::Value` for embedding in the engine response.
@@ -536,19 +639,20 @@ mod tests {
     }
 
     #[test]
-    fn compose_produces_nonempty_sections_for_known_chart() {
+    fn compose_detail_produces_nonempty_sections_for_known_chart() {
         // 1991-11-09 12:00 — used as the dev test fixture in the lunawave web app.
         let pillars = calculate_four_pillars(1991, 11, 9, 12);
         let balance = ElementBalance::from_pillars_with_hour(&pillars, true);
         let gods = analyze_ten_gods(&pillars, true);
-        let it = compose(&pillars, &balance, &gods);
+        let it = compose_detail(&pillars, &balance, &gods);
 
         assert!(!it.headline.is_empty(), "headline must not be empty");
+        assert!(it.summary.is_none(), "detail tier must not include summary");
         assert_eq!(it.sections.len(), 5);
         for s in &it.sections {
             assert!(!s.body.is_empty(), "section {} body must not be empty", s.key);
             assert!(
-                s.body.chars().count() < 600,
+                s.body.chars().count() < 1000,
                 "section {} body too long ({} chars) — copy bloat?",
                 s.key,
                 s.body.chars().count()
@@ -557,12 +661,83 @@ mod tests {
     }
 
     #[test]
-    fn deterministic_for_same_input() {
+    fn detail_deterministic_for_same_input() {
         let pillars = calculate_four_pillars(1991, 11, 9, 12);
         let balance = ElementBalance::from_pillars_with_hour(&pillars, true);
         let gods = analyze_ten_gods(&pillars, true);
-        let a = serde_json::to_string(&compose(&pillars, &balance, &gods)).unwrap();
-        let b = serde_json::to_string(&compose(&pillars, &balance, &gods)).unwrap();
-        assert_eq!(a, b, "compose() must be deterministic for cache stability");
+        let a = serde_json::to_string(&compose_detail(&pillars, &balance, &gods)).unwrap();
+        let b = serde_json::to_string(&compose_detail(&pillars, &balance, &gods)).unwrap();
+        assert_eq!(a, b, "compose_detail() must be deterministic for cache stability");
+    }
+
+    #[test]
+    fn compose_simple_has_headline_and_summary_only() {
+        let pillars = calculate_four_pillars(1991, 11, 9, 12);
+        let balance = ElementBalance::from_pillars_with_hour(&pillars, true);
+        let gods = analyze_ten_gods(&pillars, true);
+        let it = compose_simple(&pillars, &balance, &gods);
+
+        assert!(!it.headline.is_empty(), "headline must not be empty");
+        let summary = it.summary.expect("simple tier must include summary");
+        assert!(!summary.is_empty(), "summary must not be empty");
+        assert!(
+            it.sections.is_empty(),
+            "simple tier must NOT include sections (got {})",
+            it.sections.len()
+        );
+    }
+
+    #[test]
+    fn compose_simple_summary_under_cap() {
+        // 한 단락 요약 — copy 출처를 그대로 인용해 길이가 늘어나면 cap 을 밟는다.
+        // 350자 cap 은 web 카드 한 컨테이너에 한 화면 안에 들어가는 분량 기준.
+        let pillars = calculate_four_pillars(1991, 11, 9, 12);
+        let balance = ElementBalance::from_pillars_with_hour(&pillars, true);
+        let gods = analyze_ten_gods(&pillars, true);
+        let it = compose_simple(&pillars, &balance, &gods);
+        let summary = it.summary.unwrap();
+        assert!(
+            summary.chars().count() < 350,
+            "simple summary too long ({} chars) — copy bloat?",
+            summary.chars().count()
+        );
+    }
+
+    #[test]
+    fn compose_simple_serialization_skips_empty_sections() {
+        // skip_serializing_if 가 제대로 걸렸는지 — saju 응답 JSON 에 sections
+        // 키가 있으면 클라이언트가 잘못 dispatch 한다.
+        let pillars = calculate_four_pillars(1991, 11, 9, 12);
+        let balance = ElementBalance::from_pillars_with_hour(&pillars, true);
+        let gods = analyze_ten_gods(&pillars, true);
+        let it = compose_simple(&pillars, &balance, &gods);
+        let v = serde_json::to_value(&it).unwrap();
+        let obj = v.as_object().unwrap();
+        assert!(obj.contains_key("headline"));
+        assert!(obj.contains_key("summary"));
+        assert!(!obj.contains_key("sections"), "simple JSON must omit sections");
+    }
+
+    #[test]
+    fn compose_detail_serialization_skips_summary() {
+        let pillars = calculate_four_pillars(1991, 11, 9, 12);
+        let balance = ElementBalance::from_pillars_with_hour(&pillars, true);
+        let gods = analyze_ten_gods(&pillars, true);
+        let it = compose_detail(&pillars, &balance, &gods);
+        let v = serde_json::to_value(&it).unwrap();
+        let obj = v.as_object().unwrap();
+        assert!(obj.contains_key("headline"));
+        assert!(obj.contains_key("sections"));
+        assert!(!obj.contains_key("summary"), "detail JSON must omit summary");
+    }
+
+    #[test]
+    fn simple_deterministic_for_same_input() {
+        let pillars = calculate_four_pillars(1991, 11, 9, 12);
+        let balance = ElementBalance::from_pillars_with_hour(&pillars, true);
+        let gods = analyze_ten_gods(&pillars, true);
+        let a = serde_json::to_string(&compose_simple(&pillars, &balance, &gods)).unwrap();
+        let b = serde_json::to_string(&compose_simple(&pillars, &balance, &gods)).unwrap();
+        assert_eq!(a, b, "compose_simple() must be deterministic for cache stability");
     }
 }

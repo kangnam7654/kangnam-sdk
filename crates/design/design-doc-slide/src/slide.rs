@@ -341,4 +341,33 @@ mod tests {
         assert!(parsed.title.is_none(), "legacy JSON yields None title");
         assert!(parsed.speaker_notes.is_none(), "legacy JSON yields None speaker_notes");
     }
+
+    #[test]
+    fn background_solid_helper_produces_color_variant() {
+        // `Background::solid` is the canonical constructor used by
+        // `SlideDoc::empty` and most call sites — verify it produces the
+        // tagged `Color` variant rather than e.g. an Image with a hex src.
+        let bg = Background::solid("#ff00aa");
+        assert_eq!(bg, Background::Color { color: "#ff00aa".into() });
+        let json = serde_json::to_value(&bg).unwrap();
+        assert_eq!(json["kind"], "color");
+        assert_eq!(json["color"], "#ff00aa");
+    }
+
+    #[test]
+    fn background_image_round_trips_with_kind_tag() {
+        // Companion to `background_gradient_serializes_with_tag` — the Image
+        // variant was added in v2.1 (notes + image data URI fix). Round-trip
+        // ensures `kind: "image"` discriminator matches what the renderer
+        // expects.
+        let bg = Background::Image {
+            src: "data:image/png;base64,iVBORw0KG…".into(),
+        };
+        let json = serde_json::to_value(&bg).unwrap();
+        assert_eq!(json["kind"], "image");
+        assert!(json["src"].as_str().unwrap().starts_with("data:image/png"));
+
+        let parsed: Background = serde_json::from_value(json).unwrap();
+        assert_eq!(parsed, bg);
+    }
 }

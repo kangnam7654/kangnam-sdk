@@ -140,4 +140,54 @@ mod tests {
             "expected hex tokens in cursor color section"
         );
     }
+
+    #[test]
+    fn empty_directory_yields_empty_list() {
+        let tmp = tempfile::tempdir().unwrap();
+        assert!(load_systems_from_dir(tmp.path()).unwrap().is_empty());
+        assert!(list_system_ids(tmp.path()).unwrap().is_empty());
+    }
+
+    #[test]
+    fn skips_subdirs_without_design_md() {
+        let tmp = tempfile::tempdir().unwrap();
+        // A subdir with only a README — should be skipped, not error.
+        fs::create_dir(tmp.path().join("not-a-system")).unwrap();
+        fs::write(tmp.path().join("not-a-system/README.md"), "x").unwrap();
+        assert!(load_systems_from_dir(tmp.path()).unwrap().is_empty());
+        assert!(list_system_ids(tmp.path()).unwrap().is_empty());
+    }
+
+    #[test]
+    fn loads_multiple_systems_sorted_with_tokens() {
+        let tmp = tempfile::tempdir().unwrap();
+        fs::create_dir(tmp.path().join("zeta")).unwrap();
+        fs::write(
+            tmp.path().join("zeta/DESIGN.md"),
+            "# Z\n## Color\n`#ffffff`\n",
+        )
+        .unwrap();
+        fs::create_dir(tmp.path().join("alpha")).unwrap();
+        fs::write(
+            tmp.path().join("alpha/DESIGN.md"),
+            "# A\n## Color\n`#000000`\n",
+        )
+        .unwrap();
+        let systems = load_systems_from_dir(tmp.path()).unwrap();
+        assert_eq!(systems.len(), 2);
+        assert_eq!(systems[0].id, "alpha");
+        assert_eq!(systems[1].id, "zeta");
+        // Color tokens flow through from the parsed `color` section.
+        assert!(systems[0].color_tokens.iter().any(|t| t.value == "#000000"));
+        assert!(systems[1].color_tokens.iter().any(|t| t.value == "#ffffff"));
+    }
+
+    #[test]
+    fn malformed_design_md_propagates_parse_error() {
+        let tmp = tempfile::tempdir().unwrap();
+        fs::create_dir(tmp.path().join("blank")).unwrap();
+        fs::write(tmp.path().join("blank/DESIGN.md"), "   \n  \n").unwrap();
+        let err = load_systems_from_dir(tmp.path()).unwrap_err();
+        assert!(matches!(err, LoadError::Parse(ParseError::Empty)));
+    }
 }

@@ -113,7 +113,7 @@ mod tests {
 
     #[test]
     fn parses_full_frontmatter_with_od() {
-        let input = "---\nname: web-prototype\ndescription: |\n  A page.\ntriggers:\n  - mockup\n  - landing\nod:\n  mode: prototype\n  platform: desktop\n  preview:\n    type: html\n    entry: index.html\n  design_system:\n    requires: true\n    sections: [color, typography]\n---\n\n# Body\nhello\n";
+        let input = "---\nname: web-prototype\ndescription: |\n  A page.\ntriggers:\n  - mockup\n  - landing\nod:\n  mode: prototype\n  platform: desktop\n  preview:\n    type: html\n    entry: index.html\n  kangnam_design_system:\n    requires: true\n    sections: [color, typography]\n---\n\n# Body\nhello\n";
         let parsed = parse_frontmatter(input).unwrap();
         assert_eq!(parsed.name, "web-prototype");
         assert_eq!(parsed.description, "A page.");
@@ -122,7 +122,7 @@ mod tests {
         assert_eq!(parsed.od.platform.as_deref(), Some("desktop"));
         let preview = parsed.od.preview.as_ref().unwrap();
         assert_eq!(preview.kind.as_deref(), Some("html"));
-        let ds = parsed.od.design_system.as_ref().unwrap();
+        let ds = parsed.od.kangnam_design_system.as_ref().unwrap();
         assert!(ds.requires);
         assert_eq!(ds.sections, vec!["color", "typography"]);
         assert!(parsed.body.starts_with("# Body"));

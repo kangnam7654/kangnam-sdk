@@ -1,5 +1,5 @@
 [package]
-name = "design-doc-site"
+name = "kangnam-design-doc-site"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,6 +11,6 @@ description = "Site document model — HTML render, DOM-manifest ingest, zone ov
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-design-doc-slide = { path = "../design-doc-slide" }
+kangnam-design-doc-slide = { path = "../design-doc-slide" }
 
 [dev-dependencies]

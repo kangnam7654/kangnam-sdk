@@ -1,3 +1,5 @@
+#![cfg_attr(not(test), deny(clippy::unwrap_used))]
+
 //! Generic HTML zone editor for the kangnam-sdk design family.
 //!
 //! `ZoneEditor` operates on raw HTML strings and `data-edit-zone="..."`

@@ -187,4 +187,40 @@ CursorGothic for display, jjannon for body.
         assert_eq!(parsed.extras[0].heading, "Sound Design");
         assert_eq!(parsed.extras[0].body, "beep.");
     }
+
+    #[test]
+    fn covers_every_canonical_alias() {
+        // One DESIGN.md that exercises every alias branch in `canonical_key`
+        // — `palette`, `font`, `rhythm`, `grid`, `components`, `animation`,
+        // `tone`, `identity`, `avoid` — none of which were previously covered.
+        let md = "# X\n\
+            ## Palette\nc\n\
+            ## Font Stack\nt\n\
+            ## Spacing Rhythm\nsp\n\
+            ## Grid\ngr\n\
+            ## Components\nco\n\
+            ## Animation\nm\n\
+            ## Tone of Voice\nv\n\
+            ## Brand Identity\nbr\n\
+            ## Things to Avoid\nap\n";
+        let p = parse_design_md(md).unwrap();
+        assert_eq!(p.color.as_deref(), Some("c"));
+        assert_eq!(p.typography.as_deref(), Some("t"));
+        assert_eq!(p.spacing.as_deref(), Some("sp"));
+        assert_eq!(p.layout.as_deref(), Some("gr"));
+        assert_eq!(p.components.as_deref(), Some("co"));
+        assert_eq!(p.motion.as_deref(), Some("m"));
+        assert_eq!(p.voice.as_deref(), Some("v"));
+        assert_eq!(p.brand.as_deref(), Some("br"));
+        assert_eq!(p.anti_patterns.as_deref(), Some("ap"));
+        assert!(p.extras.is_empty());
+    }
+
+    #[test]
+    fn numbered_headings_canonicalize() {
+        // `## 3. Spacing & Rhythm` should still land in `spacing`.
+        let md = "# X\n## 3. Spacing & Rhythm\n8px base.\n";
+        let p = parse_design_md(md).unwrap();
+        assert_eq!(p.spacing.as_deref(), Some("8px base."));
+    }
 }

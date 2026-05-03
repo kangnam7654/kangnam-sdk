@@ -1,7 +1,7 @@
 //! HTML rendering for `Deck` — extracted from the data crate so the
 //! data-only `design-doc-slide` does not depend on the site rendering layer.
 
-use design_doc_slide::Deck;
+use kangnam_design_doc_slide::Deck;
 
 use crate::html_render as slide_html;
 
@@ -50,7 +50,7 @@ section.slide [data-edit-zone] { position: absolute; }
 #[cfg(test)]
 mod tests {
     use super::*;
-    use design_doc_slide::{
+    use kangnam_design_doc_slide::{
         Frame, SlideDoc, SlideElement, TextStyle, CANVAS_HEIGHT, CANVAS_WIDTH,
     };
 

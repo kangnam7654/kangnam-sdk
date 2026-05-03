@@ -4,7 +4,7 @@
 //! optional `assets/` and `references/` side files. Frontmatter follows
 //! Anthropic's [SkillFrontmatterV1][skv] convention augmented with the
 //! open-design [`od:`][odp] namespace (mode / platform / scenario / preview /
-//! design_system) and open-codesign extras (user_invocable, allowed_tools,
+//! kangnam_design_system) and open-codesign extras (user_invocable, allowed_tools,
 //! disable_model_invocation).
 //!
 //! Ships a 30-skill vendored catalog at `skills/` (web-prototype, dashboard,

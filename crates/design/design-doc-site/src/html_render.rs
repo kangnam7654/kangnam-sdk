@@ -1,4 +1,4 @@
-use design_doc_slide::slide::{
+use kangnam_design_doc_slide::slide::{
     Background, Fill, Frame, ImageFit, ShapeKind, SlideDoc, SlideElement, Stroke, TextAlign,
     TextStyle,
 };
@@ -216,7 +216,7 @@ fn escape_css(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use design_doc_slide::slide::*;
+    use kangnam_design_doc_slide::slide::*;
     use super::*;
 
     #[test]

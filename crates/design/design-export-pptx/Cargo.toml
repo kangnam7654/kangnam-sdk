@@ -1,5 +1,5 @@
 [package]
-name = "design-export-pptx"
+name = "kangnam-design-export-pptx"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -17,11 +17,11 @@ serde = { workspace = true }
 thiserror = { workspace = true }
 image = { version = "0.25", default-features = false, features = ["png"] }
 base64 = { workspace = true }
-design-doc-slide = { path = "../design-doc-slide", optional = true }
+kangnam-design-doc-slide = { path = "../design-doc-slide", optional = true }
 
 [features]
 default = ["slide-doc"]
-slide-doc = ["dep:design-doc-slide"]
+slide-doc = ["dep:kangnam-design-doc-slide"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

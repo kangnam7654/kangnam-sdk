@@ -28,7 +28,7 @@ pub struct OdMetadata {
     pub preview: Option<OdPreview>,
     /// Whether the skill needs an active DESIGN.md.
     #[serde(default)]
-    pub design_system: Option<OdDesignSystem>,
+    pub kangnam_design_system: Option<OdDesignSystem>,
     /// Catch-all for any further keys we haven't promoted.
     #[serde(flatten)]
     pub extras: serde_json::Map<String, serde_json::Value>,

@@ -1028,187 +1028,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "design"
-version = "0.3.0"
-dependencies = [
- "design-doc-site",
- "design-doc-slide",
- "design-editor-html",
- "design-editor-site",
- "design-editor-slide",
- "design-export-pptx",
- "design-llm",
-]
-
-[[package]]
-name = "design-artifact"
-version = "0.3.0"
-dependencies = [
- "base64 0.22.1",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "zip",
-]
-
-[[package]]
-name = "design-direction"
-version = "0.3.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "design-doc-site"
-version = "0.3.0"
-dependencies = [
- "design-doc-slide",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "design-doc-slide"
-version = "0.3.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "design-editor-html"
-version = "0.3.0"
-dependencies = [
- "async-stream",
- "design-llm",
- "futures",
- "serde",
- "serde_json",
- "tera",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "design-editor-site"
-version = "0.3.0"
-dependencies = [
- "async-stream",
- "design-doc-site",
- "design-doc-slide",
- "design-llm",
- "futures",
- "serde",
- "serde_json",
- "tera",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "design-editor-slide"
-version = "0.3.0"
-dependencies = [
- "async-stream",
- "design-doc-site",
- "design-doc-slide",
- "design-llm",
- "futures",
- "serde",
- "serde_json",
- "tera",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "design-export-pptx"
-version = "0.3.0"
-dependencies = [
- "base64 0.22.1",
- "design-doc-slide",
- "image",
- "quick-xml 0.36.2",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "zip",
-]
-
-[[package]]
-name = "design-llm"
-version = "0.3.0"
-dependencies = [
- "async-stream",
- "base64 0.22.1",
- "futures",
- "regex-lite",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tokio-stream",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "design-prompt"
-version = "0.3.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "design-skill"
-version = "0.3.0"
-dependencies = [
- "kangnam-harness-core",
- "serde",
- "serde_json",
- "serde_yaml",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "design-system"
-version = "0.3.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "design-tools"
-version = "0.3.0"
-dependencies = [
- "async-trait",
- "design-artifact",
- "design-skill",
- "kangnam-harness-runtime",
- "regex",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
-]
-
-[[package]]
 name = "deunicode"
 version = "1.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2777,12 +2596,12 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "chrono",
- "design-artifact",
- "design-skill",
- "design-system",
  "dirs",
  "futures",
  "kangnam-chat",
+ "kangnam-design-artifact",
+ "kangnam-design-skill",
+ "kangnam-design-system",
  "kangnam-harness",
  "keyring",
  "open",
@@ -2804,6 +2623,188 @@ dependencies = [
  "url",
  "urlencoding",
  "uuid",
+]
+
+[[package]]
+name = "kangnam-design"
+version = "0.3.0"
+dependencies = [
+ "kangnam-design-doc-site",
+ "kangnam-design-doc-slide",
+ "kangnam-design-editor-html",
+ "kangnam-design-editor-site",
+ "kangnam-design-editor-slide",
+ "kangnam-design-export-pptx",
+ "kangnam-design-llm",
+]
+
+[[package]]
+name = "kangnam-design-artifact"
+version = "0.3.0"
+dependencies = [
+ "base64 0.22.1",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "zip",
+]
+
+[[package]]
+name = "kangnam-design-direction"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "kangnam-design-doc-site"
+version = "0.3.0"
+dependencies = [
+ "kangnam-design-doc-slide",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "kangnam-design-doc-slide"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "kangnam-design-editor-html"
+version = "0.3.0"
+dependencies = [
+ "async-stream",
+ "futures",
+ "kangnam-design-llm",
+ "serde",
+ "serde_json",
+ "tera",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "kangnam-design-editor-site"
+version = "0.3.0"
+dependencies = [
+ "async-stream",
+ "futures",
+ "kangnam-design-doc-site",
+ "kangnam-design-doc-slide",
+ "kangnam-design-llm",
+ "serde",
+ "serde_json",
+ "tera",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "kangnam-design-editor-slide"
+version = "0.3.0"
+dependencies = [
+ "async-stream",
+ "futures",
+ "kangnam-design-doc-site",
+ "kangnam-design-doc-slide",
+ "kangnam-design-llm",
+ "serde",
+ "serde_json",
+ "tera",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "kangnam-design-export-pptx"
+version = "0.3.0"
+dependencies = [
+ "base64 0.22.1",
+ "image",
+ "kangnam-design-doc-slide",
+ "quick-xml 0.36.2",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "zip",
+]
+
+[[package]]
+name = "kangnam-design-llm"
+version = "0.3.0"
+dependencies = [
+ "async-stream",
+ "base64 0.22.1",
+ "futures",
+ "regex-lite",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "kangnam-design-prompt"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "kangnam-design-skill"
+version = "0.3.0"
+dependencies = [
+ "kangnam-harness-core",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "kangnam-design-system"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "kangnam-design-tools"
+version = "0.3.0"
+dependencies = [
+ "async-trait",
+ "kangnam-design-artifact",
+ "kangnam-design-skill",
+ "kangnam-harness-runtime",
+ "regex",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
 ]
 
 [[package]]

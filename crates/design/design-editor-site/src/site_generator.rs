@@ -16,8 +16,8 @@ use futures::stream::{BoxStream, StreamExt};
 use tera::{Context, Tera};
 use thiserror::Error;
 
-use design_llm::{AiAttachment, AiChunk, AiClient, AiError};
-use design_doc_site::SiteDoc;
+use kangnam_design_llm::{AiAttachment, AiChunk, AiClient, AiError};
+use kangnam_design_doc_site::SiteDoc;
 
 const TEMPLATE_NAME: &str = "site-system-prompt";
 const TEMPLATE_SOURCE: &str =
@@ -177,7 +177,7 @@ fn truncate(s: &str, n: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use design_llm::FakeAiClient;
+    use kangnam_design_llm::FakeAiClient;
 
     const MIN_SITE_JSON: &str = r##"{
         "id": "site-x",

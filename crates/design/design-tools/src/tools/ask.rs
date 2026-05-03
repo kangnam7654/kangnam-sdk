@@ -1,7 +1,7 @@
 //! `ask` — post a `<question-form>` schema and suspend until response.
 
 use async_trait::async_trait;
-use design_artifact::question_form::parse_question_form;
+use kangnam_design_artifact::question_form::parse_question_form;
 use kangnam_harness_runtime::{AwaitKind, AgentTool, ToolCtx, ToolResult};
 use serde_json::{json, Value};
 

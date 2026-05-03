@@ -12,12 +12,12 @@ use serde::{Deserialize, Serialize};
 
 #[tauri::command]
 pub fn artifact_export_html(body: String) -> Result<String, String> {
-    Ok(design_artifact::export_html(&body))
+    Ok(kangnam_design_artifact::export_html(&body))
 }
 
 #[tauri::command]
 pub fn artifact_export_markdown(body: String) -> Result<String, String> {
-    Ok(design_artifact::export_markdown(&body))
+    Ok(kangnam_design_artifact::export_markdown(&body))
 }
 
 /// One asset to inline / archive — frontend supplies bytes as a base64
@@ -30,14 +30,14 @@ pub struct InputAsset {
     pub bytes_b64: String,
 }
 
-fn decode_assets(input: Vec<InputAsset>) -> Result<Vec<design_artifact::Asset>, String> {
+fn decode_assets(input: Vec<InputAsset>) -> Result<Vec<kangnam_design_artifact::Asset>, String> {
     use base64::Engine as _;
     let mut out = Vec::with_capacity(input.len());
     for a in input {
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(&a.bytes_b64)
             .map_err(|e| format!("base64 decode {}: {}", a.path, e))?;
-        out.push(design_artifact::Asset {
+        out.push(kangnam_design_artifact::Asset {
             path: a.path,
             mime: a.mime,
             bytes,
@@ -52,7 +52,7 @@ pub fn artifact_export_html_inline(
     assets: Vec<InputAsset>,
 ) -> Result<String, String> {
     let decoded = decode_assets(assets)?;
-    Ok(design_artifact::export_html_inline(&body, &decoded))
+    Ok(kangnam_design_artifact::export_html_inline(&body, &decoded))
 }
 
 /// Build a ZIP archive and return base64-encoded bytes the renderer
@@ -61,7 +61,7 @@ pub fn artifact_export_html_inline(
 pub fn artifact_export_zip(html: String, assets: Vec<InputAsset>) -> Result<String, String> {
     use base64::Engine as _;
     let decoded = decode_assets(assets)?;
-    let bytes = design_artifact::export_zip(&html, &decoded)?;
+    let bytes = kangnam_design_artifact::export_zip(&html, &decoded)?;
     Ok(base64::engine::general_purpose::STANDARD.encode(&bytes))
 }
 

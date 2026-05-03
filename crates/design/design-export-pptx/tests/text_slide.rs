@@ -1,4 +1,4 @@
-use design_export_pptx::*;
+use kangnam_design_export_pptx::*;
 
 #[test]
 fn slide_with_text_embeds_characters_in_rich_text() {

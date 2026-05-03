@@ -3,10 +3,10 @@
 
 #![cfg(feature = "slide-doc")]
 
-use design_doc_slide::slide::{
+use kangnam_design_doc_slide::slide::{
     Background as SdBackground, Frame as SdFrame, ImageFit as SdFit, SlideDoc, SlideElement,
 };
-use design_export_pptx::{from_deck, write_deck_to_bytes, PptxElement};
+use kangnam_design_export_pptx::{from_deck, write_deck_to_bytes, PptxElement};
 
 // 1×1 transparent PNG (encoded as base64).
 const PNG_1X1: &str =
@@ -28,7 +28,7 @@ fn build_slide_with_image_data_uri() -> SlideDoc {
 #[test]
 fn data_uri_image_becomes_pptx_image_element() {
     let doc = build_slide_with_image_data_uri();
-    use design_doc_slide::deck::Deck;
+    use kangnam_design_doc_slide::deck::Deck;
     let deck = Deck { id: "test".into(), slides: vec![doc] };
     let pptx_deck = from_deck(&deck).expect("convert");
     let elements = &pptx_deck.slides[0].elements;
@@ -52,7 +52,7 @@ fn http_image_falls_back_to_transparent_rect() {
         src: "https://example.com/cover.png".into(),
         fit: SdFit::Cover,
     });
-    use design_doc_slide::deck::Deck;
+    use kangnam_design_doc_slide::deck::Deck;
     let deck = Deck { id: "test".into(), slides: vec![doc] };
     let pptx_deck = from_deck(&deck).expect("convert");
     match &pptx_deck.slides[0].elements[0] {
@@ -69,7 +69,7 @@ fn background_image_becomes_full_bleed_image_element() {
     doc.background = SdBackground::Image {
         src: format!("data:image/png;base64,{PNG_1X1}"),
     };
-    use design_doc_slide::deck::Deck;
+    use kangnam_design_doc_slide::deck::Deck;
     let deck = Deck { id: "test".into(), slides: vec![doc] };
     let pptx_deck = from_deck(&deck).expect("convert");
     let slide = &pptx_deck.slides[0];
@@ -82,14 +82,14 @@ fn background_image_becomes_full_bleed_image_element() {
         other => panic!("expected full-bleed Image, got {other:?}"),
     }
     // Background falls back to white (Solid).
-    use design_export_pptx::color::Background;
+    use kangnam_design_export_pptx::color::Background;
     matches!(slide.background, Background::Solid { .. });
 }
 
 #[test]
 fn pptx_with_data_uri_image_writes_successfully() {
     let doc = build_slide_with_image_data_uri();
-    use design_doc_slide::deck::Deck;
+    use kangnam_design_doc_slide::deck::Deck;
     let deck = Deck { id: "test".into(), slides: vec![doc] };
     let pptx_deck = from_deck(&deck).expect("convert");
     let bytes = write_deck_to_bytes(&pptx_deck).expect("write");

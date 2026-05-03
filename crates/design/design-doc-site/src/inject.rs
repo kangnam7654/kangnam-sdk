@@ -420,7 +420,7 @@ mod tests {
     #[test]
     fn replaces_zone_in_canvas_rendered_html() {
         use crate::html_render as to_html;
-        use design_doc_slide::slide::{Frame, SlideDoc, SlideElement, TextStyle};
+        use kangnam_design_doc_slide::slide::{Frame, SlideDoc, SlideElement, TextStyle};
 
         let mut doc = SlideDoc::empty("s1");
         doc.elements.push(SlideElement::Text {

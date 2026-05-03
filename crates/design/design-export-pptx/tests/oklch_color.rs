@@ -3,12 +3,12 @@
 
 #![cfg(feature = "slide-doc")]
 
-use design_doc_slide::slide::{
+use kangnam_design_doc_slide::slide::{
     Background as SdBackground, Frame as SdFrame, SlideDoc, SlideElement, TextStyle,
 };
-use design_export_pptx::{from_deck, write_deck_to_bytes};
+use kangnam_design_export_pptx::{from_deck, write_deck_to_bytes};
 
-fn deck_with_text_color(color: &str) -> design_doc_slide::deck::Deck {
+fn deck_with_text_color(color: &str) -> kangnam_design_doc_slide::deck::Deck {
     let mut style = TextStyle::default();
     style.color = color.into();
     let mut doc = SlideDoc::empty("s1");
@@ -18,14 +18,14 @@ fn deck_with_text_color(color: &str) -> design_doc_slide::deck::Deck {
         content: "hi".into(),
         style,
     });
-    use design_doc_slide::deck::Deck;
+    use kangnam_design_doc_slide::deck::Deck;
     Deck { id: "test".into(), slides: vec![doc] }
 }
 
-fn deck_with_bg(bg_color: &str) -> design_doc_slide::deck::Deck {
+fn deck_with_bg(bg_color: &str) -> kangnam_design_doc_slide::deck::Deck {
     let mut doc = SlideDoc::empty("s1");
     doc.background = SdBackground::Color { color: bg_color.into() };
-    use design_doc_slide::deck::Deck;
+    use kangnam_design_doc_slide::deck::Deck;
     Deck { id: "test".into(), slides: vec![doc] }
 }
 

@@ -4,7 +4,7 @@
 
 use std::io::Read;
 
-use design_export_pptx::{
+use kangnam_design_export_pptx::{
     color::Background, color::Color, deck::PptxDeck, deck::PptxSlide, write_deck_to_bytes,
 };
 use zip::ZipArchive;

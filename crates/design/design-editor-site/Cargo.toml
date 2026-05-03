@@ -1,5 +1,5 @@
 [package]
-name = "design-editor-site"
+name = "kangnam-design-editor-site"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,9 +11,9 @@ categories = ["multimedia"]
 
 [dependencies]
 async-stream = "0.3"
-design-llm = { workspace = true }
-design-doc-slide = { workspace = true }
-design-doc-site = { workspace = true }
+kangnam-design-llm = { workspace = true }
+kangnam-design-doc-slide = { workspace = true }
+kangnam-design-doc-site = { workspace = true }
 futures = "0.3"
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -24,8 +24,8 @@ uuid = { workspace = true }
 
 [features]
 default = []
-test-util = ["design-llm/test-util"]
+test-util = ["kangnam-design-llm/test-util"]
 
 [dev-dependencies]
-design-llm = { workspace = true, features = ["test-util"] }
+kangnam-design-llm = { workspace = true, features = ["test-util"] }
 tokio = { workspace = true, features = ["rt-multi-thread"] }

@@ -54,7 +54,7 @@ mod tests {
     use super::*;
     use crate::catalog::StaticSkillCatalog;
     use crate::tests::test_ctx;
-    use design_skill::DesignSkill;
+    use kangnam_design_skill::DesignSkill;
     use serde_json::json;
 
     fn fake_skill(name: &str) -> DesignSkill {

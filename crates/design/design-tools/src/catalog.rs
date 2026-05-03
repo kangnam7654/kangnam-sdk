@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use design_skill::DesignSkill;
+use kangnam_design_skill::DesignSkill;
 
 #[async_trait]
 pub trait SkillCatalog: Send + Sync {

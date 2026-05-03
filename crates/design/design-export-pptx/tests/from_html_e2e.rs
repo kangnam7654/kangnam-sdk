@@ -6,7 +6,7 @@
 
 use std::io::Read;
 
-use design_export_pptx::{from_html, write_deck_to_bytes};
+use kangnam_design_export_pptx::{from_html, write_deck_to_bytes};
 
 fn entries(bytes: &[u8]) -> Vec<String> {
     let cursor = std::io::Cursor::new(bytes);

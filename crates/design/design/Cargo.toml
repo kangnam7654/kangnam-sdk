@@ -1,5 +1,5 @@
 [package]
-name = "design"
+name = "kangnam-design"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -10,22 +10,22 @@ keywords = ["ai", "design", "slides", "site", "pptx"]
 categories = ["multimedia"]
 
 [dependencies]
-design-doc-slide    = { path = "../design-doc-slide", optional = true }
-design-doc-site     = { path = "../design-doc-site", optional = true }
-design-llm          = { path = "../design-llm", optional = true }
-design-editor-html  = { path = "../design-editor-html", optional = true }
-design-editor-slide = { path = "../design-editor-slide", optional = true }
-design-editor-site  = { path = "../design-editor-site", optional = true }
-design-export-pptx  = { path = "../design-export-pptx", optional = true, default-features = false }
+kangnam-design-doc-slide    = { path = "../design-doc-slide", optional = true }
+kangnam-design-doc-site     = { path = "../design-doc-site", optional = true }
+kangnam-design-llm          = { path = "../design-llm", optional = true }
+kangnam-design-editor-html  = { path = "../design-editor-html", optional = true }
+kangnam-design-editor-slide = { path = "../design-editor-slide", optional = true }
+kangnam-design-editor-site  = { path = "../design-editor-site", optional = true }
+kangnam-design-export-pptx  = { path = "../design-export-pptx", optional = true, default-features = false }
 
 [features]
 default       = ["slide", "site", "llm", "editor-html", "editor-slide", "editor-site", "pptx-write"]
-slide         = ["dep:design-doc-slide"]
-site          = ["dep:design-doc-site", "slide"]
-llm           = ["dep:design-llm"]
-editor-html   = ["dep:design-editor-html", "llm"]
-editor-slide  = ["dep:design-editor-slide", "slide", "llm"]
-editor-site   = ["dep:design-editor-site", "site", "llm"]
-pptx-write    = ["dep:design-export-pptx", "design-export-pptx/slide-doc", "slide"]
-test-util     = ["design-llm?/test-util", "design-editor-html?/test-util", "design-editor-slide?/test-util", "design-editor-site?/test-util"]
+slide         = ["dep:kangnam-design-doc-slide"]
+site          = ["dep:kangnam-design-doc-site", "slide"]
+llm           = ["dep:kangnam-design-llm"]
+editor-html   = ["dep:kangnam-design-editor-html", "llm"]
+editor-slide  = ["dep:kangnam-design-editor-slide", "slide", "llm"]
+editor-site   = ["dep:kangnam-design-editor-site", "site", "llm"]
+pptx-write    = ["dep:kangnam-design-export-pptx", "kangnam-design-export-pptx/slide-doc", "slide"]
+test-util     = ["kangnam-design-llm?/test-util", "kangnam-design-editor-html?/test-util", "kangnam-design-editor-slide?/test-util", "kangnam-design-editor-site?/test-util"]
 full          = ["slide", "site", "llm", "editor-html", "editor-slide", "editor-site", "pptx-write"]

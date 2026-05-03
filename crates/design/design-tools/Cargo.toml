@@ -1,5 +1,5 @@
 [package]
-name = "design-tools"
+name = "kangnam-design-tools"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,8 +9,8 @@ description = "Eight design-mode tools for the kangnam-sdk harness runtime: ask,
 
 [dependencies]
 kangnam-harness-runtime = { workspace = true }
-design-skill            = { workspace = true }
-design-artifact         = { workspace = true }
+kangnam-design-skill            = { workspace = true }
+kangnam-design-artifact         = { workspace = true }
 serde       = { workspace = true }
 serde_json  = { workspace = true }
 async-trait = { workspace = true }

@@ -16,8 +16,8 @@ use futures::stream::{BoxStream, StreamExt};
 use tera::{Context, Tera};
 use thiserror::Error;
 
-use design_llm::{AiChunk, AiClient, AiError};
-use design_doc_slide::SlideDoc;
+use kangnam_design_llm::{AiChunk, AiClient, AiError};
+use kangnam_design_doc_slide::SlideDoc;
 
 const TEMPLATE_NAME: &str = "section-edit-prompt";
 const TEMPLATE_SOURCE: &str =
@@ -320,7 +320,7 @@ fn truncate(s: &str, n: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use design_llm::FakeAiClient;
+    use kangnam_design_llm::FakeAiClient;
 
     const NEW_HERO_JSON: &str = r##"{
         "id":"hero-1","width_px":1280,"height_px":720,

@@ -11,7 +11,7 @@
 use serde::Deserialize;
 use thiserror::Error;
 
-use design_doc_slide::slide::{
+use kangnam_design_doc_slide::slide::{
     Background, Fill, Frame, ShapeKind, SlideDoc, SlideElement, Stroke, TextAlign, TextStyle,
     CANVAS_HEIGHT, CANVAS_WIDTH,
 };

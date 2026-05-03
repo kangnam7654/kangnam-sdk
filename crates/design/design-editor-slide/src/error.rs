@@ -7,7 +7,7 @@ pub enum EditorError {
     #[error("template render failed: {0}")]
     Template(#[from] tera::Error),
     #[error("AI provider error: {0}")]
-    Ai(#[from] design_llm::AiError),
+    Ai(#[from] kangnam_design_llm::AiError),
     #[error("JSON parse failed: {0}")]
     Json(#[from] serde_json::Error),
     #[error("invalid request: {0}")]

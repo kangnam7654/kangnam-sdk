@@ -7,22 +7,22 @@
 //! capabilities through feature flags. Replaces the legacy `canvas` umbrella.
 
 #[cfg(feature = "slide")]
-pub use design_doc_slide as slide;
+pub use kangnam_design_doc_slide as slide;
 
 #[cfg(feature = "site")]
-pub use design_doc_site as site;
+pub use kangnam_design_doc_site as site;
 
 #[cfg(feature = "llm")]
-pub use design_llm as llm;
+pub use kangnam_design_llm as llm;
 
 #[cfg(feature = "editor-html")]
-pub use design_editor_html as editor_html;
+pub use kangnam_design_editor_html as editor_html;
 
 #[cfg(feature = "editor-slide")]
-pub use design_editor_slide as editor_slide;
+pub use kangnam_design_editor_slide as editor_slide;
 
 #[cfg(feature = "editor-site")]
-pub use design_editor_site as editor_site;
+pub use kangnam_design_editor_site as editor_site;
 
 #[cfg(feature = "pptx-write")]
-pub use design_export_pptx as pptx;
+pub use kangnam_design_export_pptx as pptx;

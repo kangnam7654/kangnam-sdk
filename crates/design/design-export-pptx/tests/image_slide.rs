@@ -1,4 +1,4 @@
-use design_export_pptx::*;
+use kangnam_design_export_pptx::*;
 use std::io::Read;
 
 const TEST_PNG: &[u8] = include_bytes!("fixtures/test-image.png");

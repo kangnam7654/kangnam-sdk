@@ -78,7 +78,7 @@ fn resolve_dir(env_var: &str, default_rel: &str) -> Option<PathBuf> {
 pub fn design_skill_list() -> Result<Vec<DesignSkillEntry>, String> {
     let dir = resolve_dir("KANGNAM_DESIGN_SKILLS_DIR", "crates/design/design-skill/skills")
         .ok_or_else(|| "design skills directory not found".to_string())?;
-    let skills = design_skill::load_skills_from_dir(&dir).map_err(|e| e.to_string())?;
+    let skills = kangnam_design_skill::load_skills_from_dir(&dir).map_err(|e| e.to_string())?;
     let out = skills
         .into_iter()
         .map(|s| DesignSkillEntry {
@@ -98,7 +98,7 @@ pub fn design_system_list() -> Result<Vec<DesignSystemEntry>, String> {
         "crates/design/design-system/systems",
     )
     .ok_or_else(|| "design systems directory not found".to_string())?;
-    let systems = design_system::load_systems_from_dir(&dir).map_err(|e| e.to_string())?;
+    let systems = kangnam_design_system::load_systems_from_dir(&dir).map_err(|e| e.to_string())?;
     let out = systems
         .into_iter()
         .map(|s| DesignSystemEntry {
@@ -121,15 +121,15 @@ pub fn design_system_get(id: String) -> Result<DesignSystemDetail, String> {
         "crates/design/design-system/systems",
     )
     .ok_or_else(|| "design systems directory not found".to_string())?;
-    let systems = design_system::load_systems_from_dir(&dir).map_err(|e| e.to_string())?;
+    let systems = kangnam_design_system::load_systems_from_dir(&dir).map_err(|e| e.to_string())?;
     let sys = systems
         .into_iter()
         .find(|s| s.id == id)
         .ok_or_else(|| format!("design system not found: {id}"))?;
-    let tokens = design_system::tokens::extract_color_tokens(&sys.body);
+    let tokens = kangnam_design_system::tokens::extract_color_tokens(&sys.body);
     let colors: Vec<String> = tokens
         .into_iter()
-        .filter(|t| matches!(t.kind, design_system::tokens::ColorKind::Hex))
+        .filter(|t| matches!(t.kind, kangnam_design_system::tokens::ColorKind::Hex))
         .take(12)
         .map(|t| t.value)
         .collect();

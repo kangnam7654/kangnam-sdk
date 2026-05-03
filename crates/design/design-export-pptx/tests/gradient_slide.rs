@@ -1,4 +1,4 @@
-use design_export_pptx::*;
+use kangnam_design_export_pptx::*;
 
 fn slide_xml(deck: &PptxDeck) -> String {
     let bytes = write_deck_to_bytes(deck).unwrap();

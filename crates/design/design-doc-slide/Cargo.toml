@@ -1,5 +1,5 @@
 [package]
-name = "design-doc-slide"
+name = "kangnam-design-doc-slide"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

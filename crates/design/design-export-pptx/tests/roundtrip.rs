@@ -1,7 +1,7 @@
 //! Roundtrip verification via python-pptx. Skipped if python or python-pptx
 //! isn't installed.
 
-use design_export_pptx::*;
+use kangnam_design_export_pptx::*;
 use std::io::Write;
 use std::process::Command;
 

@@ -1,4 +1,4 @@
-use design_export_pptx::*;
+use kangnam_design_export_pptx::*;
 
 fn slide_with(shape: ShapeKind) -> PptxDeck {
     PptxDeck {

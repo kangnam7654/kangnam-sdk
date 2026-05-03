@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use serde::Serialize;
 
+use super::path_guard::validate_single_component;
+
 // ── Claude Code file-based commands (~/.claude/commands/) ──
 // Supports both single-file (name.md) and directory-based (name/SKILL.md + refs)
 
@@ -38,6 +40,7 @@ fn claude_skills_dir() -> Option<PathBuf> {
 
 /// Find the actual directory a skill lives in (skills/ first, then commands/)
 fn find_skill_path(name: &str) -> Option<PathBuf> {
+    validate_single_component(name, "skill name").ok()?;
     // Check ~/.claude/skills/{name}/ (directory)
     if let Some(skills_dir) = claude_skills_dir() {
         let dir_path = skills_dir.join(name);
@@ -160,6 +163,7 @@ pub fn list_claude_commands() -> Result<Vec<ClaudeCommandInfo>, String> {
 
 #[tauri::command]
 pub fn read_claude_command(name: String) -> Result<Option<ClaudeCommandFull>, String> {
+    validate_single_component(&name, "skill name")?;
     let path = match find_skill_path(&name) {
         Some(p) => p,
         None => return Ok(None),
@@ -197,6 +201,7 @@ pub fn write_claude_command(
     description: String,
     instructions: String,
 ) -> Result<(), String> {
+    validate_single_component(&name, "skill name")?;
     let mut content = String::from("---\n");
     content.push_str(&format!("name: {}\n", name));
     content.push_str(&format!("description: {}\n", description));
@@ -223,6 +228,7 @@ pub fn write_claude_command(
 
 #[tauri::command]
 pub fn delete_claude_command(name: String) -> Result<(), String> {
+    validate_single_component(&name, "skill name")?;
     if let Some(path) = find_skill_path(&name) {
         if path.is_dir() {
             std::fs::remove_dir_all(&path).map_err(|e| e.to_string())?;
@@ -237,6 +243,7 @@ pub fn delete_claude_command(name: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn fork_plugin_skill(plugin_path: String, skill_name: String) -> Result<(), String> {
+    validate_single_component(&skill_name, "skill name")?;
     let src_dir = PathBuf::from(&plugin_path).join("skills").join(&skill_name);
     let dst_dir = claude_skills_dir().ok_or("No home directory")?.join(&skill_name);
 
@@ -263,6 +270,7 @@ pub fn fork_plugin_skill(plugin_path: String, skill_name: String) -> Result<(), 
 
 #[tauri::command]
 pub fn list_skill_refs(name: String) -> Result<Vec<SkillFileInfo>, String> {
+    validate_single_component(&name, "skill name")?;
     match find_skill_path(&name) {
         Some(path) if path.is_dir() => Ok(list_dir_files(&path)),
         _ => Ok(vec![]),
@@ -271,6 +279,8 @@ pub fn list_skill_refs(name: String) -> Result<Vec<SkillFileInfo>, String> {
 
 #[tauri::command]
 pub fn read_skill_ref(name: String, filename: String) -> Result<String, String> {
+    validate_single_component(&name, "skill name")?;
+    validate_single_component(&filename, "filename")?;
     let skill_path = find_skill_path(&name)
         .ok_or_else(|| format!("Skill '{}' not found", name))?;
     if !skill_path.is_dir() {
@@ -282,6 +292,8 @@ pub fn read_skill_ref(name: String, filename: String) -> Result<String, String> 
 
 #[tauri::command]
 pub fn write_skill_ref(name: String, filename: String, content: String) -> Result<(), String> {
+    validate_single_component(&name, "skill name")?;
+    validate_single_component(&filename, "filename")?;
     let skill_path = find_skill_path(&name)
         .ok_or_else(|| format!("Skill '{}' not found", name))?;
     if !skill_path.is_dir() {
@@ -293,6 +305,8 @@ pub fn write_skill_ref(name: String, filename: String, content: String) -> Resul
 
 #[tauri::command]
 pub fn delete_skill_ref(name: String, filename: String) -> Result<(), String> {
+    validate_single_component(&name, "skill name")?;
+    validate_single_component(&filename, "filename")?;
     if filename == "SKILL.md" || filename == "index.md" {
         return Err("Cannot delete main skill file".to_string());
     }
@@ -321,6 +335,7 @@ pub struct SnapshotInfo {
 
 #[tauri::command]
 pub fn snapshot_skill(name: String) -> Result<String, String> {
+    validate_single_component(&name, "skill name")?;
     let skill_path = find_skill_path(&name)
         .ok_or_else(|| format!("Skill '{}' not found", name))?;
 
@@ -348,6 +363,7 @@ pub fn snapshot_skill(name: String) -> Result<String, String> {
 
 #[tauri::command]
 pub fn list_skill_snapshots(name: String) -> Result<Vec<SnapshotInfo>, String> {
+    validate_single_component(&name, "skill name")?;
     let snap_dir = snapshots_dir("skills").ok_or("No home directory")?;
     let item_dir = snap_dir.join(&name);
     if !item_dir.exists() { return Ok(vec![]); }
@@ -365,4 +381,23 @@ pub fn list_skill_snapshots(name: String) -> Result<Vec<SnapshotInfo>, String> {
     }
     snapshots.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
     Ok(snapshots)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_traversal_in_skill_names_before_lookup() {
+        assert!(read_claude_command("../outside".to_string()).is_err());
+        assert!(delete_claude_command("nested/name".to_string()).is_err());
+        assert!(list_skill_refs("..".to_string()).is_err());
+    }
+
+    #[test]
+    fn rejects_traversal_in_ref_filenames() {
+        assert!(read_skill_ref("skill".to_string(), "../secret.md".to_string()).is_err());
+        assert!(write_skill_ref("skill".to_string(), "refs/a.md".to_string(), "x".to_string()).is_err());
+        assert!(delete_skill_ref("skill".to_string(), "/tmp/a.md".to_string()).is_err());
+    }
 }

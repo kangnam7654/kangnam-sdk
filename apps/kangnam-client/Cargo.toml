@@ -44,3 +44,5 @@ kangnam-design-skill = { workspace = true }
 kangnam-design-system = { workspace = true }
 kangnam-design-artifact = { workspace = true }
 
+[dev-dependencies]
+tempfile = { workspace = true }

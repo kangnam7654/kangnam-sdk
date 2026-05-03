@@ -28,15 +28,24 @@ pub fn month_pillar(year_stem: Stem, month: u32, day: u32) -> Pillar {
 
 /// 일주 계산
 /// 1900-01-31(갑자)부터의 일수 차이로 계산
-pub fn day_pillar(year: i32, month: u32, day: u32) -> Pillar {
+pub fn day_pillar_opt(year: i32, month: u32, day: u32) -> Option<Pillar> {
     let base = NaiveDate::from_ymd_opt(BASE_DATE.0, BASE_DATE.1, BASE_DATE.2)
         .expect("Invalid BASE_DATE constant");
-    let target = NaiveDate::from_ymd_opt(year, month, day).unwrap_or(base);
+    let target = NaiveDate::from_ymd_opt(year, month, day)?;
     let diff = (target - base).num_days();
     let offset = ((diff % 60) + 60) as usize % 60;
     let stem_idx = offset % 10;
     let branch_idx = offset % 12;
-    Pillar::new(Stem::from_index(stem_idx), Branch::from_index(branch_idx))
+    Some(Pillar::new(
+        Stem::from_index(stem_idx),
+        Branch::from_index(branch_idx),
+    ))
+}
+
+/// 일주 계산
+/// 1900-01-31(갑자)부터의 일수 차이로 계산
+pub fn day_pillar(year: i32, month: u32, day: u32) -> Pillar {
+    day_pillar_opt(year, month, day).expect("invalid Gregorian date for day_pillar")
 }
 
 /// 시주 계산
@@ -95,6 +104,11 @@ mod tests {
         let p = day_pillar(1900, 1, 31);
         assert_eq!(p.stem, Stem::Gap);
         assert_eq!(p.branch, Branch::Ja);
+    }
+
+    #[test]
+    fn test_day_pillar_opt_rejects_invalid_date() {
+        assert!(day_pillar_opt(2024, 2, 31).is_none());
     }
 
     #[test]

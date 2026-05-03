@@ -6,6 +6,8 @@ use tauri::State;
 use crate::db::agents::{self, Agent};
 use crate::state::AppState;
 
+use super::path_guard::validate_single_component;
+
 // ── Claude Code file-based agents (~/.claude/agents/) ──
 
 #[derive(Serialize, Clone)]
@@ -118,6 +120,7 @@ pub fn list_claude_agents() -> Result<Vec<ClaudeAgentInfo>, String> {
 
 #[tauri::command]
 pub fn read_claude_agent(name: String) -> Result<Option<ClaudeAgentFull>, String> {
+    validate_single_component(&name, "agent name")?;
     let dir = claude_agents_dir().ok_or("No home directory")?;
     // Agent definition is always {name}.md
     let path = dir.join(format!("{}.md", name));
@@ -143,6 +146,7 @@ pub fn read_claude_agent(name: String) -> Result<Option<ClaudeAgentFull>, String
 /// Read agent description from ~/.claude/agents/{name}.md frontmatter
 #[tauri::command]
 pub fn read_agent_description(name: String) -> Result<Option<String>, String> {
+    validate_single_component(&name, "agent name")?;
     let dir = claude_agents_dir().ok_or("No home directory")?;
     let path = dir.join(format!("{}.md", name));
     if !path.exists() {
@@ -160,6 +164,7 @@ pub fn write_claude_agent(
     instructions: String,
     model: Option<String>,
 ) -> Result<(), String> {
+    validate_single_component(&name, "agent name")?;
     let dir = claude_agents_dir().ok_or("No home directory")?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
 
@@ -181,6 +186,7 @@ pub fn write_claude_agent(
 
 #[tauri::command]
 pub fn delete_claude_agent(name: String) -> Result<(), String> {
+    validate_single_component(&name, "agent name")?;
     let dir = claude_agents_dir().ok_or("No home directory")?;
     // Delete the .md definition file
     let path = dir.join(format!("{}.md", name));
@@ -199,6 +205,7 @@ pub fn delete_claude_agent(name: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn list_agent_refs(name: String) -> Result<Vec<AgentFileInfo>, String> {
+    validate_single_component(&name, "agent name")?;
     let dir = claude_agents_dir().ok_or("No home directory")?;
     let agent_dir = dir.join(&name);
     Ok(list_agent_ref_files(&agent_dir))
@@ -206,6 +213,8 @@ pub fn list_agent_refs(name: String) -> Result<Vec<AgentFileInfo>, String> {
 
 #[tauri::command]
 pub fn read_agent_ref(name: String, filename: String) -> Result<String, String> {
+    validate_single_component(&name, "agent name")?;
+    validate_single_component(&filename, "filename")?;
     let dir = claude_agents_dir().ok_or("No home directory")?;
     let agent_dir = dir.join(&name);
     // Find in refs/ or references/ subdirectory
@@ -217,6 +226,8 @@ pub fn read_agent_ref(name: String, filename: String) -> Result<String, String> 
 
 #[tauri::command]
 pub fn write_agent_ref(name: String, filename: String, content: String) -> Result<(), String> {
+    validate_single_component(&name, "agent name")?;
+    validate_single_component(&filename, "filename")?;
     let dir = claude_agents_dir().ok_or("No home directory")?;
     let agent_dir = dir.join(&name);
     // Use existing refs dir, or create refs/ by default
@@ -229,6 +240,8 @@ pub fn write_agent_ref(name: String, filename: String, content: String) -> Resul
 
 #[tauri::command]
 pub fn delete_agent_ref(name: String, filename: String) -> Result<(), String> {
+    validate_single_component(&name, "agent name")?;
+    validate_single_component(&filename, "filename")?;
     let dir = claude_agents_dir().ok_or("No home directory")?;
     let agent_dir = dir.join(&name);
     let refs_dir = agent_refs_dir(&agent_dir)
@@ -255,6 +268,7 @@ fn agent_snapshots_dir() -> Option<std::path::PathBuf> {
 
 #[tauri::command]
 pub fn snapshot_agent(name: String) -> Result<String, String> {
+    validate_single_component(&name, "agent name")?;
     let dir = claude_agents_dir().ok_or("No home directory")?;
     let path = dir.join(format!("{}.md", name));
     if !path.exists() {
@@ -279,6 +293,7 @@ pub fn snapshot_agent(name: String) -> Result<String, String> {
 
 #[tauri::command]
 pub fn list_agent_snapshots(name: String) -> Result<Vec<AgentSnapshotInfo>, String> {
+    validate_single_component(&name, "agent name")?;
     let snap_dir = agent_snapshots_dir().ok_or("No home directory")?;
     let item_dir = snap_dir.join(&name);
     if !item_dir.exists() { return Ok(vec![]); }
@@ -354,4 +369,29 @@ pub fn agents_delete(id: String, state: State<'_, Arc<AppState>>) -> Result<(), 
     let conn = state.db.lock().unwrap_or_else(|e| e.into_inner());
     agents::delete_agent(&conn, &id);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_traversal_in_agent_names() {
+        assert!(read_claude_agent("../outside".to_string()).is_err());
+        assert!(write_claude_agent(
+            "nested/name".to_string(),
+            "desc".to_string(),
+            "body".to_string(),
+            None,
+        )
+        .is_err());
+        assert!(delete_claude_agent("/tmp/agent".to_string()).is_err());
+    }
+
+    #[test]
+    fn rejects_traversal_in_agent_ref_filenames() {
+        assert!(read_agent_ref("agent".to_string(), "../secret.md".to_string()).is_err());
+        assert!(write_agent_ref("agent".to_string(), "refs/a.md".to_string(), "x".to_string()).is_err());
+        assert!(delete_agent_ref("agent".to_string(), "/tmp/a.md".to_string()).is_err());
+    }
 }

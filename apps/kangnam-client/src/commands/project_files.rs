@@ -14,6 +14,8 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
+use super::path_guard::{ensure_no_symlink_components, validate_relative_path};
+
 #[derive(Serialize)]
 pub struct ProjectFileEntry {
     /// POSIX-style relative path from `working_dir`.
@@ -127,9 +129,10 @@ pub fn project_file_write(
     let canon_root = root
         .canonicalize()
         .map_err(|e| format!("canonicalize root: {e}"))?;
-    // Don't canonicalize the target since it may not exist yet — instead
-    // resolve the parent and verify it lives inside the root.
-    let target = root.join(&rel_path);
+    let clean_rel = validate_relative_path(&rel_path, "rel_path")?;
+    ensure_no_symlink_components(&canon_root, &clean_rel)?;
+
+    let target = canon_root.join(&clean_rel);
     if let Some(parent) = target.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("mkdir parents: {e}"))?;
         let canon_parent = parent
@@ -141,4 +144,50 @@ pub fn project_file_write(
     }
     std::fs::write(&target, body.as_bytes()).map_err(|e| format!("write: {e}"))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn write_rejects_parent_traversal_before_creating_dirs() {
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let before = outside.path().join("created");
+
+        let rel = format!(
+            "../{}/created/file.txt",
+            outside.path().file_name().unwrap().to_string_lossy()
+        );
+        let err = project_file_write(
+            root.path().to_string_lossy().to_string(),
+            rel,
+            "x".to_string(),
+        )
+        .unwrap_err();
+
+        assert!(err.contains("relative path without traversal"));
+        assert!(!before.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn write_rejects_symlink_targets() {
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let outside_file = outside.path().join("outside.txt");
+        std::fs::write(&outside_file, "before").unwrap();
+        std::os::unix::fs::symlink(&outside_file, root.path().join("link.txt")).unwrap();
+
+        let err = project_file_write(
+            root.path().to_string_lossy().to_string(),
+            "link.txt".to_string(),
+            "after".to_string(),
+        )
+        .unwrap_err();
+
+        assert!(err.contains("refusing to follow symlink"));
+        assert_eq!(std::fs::read_to_string(outside_file).unwrap(), "before");
+    }
 }

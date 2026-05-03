@@ -3,7 +3,7 @@ use crate::{
     shinsal, ten_gods,
     types::*,
 };
-use chrono::Datelike;
+use chrono::{Datelike, NaiveDate};
 use serde_json::{Value, json};
 
 pub struct SajuEngine;
@@ -27,6 +27,24 @@ impl SajuEngine {
     }
 }
 
+fn parse_birth_hour(input: &str) -> Option<u32> {
+    let mut parts = input.split(':');
+    let hour = parts.next()?.parse::<u32>().ok()?;
+    if hour > 23 {
+        return None;
+    }
+    if let Some(minute) = parts.next() {
+        let minute = minute.parse::<u32>().ok()?;
+        if minute > 59 {
+            return None;
+        }
+    }
+    if parts.next().is_some() {
+        return None;
+    }
+    Some(hour)
+}
+
 impl SajuEngine {
     /// birth_date ("YYYY-MM-DD"), birth_time ("HH:MM" or "HH") 파싱
     /// 반환: (year, month, day, hour, has_birth_time)
@@ -40,15 +58,17 @@ impl SajuEngine {
         let year: i32 = parts[0].parse().ok()?;
         let month: u32 = parts[1].parse().ok()?;
         let day: u32 = parts[2].parse().ok()?;
+        NaiveDate::from_ymd_opt(year, month, day)?;
 
-        let parsed_hour = input
+        let parsed_hour = match input
             .get("birth_time")
             .and_then(|v| v.as_str())
+            .map(str::trim)
             .filter(|s| !s.is_empty())
-            .and_then(|t| {
-                let h: &str = t.split(':').next().unwrap_or(t);
-                h.parse::<u32>().ok()
-            });
+        {
+            Some(t) => Some(parse_birth_hour(t)?),
+            None => None,
+        };
 
         let has_birth_time = parsed_hour.is_some();
         let hour = parsed_hour.unwrap_or(12); // 시간 미상이면 오시(정오) 기본값
@@ -1211,7 +1231,7 @@ mod content_depth_tests {
         assert!(
             gm.get("empty_branches")
                 .and_then(|v| v.as_array())
-                .map_or(false, |a| a.len() == 2),
+                .is_some_and(|a| a.len() == 2),
             "공망 지지는 항상 2개"
         );
         assert!(
@@ -1239,7 +1259,7 @@ mod content_depth_tests {
             primary
                 .get("numbers")
                 .and_then(|v| v.as_array())
-                .map_or(false, |a| a.len() == 2),
+                .is_some_and(|a| a.len() == 2),
             "행운 숫자 2개"
         );
         assert!(primary.get("direction").is_some());
@@ -1302,5 +1322,32 @@ mod content_depth_tests {
             let s = p.as_str().unwrap();
             assert!(allowed.contains(&s), "예상치 못한 궁 슬러그: {}", s);
         }
+    }
+
+    #[test]
+    fn invalid_birth_date_returns_error_instead_of_fallback_chart() {
+        let (result, _v) = SajuEngine.generate(
+            "saju",
+            &json!({
+                "birth_date": "2024-02-31",
+                "birth_time": "14:00",
+            }),
+        );
+
+        assert!(result.get("error").is_some());
+        assert!(result.get("four_pillars").is_none());
+    }
+
+    #[test]
+    fn invalid_birth_time_returns_error_instead_of_wrapping_hour() {
+        let (result, _v) = SajuEngine.generate(
+            "daily",
+            &json!({
+                "birth_date": "2024-02-29",
+                "birth_time": "24:00",
+            }),
+        );
+
+        assert!(result.get("error").is_some());
     }
 }

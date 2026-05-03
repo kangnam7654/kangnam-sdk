@@ -4,6 +4,7 @@ pub mod conv;
 pub mod artifact_export;
 pub mod design;
 pub mod mcp;
+mod path_guard;
 pub mod project_files;
 pub mod settings;
 pub mod skills;

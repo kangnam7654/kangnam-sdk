@@ -35,28 +35,31 @@ impl SajuEngine {
     }
 }
 
-fn parse_birth_hour(input: &str) -> Option<u32> {
+fn parse_birth_hour(input: &str) -> Option<(u32, u32)> {
     let mut parts = input.split(':');
     let hour = parts.next()?.parse::<u32>().ok()?;
     if hour > 23 {
         return None;
     }
-    if let Some(minute) = parts.next() {
-        let minute = minute.parse::<u32>().ok()?;
-        if minute > 59 {
+    let minute = if let Some(m) = parts.next() {
+        let m: u32 = m.parse().ok()?;
+        if m > 59 {
             return None;
         }
-    }
+        m
+    } else {
+        0
+    };
     if parts.next().is_some() {
         return None;
     }
-    Some(hour)
+    Some((hour, minute))
 }
 
 impl SajuEngine {
     /// birth_date ("YYYY-MM-DD"), birth_time ("HH:MM" or "HH") 파싱
-    /// 반환: (year, month, day, hour, has_birth_time)
-    fn parse_birth_data(input: &Value) -> Option<(i32, u32, u32, u32, bool)> {
+    /// 반환: (year, month, day, hour, minute, has_birth_time)
+    fn parse_birth_data(input: &Value) -> Option<(i32, u32, u32, u32, u32, bool)> {
         let birth_date = input.get("birth_date").and_then(|v| v.as_str())?;
         let parts: Vec<&str> = birth_date.split('-').collect();
         if parts.len() != 3 {
@@ -68,7 +71,7 @@ impl SajuEngine {
         let day: u32 = parts[2].parse().ok()?;
         NaiveDate::from_ymd_opt(year, month, day)?;
 
-        let parsed_hour = match input
+        let parsed = match input
             .get("birth_time")
             .and_then(|v| v.as_str())
             .map(str::trim)
@@ -78,14 +81,15 @@ impl SajuEngine {
             None => None,
         };
 
-        let has_birth_time = parsed_hour.is_some();
-        let hour = parsed_hour.unwrap_or(12); // 시간 미상이면 오시(정오) 기본값
+        let has_birth_time = parsed.is_some();
+        // 시간 미상이면 오시(정오) 기본값
+        let (hour, minute) = parsed.unwrap_or((12, 0));
 
-        Some((year, month, day, hour, has_birth_time))
+        Some((year, month, day, hour, minute, has_birth_time))
     }
 
     fn generate_daily(&self, input: &Value, version: &str) -> (Value, String) {
-        let Some((year, month, day, hour, _)) = Self::parse_birth_data(input) else {
+        let Some((year, month, day, hour, minute, _)) = Self::parse_birth_data(input) else {
             return (
                 json!({
                     "error": "생년월일 정보가 필요합니다",
@@ -97,7 +101,7 @@ impl SajuEngine {
             );
         };
 
-        let user_pillars = saju::calculate_four_pillars(year, month, day, hour);
+        let user_pillars = saju::calculate_four_pillars_precise(year, month, day, hour, minute);
         let fortune = daily::calculate_daily(&user_pillars);
 
         let result = json!({
@@ -119,7 +123,7 @@ impl SajuEngine {
     }
 
     fn generate_daily_detail(&self, input: &Value, version: &str) -> (Value, String) {
-        let Some((year, month, day, hour, has_birth_time)) = Self::parse_birth_data(input) else {
+        let Some((year, month, day, hour, minute, has_birth_time)) = Self::parse_birth_data(input) else {
             return (
                 json!({
                     "error": "생년월일 정보가 필요합니다",
@@ -131,7 +135,7 @@ impl SajuEngine {
             );
         };
 
-        let user_pillars = saju::calculate_four_pillars(year, month, day, hour);
+        let user_pillars = saju::calculate_four_pillars_precise(year, month, day, hour, minute);
         let detail = daily::calculate_daily_detail(&user_pillars, has_birth_time);
 
         // v0.0.3 — 일간 + 가장 부족 오행 두 갈래 행운 아이템 (web /today 무료 노출용).
@@ -186,14 +190,14 @@ impl SajuEngine {
     }
 
     fn generate_saju(&self, input: &Value, version: &str, tier: InterpTier) -> (Value, String) {
-        let Some((year, month, day, hour, has_birth_time)) = Self::parse_birth_data(input) else {
+        let Some((year, month, day, hour, minute, has_birth_time)) = Self::parse_birth_data(input) else {
             return (
                 json!({"error": "사주 분석에는 생년월일시 정보가 필요합니다."}),
                 version.to_string(),
             );
         };
 
-        let fp = saju::calculate_four_pillars(year, month, day, hour);
+        let fp = saju::calculate_four_pillars_precise(year, month, day, hour, minute);
         let day_master = fp.day.stem;
         let balance = ElementBalance::from_pillars_with_hour(&fp, has_birth_time);
         let gods = ten_gods::analyze_ten_gods(&fp, has_birth_time);
@@ -277,14 +281,14 @@ impl SajuEngine {
     }
 
     fn generate_weekly(&self, input: &Value, version: &str) -> (Value, String) {
-        let Some((year, month, day, hour, _)) = Self::parse_birth_data(input) else {
+        let Some((year, month, day, hour, minute, _)) = Self::parse_birth_data(input) else {
             return (
                 json!({"error": "생년월일 정보가 필요합니다"}),
                 version.to_string(),
             );
         };
 
-        let user_pillars = saju::calculate_four_pillars(year, month, day, hour);
+        let user_pillars = saju::calculate_four_pillars_precise(year, month, day, hour, minute);
         let kst = chrono::FixedOffset::east_opt(9 * 3600).unwrap();
         let today = chrono::Utc::now().with_timezone(&kst).date_naive();
 
@@ -332,14 +336,14 @@ impl SajuEngine {
     }
 
     fn generate_monthly(&self, input: &Value, version: &str) -> (Value, String) {
-        let Some((year, month, day, hour, _)) = Self::parse_birth_data(input) else {
+        let Some((year, month, day, hour, minute, _)) = Self::parse_birth_data(input) else {
             return (
                 json!({"error": "생년월일 정보가 필요합니다"}),
                 version.to_string(),
             );
         };
 
-        let user_pillars = saju::calculate_four_pillars(year, month, day, hour);
+        let user_pillars = saju::calculate_four_pillars_precise(year, month, day, hour, minute);
         let kst = chrono::FixedOffset::east_opt(9 * 3600).unwrap();
         let now = chrono::Utc::now().with_timezone(&kst).date_naive();
         let target_year = now.year();
@@ -417,7 +421,7 @@ impl SajuEngine {
     }
 
     fn generate_monthly_fortune(&self, input: &Value, version: &str) -> (Value, String) {
-        let Some((birth_year, birth_month, birth_day, birth_hour, _)) =
+        let Some((birth_year, birth_month, birth_day, birth_hour, birth_minute, _)) =
             Self::parse_birth_data(input)
         else {
             return (
@@ -437,7 +441,7 @@ impl SajuEngine {
         };
 
         let user_pillars =
-            saju::calculate_four_pillars(birth_year, birth_month, birth_day, birth_hour);
+            saju::calculate_four_pillars_precise(birth_year, birth_month, birth_day, birth_hour, birth_minute);
 
         let kst = chrono::FixedOffset::east_opt(9 * 3600).unwrap();
         let now = chrono::Utc::now().with_timezone(&kst).date_naive();
@@ -503,7 +507,7 @@ impl SajuEngine {
     }
 
     fn generate_daeun(&self, input: &Value, version: &str) -> (Value, String) {
-        let Some((birth_year, birth_month, birth_day, birth_hour, _)) =
+        let Some((birth_year, birth_month, birth_day, birth_hour, birth_minute, _)) =
             Self::parse_birth_data(input)
         else {
             return (
@@ -519,7 +523,7 @@ impl SajuEngine {
         let gender = input.get("gender").and_then(|v| v.as_str()).unwrap_or("M");
 
         let user_pillars =
-            saju::calculate_four_pillars(birth_year, birth_month, birth_day, birth_hour);
+            saju::calculate_four_pillars_precise(birth_year, birth_month, birth_day, birth_hour, birth_minute);
 
         let periods =
             daeun::calculate_daeun(&user_pillars, birth_year, birth_month, birth_day, gender);
@@ -727,8 +731,8 @@ impl CompatibilityData {
 impl SajuEngine {
     /// 궁합 핵심 계산 (기본/상세 공용)
     fn compute_compatibility(input: &Value) -> Option<CompatibilityData> {
-        let (year1, month1, day1, hour1, _) = Self::parse_birth_data(input)?;
-        let pillars1 = saju::calculate_four_pillars(year1, month1, day1, hour1);
+        let (year1, month1, day1, hour1, minute1, _) = Self::parse_birth_data(input)?;
+        let pillars1 = saju::calculate_four_pillars_precise(year1, month1, day1, hour1, minute1);
         let day_master1 = pillars1.day.stem;
         let has_hour1 = input.get("birth_time").and_then(|v| v.as_str()).is_some();
         let balance1 = ElementBalance::from_pillars_with_hour(&pillars1, has_hour1);
@@ -757,7 +761,7 @@ impl SajuEngine {
             .and_then(|v| v.as_str())
             .is_some();
 
-        let pillars2 = saju::calculate_four_pillars(y2, m2, d2, h2);
+        let pillars2 = saju::calculate_four_pillars_precise(y2, m2, d2, h2, 0);
         let day_master2 = pillars2.day.stem;
         let balance2 = ElementBalance::from_pillars_with_hour(&pillars2, has_hour2);
 

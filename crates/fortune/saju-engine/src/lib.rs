@@ -47,6 +47,7 @@ pub mod lucky;
 pub mod monthly;
 pub mod pillars;
 pub mod shinsal;
+pub mod solar_terms;
 pub mod tables;
 pub mod ten_gods;
 pub mod types;
@@ -55,5 +56,5 @@ pub mod types;
 // previous `use crate::services::fortune_engine::saju::{calculate_four_pillars, types::*}`
 // ergonomics that backend consumers relied on.
 pub use engine::SajuEngine;
-pub use pillars::calculate_four_pillars;
+pub use pillars::{calculate_four_pillars, calculate_four_pillars_precise};
 pub use types::{Branch, Element, ElementBalance, FourPillars, Pillar, Polarity, Stem, TenGod};

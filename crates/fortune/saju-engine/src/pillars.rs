@@ -1,3 +1,4 @@
+use super::solar_terms;
 use super::tables;
 use super::types::{Branch, FourPillars, Pillar, Stem};
 use chrono::{Datelike, NaiveDate};
@@ -5,22 +6,58 @@ use chrono::{Datelike, NaiveDate};
 /// 기준일: 1900-01-31 = 갑자일 (stem=0, branch=0)
 const BASE_DATE: (i32, u32, u32) = (1900, 1, 31);
 
-/// 년주 계산
-/// 입춘(약 2/4) 이전이면 전년도로 취급
+/// 년주 계산 (양력 근사값 — 입춘 약 2/4)
+/// 1900~2100 범위에서는 `year_pillar_precise`를 권장.
 pub fn year_pillar(year: i32, month: u32, day: u32) -> Pillar {
     let effective_year = if month < 2 || (month == 2 && day < 4) {
         year - 1
     } else {
         year
     };
+    year_pillar_from_effective(effective_year)
+}
+
+/// 년주 계산 (datetime-aware, 1900~2100 범위에서 정밀).
+/// 입춘 절입 시각 전이면 전년도 효력. 범위 밖이면 `year_pillar` fallback.
+pub fn year_pillar_precise(year: i32, month: u32, day: u32, hour: u32, minute: u32) -> Pillar {
+    let effective_year = solar_terms::effective_year_for_pillar(year, month, day, hour, minute)
+        .unwrap_or_else(|| {
+            if month < 2 || (month == 2 && day < 4) {
+                year - 1
+            } else {
+                year
+            }
+        });
+    year_pillar_from_effective(effective_year)
+}
+
+fn year_pillar_from_effective(effective_year: i32) -> Pillar {
     let stem_idx = ((effective_year - 4) % 10 + 10) as usize % 10;
     let branch_idx = ((effective_year - 4) % 12 + 12) as usize % 12;
     Pillar::new(Stem::from_index(stem_idx), Branch::from_index(branch_idx))
 }
 
-/// 월주 계산
+/// 월주 계산 (양력 근사값 — 절입일 무관 day 단위 비교)
+/// 1900~2100 범위에서는 `month_pillar_precise`를 권장.
 pub fn month_pillar(year_stem: Stem, month: u32, day: u32) -> Pillar {
     let month_idx = tables::solar_month_index(month, day);
+    let stem = tables::month_stem(year_stem, month_idx);
+    let branch = tables::MONTH_BRANCHES[month_idx];
+    Pillar::new(stem, branch)
+}
+
+/// 월주 계산 (datetime-aware, 1900~2100 범위에서 정밀).
+/// 절입 시각 전후·년도별 절기 일자 변동을 모두 반영. 범위 밖이면 양력 근사값 fallback.
+pub fn month_pillar_precise(
+    year_stem: Stem,
+    year: i32,
+    month: u32,
+    day: u32,
+    hour: u32,
+    minute: u32,
+) -> Pillar {
+    let month_idx = solar_terms::precise_month_index(year, month, day, hour, minute)
+        .unwrap_or_else(|| tables::solar_month_index(month, day));
     let stem = tables::month_stem(year_stem, month_idx);
     let branch = tables::MONTH_BRANCHES[month_idx];
     Pillar::new(stem, branch)
@@ -56,10 +93,32 @@ pub fn hour_pillar(day_stem: Stem, hour: u32) -> Pillar {
     Pillar::new(stem, branch)
 }
 
-/// 사주팔자 전체 계산
+/// 사주팔자 전체 계산 (양력 근사값 fallback — 1900~2100 범위에서는
+/// `calculate_four_pillars_precise` 권장).
 pub fn calculate_four_pillars(year: i32, month: u32, day: u32, hour: u32) -> FourPillars {
     let year_p = year_pillar(year, month, day);
     let month_p = month_pillar(year_p.stem, month, day);
+    let day_p = day_pillar(year, month, day);
+    let hour_p = hour_pillar(day_p.stem, hour);
+    FourPillars {
+        year: year_p,
+        month: month_p,
+        day: day_p,
+        hour: hour_p,
+    }
+}
+
+/// 사주팔자 전체 계산 (datetime-aware, 1900~2100 범위 정밀).
+/// 절기 절입 시각 + 년도별 변동을 정밀 테이블로 반영. minute까지 반영.
+pub fn calculate_four_pillars_precise(
+    year: i32,
+    month: u32,
+    day: u32,
+    hour: u32,
+    minute: u32,
+) -> FourPillars {
+    let year_p = year_pillar_precise(year, month, day, hour, minute);
+    let month_p = month_pillar_precise(year_p.stem, year, month, day, hour, minute);
     let day_p = day_pillar(year, month, day);
     let hour_p = hour_pillar(day_p.stem, hour);
     FourPillars {

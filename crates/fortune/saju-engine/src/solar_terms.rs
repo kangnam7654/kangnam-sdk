@@ -120,6 +120,191 @@ mod tests {
         NAMES[i]
     }
 
+    // ─── 데이터 무결성 ────────────────────────────────────────────
+
+    #[test]
+    fn data_is_sorted_ascending() {
+        for w in data::SOLAR_TERMS_KST.windows(2) {
+            assert!(
+                w[0].0 <= w[1].0,
+                "SOLAR_TERMS_KST not sorted: {} > {}",
+                w[0].0,
+                w[1].0
+            );
+        }
+    }
+
+    #[test]
+    fn data_term_indices_in_range() {
+        for (i, &(_, idx)) in data::SOLAR_TERMS_KST.iter().enumerate() {
+            assert!(idx < 24, "entry {i} has invalid term_idx {idx}");
+        }
+    }
+
+    #[test]
+    fn data_no_duplicates() {
+        let mut prev: Option<(i64, u8)> = None;
+        for &entry in data::SOLAR_TERMS_KST.iter() {
+            if let Some(p) = prev {
+                assert_ne!(p, entry, "duplicate entry: {:?}", entry);
+            }
+            prev = Some(entry);
+        }
+    }
+
+    #[test]
+    fn data_covers_full_range() {
+        // 1900~2100 200년 × 24절기 = 4800개 ± 절기 시작/끝 누락 가능. 4500 이상이면 충분.
+        let n = data::SOLAR_TERMS_KST.len();
+        assert!(n >= 4500, "expected >= 4500 entries, got {}", n);
+        assert!(n <= 5000, "expected <= 5000 entries, got {}", n);
+    }
+
+    #[test]
+    fn data_each_year_has_24_terms() {
+        // 1950~2050 같은 안전 범위에서 각 년도가 24개를 가져야 함 (range 끝은 truncate 가능).
+        use chrono::Datelike;
+        use std::collections::HashMap;
+        let kst = FixedOffset::east_opt(9 * 3600).unwrap();
+        let mut by_year: HashMap<i32, Vec<u8>> = HashMap::new();
+        for &(ts, idx) in data::SOLAR_TERMS_KST.iter() {
+            let dt = chrono::DateTime::from_timestamp(ts, 0)
+                .unwrap()
+                .with_timezone(&kst);
+            by_year
+                .entry(dt.year())
+                .or_default()
+                .push(idx);
+        }
+        for year in 1950..=2050 {
+            let count = by_year.get(&year).map(|v| v.len()).unwrap_or(0);
+            assert_eq!(
+                count, 24,
+                "year {} has {} terms (expected 24)",
+                year, count
+            );
+        }
+    }
+
+    // ─── data-driven boundary 테스트 ──────────────────────────────────
+
+    /// (year, month, day, hour, minute, expected_branch). 각 月支 boundary 절기에서
+    /// 절입 ±1분 케이스. 1996년을 대표로 12개 月支 모두 cover.
+    const FIXTURE_1996: &[(i32, u32, u32, u32, u32, &str)] = &[
+        // 立春 (2/4 22:07) → 인월
+        (1996, 2, 4, 22, 6, "축"),
+        (1996, 2, 4, 22, 8, "인"),
+        // 驚蟄 (3/5 22:09 경) — 정밀 데이터 누락 케이스 회귀 — 묘월
+        // 清明 (4/4 21:02) → 진월
+        (1996, 4, 4, 21, 1, "묘"),
+        (1996, 4, 4, 21, 3, "진"),
+        // 立夏 (5/5 14:26) → 사월
+        (1996, 5, 5, 14, 25, "진"),
+        (1996, 5, 5, 14, 27, "사"),
+        // 小暑 (7/7 5:00) → 미월
+        (1996, 7, 7, 4, 59, "오"),
+        (1996, 7, 7, 5, 1, "미"),
+        // 立秋 (8/7 14:48) → 신월
+        (1996, 8, 7, 14, 47, "미"),
+        (1996, 8, 7, 14, 49, "신"),
+        // 白露 (9/7 17:42) → 유월
+        (1996, 9, 7, 17, 41, "신"),
+        (1996, 9, 7, 17, 43, "유"),
+        // 寒露 (10/8 9:18) → 술월
+        (1996, 10, 8, 9, 17, "유"),
+        (1996, 10, 8, 9, 19, "술"),
+        // 立冬 (11/7 12:26) → 해월
+        (1996, 11, 7, 12, 25, "술"),
+        (1996, 11, 7, 12, 27, "해"),
+        // 大雪 (12/7 5:14) → 자월
+        (1996, 12, 7, 5, 13, "해"),
+        (1996, 12, 7, 5, 15, "자"),
+        // 小寒 (1/6 10:31) → 축월
+        (1996, 1, 6, 10, 30, "자"),
+        (1996, 1, 6, 10, 32, "축"),
+    ];
+
+    #[test]
+    fn boundary_cases_1996_all_branches() {
+        for &(y, m, d, h, mi, want) in FIXTURE_1996 {
+            let idx = precise_month_index(y, m, d, h, mi).unwrap();
+            let got = idx_to_branch(idx);
+            assert_eq!(
+                got, want,
+                "{}-{}-{} {:02}:{:02} → expected {} but got {}",
+                y, m, d, h, mi, want, got
+            );
+        }
+    }
+
+    /// 2025 입춘이 양력 2/3 23:10 KST이라 흔한 가정(2/4)과 다른 케이스. 회귀 보호.
+    #[test]
+    fn ipchun_2025_falls_on_feb_3rd() {
+        // 2/3 22:00 → 입춘 전 → 축월 (전년도 효력)
+        assert_eq!(
+            idx_to_branch(precise_month_index(2025, 2, 3, 22, 0).unwrap()),
+            "축"
+        );
+        // 2/4 00:00 → 입춘 후 → 인월
+        assert_eq!(
+            idx_to_branch(precise_month_index(2025, 2, 4, 0, 0).unwrap()),
+            "인"
+        );
+        assert_eq!(effective_year_for_pillar(2025, 2, 3, 22, 0), Some(2024));
+        assert_eq!(effective_year_for_pillar(2025, 2, 4, 0, 0), Some(2025));
+    }
+
+    /// 2017 소한이 양력 1/5 12:55 KST. 양력 근사값(1/6)을 쓰면 1/5 출생자
+    /// 모두 자월로 잘못 잡히는 케이스. 회귀 보호.
+    #[test]
+    fn sohan_2017_falls_on_jan_5th() {
+        assert_eq!(
+            idx_to_branch(precise_month_index(2017, 1, 5, 10, 0).unwrap()),
+            "자",
+            "절입 12:55 전 — 자월"
+        );
+        assert_eq!(
+            idx_to_branch(precise_month_index(2017, 1, 5, 14, 0).unwrap()),
+            "축",
+            "절입 12:55 후 — 축월"
+        );
+    }
+
+    /// 한 시간 안 동시각 boundary (밀리초 단위 정확도 — 분 단위로 충분)
+    #[test]
+    fn within_one_minute_of_jeolib() {
+        // 2024 입춘 = 2/4 17:27 KST.
+        assert_eq!(
+            idx_to_branch(precise_month_index(2024, 2, 4, 17, 26).unwrap()),
+            "축"
+        );
+        assert_eq!(
+            idx_to_branch(precise_month_index(2024, 2, 4, 17, 28).unwrap()),
+            "인"
+        );
+    }
+
+    /// 데이터 범위 끝 (1900-01-01, 2100-12-31)에서 월지가 일관성 있는지
+    #[test]
+    fn at_data_range_extremes() {
+        // 1900-01-01 — 1900 입춘 전이라 효력년도 1899. 月支는 축(소한 후 가정)
+        let idx = precise_month_index(1900, 1, 15, 12, 0).unwrap();
+        // 1900 소한 = 1/6 ~. 1/15는 소한 후 → 축월
+        assert_eq!(idx_to_branch(idx), "축");
+
+        // 2100-12-31 — 2100 대설 후 → 자월
+        let idx = precise_month_index(2100, 12, 31, 12, 0).unwrap();
+        assert_eq!(idx_to_branch(idx), "자");
+    }
+
+    /// 6월 망종/하지 사이 — 정밀 데이터에 망종이 있어야 정상
+    #[test]
+    fn mid_year_terms_present() {
+        // 2024 망종 = 6/5 20:10 KST. 6/15는 망종 후 → 오월
+        let idx = precise_month_index(2024, 6, 15, 0, 0).unwrap();
+        assert_eq!(idx_to_branch(idx), "오");
+    }
+
     #[test]
     fn jeolgi_1996_sohan_before_jeolib() {
         // 1996 소한 = 1996-01-06 09:31 KST. 12:00 출생자는 절입 후 → 축월.

@@ -83,6 +83,7 @@ impl OpenAICompatProvider {
             let mut text_parts: Vec<&str> = Vec::new();
             let mut image_blocks: Vec<Value> = Vec::new();
             let mut tool_results: Vec<Value> = Vec::new();
+            let mut tool_calls_array: Vec<Value> = Vec::new();
             let mut has_image = false;
 
             for block in &m.content {
@@ -117,24 +118,53 @@ impl OpenAICompatProvider {
                             "content": wire_content,
                         }));
                     }
+                    ChatContent::ToolUse {
+                        id,
+                        name,
+                        arguments,
+                    } => {
+                        // OpenAI spec: arguments is a STRINGIFIED JSON,
+                        // not a raw JSON object. Stringify here so the
+                        // wire format is correct for LM Studio / OpenAI
+                        // / vLLM / llama.cpp servers.
+                        let args_str = serde_json::to_string(arguments)
+                            .unwrap_or_else(|_| "{}".to_string());
+                        tool_calls_array.push(json!({
+                            "id": id,
+                            "type": "function",
+                            "function": {
+                                "name": name,
+                                "arguments": args_str,
+                            },
+                        }));
+                    }
                 }
             }
 
             let text = text_parts.join("");
             let has_content = !text.is_empty() || has_image;
-            if has_content {
-                if has_image {
+            let has_tool_calls = !tool_calls_array.is_empty();
+            if has_content || has_tool_calls {
+                let mut msg = if has_image {
                     // Array form: interleave text block (if any) then image blocks.
                     let mut content_arr: Vec<Value> = Vec::new();
                     if !text.is_empty() {
                         content_arr.push(json!({"type": "text", "text": text}));
                     }
                     content_arr.extend(image_blocks);
-                    out.push(json!({"role": m.role, "content": content_arr}));
+                    json!({"role": m.role, "content": content_arr})
+                } else if has_tool_calls && text.is_empty() {
+                    // Assistant tool-call-only turn: OpenAI accepts null content
+                    // when tool_calls is present.
+                    json!({"role": m.role, "content": Value::Null})
                 } else {
                     // Plain string form for text-only messages.
-                    out.push(json!({"role": m.role, "content": text}));
+                    json!({"role": m.role, "content": text})
+                };
+                if has_tool_calls {
+                    msg["tool_calls"] = json!(tool_calls_array);
                 }
+                out.push(msg);
             }
             out.extend(tool_results);
         }
@@ -1136,6 +1166,79 @@ mod tests {
             )
             .await;
         assert!(result.is_ok(), "expected ok, got {result:?}");
+    }
+
+    /// Round 20 regression lock: `ChatMessage::assistant_with_tool_calls`
+    /// encodes the assistant turn with a `tool_calls` array, and arguments
+    /// are stringified per the OpenAI/LM Studio wire spec. The subsequent
+    /// `ChatMessage::tool_result` then renders as a separate `role:"tool"`
+    /// message whose `tool_call_id` matches — completing the round-trip
+    /// LM Studio multi-turn loops require.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn assistant_tool_calls_arguments_are_stringified_round_trip() {
+        use crate::{ChatContent, LlmProviderDyn, LlmRequestOptions, ToolCall as TC};
+        use wiremock::matchers::body_partial_json;
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/chat/completions"))
+            .and(body_partial_json(serde_json::json!({
+                "messages": [
+                    {"role": "user", "content": "weather?"},
+                    {
+                        "role": "assistant",
+                        "content": "checking",
+                        "tool_calls": [{
+                            "id": "call_01",
+                            "type": "function",
+                            "function": {
+                                "name": "get_weather",
+                                "arguments": "{\"city\":\"seoul\"}"
+                            }
+                        }]
+                    },
+                    {"role": "tool", "tool_call_id": "call_01", "content": "25C"},
+                ]
+            })))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "model": "gpt-4",
+                "choices": [{"message": {"role": "assistant", "content": "It is 25C."}}],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 1}
+            })))
+            .mount(&server)
+            .await;
+
+        let p = OpenAICompatProvider::new(server.uri(), "".into(), "gpt-4".into());
+        let messages = vec![
+            ChatMessage::user("weather?"),
+            ChatMessage::assistant_with_tool_calls(
+                "checking",
+                vec![TC {
+                    id: "call_01".into(),
+                    name: "get_weather".into(),
+                    arguments: serde_json::json!({"city": "seoul"}),
+                }],
+            ),
+            ChatMessage::tool_result("call_01", "25C", false),
+        ];
+        let result = p
+            .chat_with_options_dyn(
+                "",
+                &messages,
+                &LlmRequestOptions::default(),
+                &serde_json::json!({}),
+            )
+            .await;
+        assert!(result.is_ok(), "expected ok, got {result:?}");
+
+        // Sanity: the variant is publicly constructable for downstream
+        // multi-turn loops. (Direct construction is allowed inside this
+        // crate; external crates use ChatMessage::assistant_with_tool_calls.)
+        let _ = ChatContent::ToolUse {
+            id: "x".into(),
+            name: "y".into(),
+            arguments: serde_json::json!({}),
+        };
     }
 
     /// Test D: `ChatMessage::tool_result` encodes as a separate `{role: "tool",

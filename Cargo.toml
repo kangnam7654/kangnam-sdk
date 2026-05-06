@@ -48,10 +48,11 @@ tera = "1"
 tracing = "0.1"
 
 # ── workspace internal crates ──
-kangnam-harness-core    = { path = "crates/harness/core" }
-kangnam-harness-store   = { path = "crates/harness/store" }
-kangnam-harness-runtime = { path = "crates/harness/runtime" }
-kangnam-harness         = { path = "crates/harness/harness" }
+kangnam-harness-core       = { path = "crates/harness/core" }
+kangnam-harness-store      = { path = "crates/harness/store" }
+kangnam-harness-runtime    = { path = "crates/harness/runtime" }
+kangnam-harness-llm-bridge = { path = "crates/harness/llm-bridge" }
+kangnam-harness            = { path = "crates/harness/harness" }
 kangnam-router        = { path = "crates/router" }
 kangnam-chat-core     = { path = "crates/chat/core" }
 kangnam-chat-agent    = { path = "crates/chat/agent" }

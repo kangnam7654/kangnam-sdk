@@ -2829,6 +2829,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "kangnam-harness-llm-bridge"
+version = "0.3.0"
+dependencies = [
+ "async-stream",
+ "async-trait",
+ "futures",
+ "kangnam-harness-runtime",
+ "kangnam-router",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "wiremock",
+]
+
+[[package]]
 name = "kangnam-harness-runtime"
 version = "0.3.0"
 dependencies = [

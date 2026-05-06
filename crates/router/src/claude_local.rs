@@ -904,6 +904,12 @@ impl ClaudeLocalProvider {
                             tool_use_id
                         );
                     }
+                    crate::ChatContent::ToolUse { name, .. } => {
+                        tracing::debug!(
+                            "claude_local: dropping tool_use block (CLI handles its own internal tools); name={}",
+                            name
+                        );
+                    }
                 }
             }
             if has_text {

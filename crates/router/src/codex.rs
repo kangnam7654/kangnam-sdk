@@ -110,6 +110,22 @@ impl CodexProvider {
                             "output": output,
                         }));
                     }
+                    ChatContent::ToolUse {
+                        id,
+                        name,
+                        arguments,
+                    } => {
+                        // Responses API: function calls are top-level input items
+                        // with stringified `arguments` (matches OpenAI Chat Completions).
+                        let args_str = serde_json::to_string(arguments)
+                            .unwrap_or_else(|_| "{}".to_string());
+                        out.push(json!({
+                            "type": "function_call",
+                            "call_id": id,
+                            "name": name,
+                            "arguments": args_str,
+                        }));
+                    }
                 }
             }
 

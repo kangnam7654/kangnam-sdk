@@ -898,6 +898,12 @@ impl CodexLocalProvider {
                             tool_use_id
                         );
                     }
+                    crate::ChatContent::ToolUse { name, .. } => {
+                        tracing::debug!(
+                            "codex_local: dropping tool_use block (CLI handles its own internal tools); name={}",
+                            name
+                        );
+                    }
                 }
             }
             if has_text {

@@ -53,6 +53,52 @@ fn daily_detail_returns_object() {
 }
 
 #[test]
+fn daily_detail_category_details_has_7_keys() {
+    // lunawave /today 페이지가 의존하는 7 카테고리(love/career/health/wealth +
+    // study/travel/relations) JSON 키를 lock — 빠지면 frontend의 카테고리 행이
+    // 빈 점수(0점)로 노출되며 UX가 깨지므로 contract test로 고정.
+    let (result, _v) = SajuEngine.generate("daily_detail", &minimal_input());
+    let cats = result
+        .get("category_details")
+        .and_then(|v| v.as_object())
+        .expect("category_details must be an object");
+    for key in [
+        "love",
+        "career",
+        "health",
+        "wealth",
+        "study",
+        "travel",
+        "relations",
+    ] {
+        let entry = cats
+            .get(key)
+            .unwrap_or_else(|| panic!("missing category: {key}"));
+        let obj = entry.as_object().expect("category entry must be object");
+        let advice = obj
+            .get("advice")
+            .and_then(|v| v.as_str())
+            .unwrap_or_else(|| panic!("{key}.advice missing or non-string"));
+        assert!(!advice.is_empty(), "{key}.advice empty");
+        let score = obj
+            .get("score")
+            .and_then(|v| v.as_i64())
+            .unwrap_or_else(|| panic!("{key}.score missing or non-integer"));
+        assert!((30..=98).contains(&score), "{key}.score out of range: {score}");
+    }
+    // 결혼·자녀는 daily에 노출하지 않는다 — 키가 새로 들어가면 본명/일운 BM 분리가
+    // 깨진 신호이므로 회귀 lock.
+    assert!(
+        !cats.contains_key("marriage"),
+        "marriage must not appear in daily category_details (본명 전용 SKU)"
+    );
+    assert!(
+        !cats.contains_key("children"),
+        "children must not appear in daily category_details (본명 전용 SKU)"
+    );
+}
+
+#[test]
 fn saju_returns_object() {
     assert_shape("saju", &minimal_input());
 }

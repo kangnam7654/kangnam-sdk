@@ -632,19 +632,106 @@ mod tests {
     fn test_daily_detail_category_details_all_non_empty() {
         let pillars = test_pillars();
         let detail = calculate_daily_detail_for_date(&pillars, true, 2026, 3, 23);
-        assert!(!detail.category_details.love.advice.is_empty());
-        assert!(!detail.category_details.career.advice.is_empty());
-        assert!(!detail.category_details.health.advice.is_empty());
-        assert!(!detail.category_details.wealth.advice.is_empty());
-        // 점수 범위 확인
-        for score in [
-            detail.category_details.love.score,
-            detail.category_details.career.score,
-            detail.category_details.health.score,
-            detail.category_details.wealth.score,
+        // 7 카테고리(love/career/health/wealth + study/travel/relations) 모두 비어있지 않아야.
+        let cats = &detail.category_details;
+        for advice in [
+            &cats.love.advice,
+            &cats.career.advice,
+            &cats.health.advice,
+            &cats.wealth.advice,
+            &cats.study.advice,
+            &cats.travel.advice,
+            &cats.relations.advice,
         ] {
-            assert!((30..=98).contains(&score));
+            assert!(!advice.is_empty(), "advice empty");
         }
+        // 점수 범위 확인 (category_score clamp 30..98)
+        for score in [
+            cats.love.score,
+            cats.career.score,
+            cats.health.score,
+            cats.wealth.score,
+            cats.study.score,
+            cats.travel.score,
+            cats.relations.score,
+        ] {
+            assert!((30..=98).contains(&score), "score out of range: {score}");
+        }
+    }
+
+    #[test]
+    fn test_daily_detail_new_categories_have_personalized_advice() {
+        // 새 3 카테고리(학업/이동/대인) advice는 base 한 줄 + 일간 element 기반 한 줄로
+        // 합쳐진 두 문장 — 각 카테고리가 단순 placeholder가 아닌 실 콘텐츠인지 확인.
+        let pillars = test_pillars();
+        let detail = calculate_daily_detail_for_date(&pillars, true, 2026, 3, 23);
+        for advice in [
+            &detail.category_details.study.advice,
+            &detail.category_details.travel.advice,
+            &detail.category_details.relations.advice,
+        ] {
+            // 두 문장 합본이면 마침표 2회 이상 또는 길이 80+ 자 보장.
+            let dot_count = advice.matches('.').count();
+            assert!(
+                dot_count >= 2 || advice.chars().count() >= 80,
+                "advice too short or single sentence: {advice}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_daily_detail_advice_covers_all_relations_and_elements() {
+        // 천간 10 × 며칠 정도의 입력 변화로 ElementRelation 5종 × Element 5종이
+        // 모두 advice 분기를 한 번씩은 거치는지 확인 (스모크 커버리지).
+        // 같은 advice 문장이 반복되더라도 어느 분기로도 빈 문자열은 나오면 안 됨.
+        let mut seen = std::collections::HashSet::new();
+        for year in [1990, 1995, 2000, 2005] {
+            for month in [1, 4, 7, 10] {
+                for day in [1, 15] {
+                    let pillars = saju::calculate_four_pillars(year, month, day, 14);
+                    let detail = calculate_daily_detail_for_date(&pillars, true, 2026, 3, 23);
+                    for cat in [
+                        &detail.category_details.study.advice,
+                        &detail.category_details.travel.advice,
+                        &detail.category_details.relations.advice,
+                    ] {
+                        seen.insert(cat.clone());
+                    }
+                }
+            }
+        }
+        // 32개 입력 × 3 카테고리에서 최소 5종(=relation 5분기) 이상 나와야 generic placeholder가 아님을 보장.
+        assert!(seen.len() >= 5, "advice variants too few: {}", seen.len());
+    }
+
+    #[test]
+    fn test_category_score_is_deterministic() {
+        // 같은 입력은 같은 점수 — input_hash 캐시 동작 + 사용자 신뢰도(매번 다른 점수면 의심)
+        let pillars = test_pillars();
+        let detail1 = calculate_daily_detail_for_date(&pillars, true, 2026, 3, 23);
+        let detail2 = calculate_daily_detail_for_date(&pillars, true, 2026, 3, 23);
+        assert_eq!(detail1.category_details.study.score, detail2.category_details.study.score);
+        assert_eq!(detail1.category_details.travel.score, detail2.category_details.travel.score);
+        assert_eq!(
+            detail1.category_details.relations.score,
+            detail2.category_details.relations.score
+        );
+    }
+
+    #[test]
+    fn test_category_score_varies_with_day_master() {
+        // 다른 일간(다른 birth date)이면 점수도 달라야 — 천간 인덱스가 시드에 들어가는 게 효과 있는지.
+        // 운이 같아 우연히 같을 수 있으므로 4개 사주를 만들어 최소 1개 이상 다른지 본다.
+        let p1 = saju::calculate_four_pillars(1990, 1, 15, 14);
+        let p2 = saju::calculate_four_pillars(1991, 6, 20, 9);
+        let p3 = saju::calculate_four_pillars(1985, 10, 5, 18);
+        let p4 = saju::calculate_four_pillars(2000, 3, 1, 23);
+        let scores: Vec<_> = [p1, p2, p3, p4]
+            .iter()
+            .map(|p| calculate_daily_detail_for_date(p, true, 2026, 3, 23).category_details.study.score)
+            .collect();
+        let unique: std::collections::HashSet<_> = scores.iter().collect();
+        assert!(unique.len() >= 2, "scores all identical across day_masters: {:?}", scores);
     }
 
     #[test]

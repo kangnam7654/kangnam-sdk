@@ -173,6 +173,9 @@ impl SajuEngine {
                 "career": { "score": detail.category_details.career.score, "advice": detail.category_details.career.advice },
                 "health": { "score": detail.category_details.health.score, "advice": detail.category_details.health.advice },
                 "wealth": { "score": detail.category_details.wealth.score, "advice": detail.category_details.wealth.advice },
+                "study": { "score": detail.category_details.study.score, "advice": detail.category_details.study.advice },
+                "travel": { "score": detail.category_details.travel.score, "advice": detail.category_details.travel.advice },
+                "relations": { "score": detail.category_details.relations.score, "advice": detail.category_details.relations.advice },
             },
             "hourly_fortunes": hourly,
             "lucky_items": {

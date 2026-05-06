@@ -150,12 +150,16 @@ pub struct DailyDetailFortune {
     pub personality_summary: String,
 }
 
-/// 카테고리별 상세 조언
+/// 카테고리별 상세 조언. 결혼·자녀는 본명(평생) 카테고리이고 일별 변동
+/// 의미가 약해서 일운(daily)에는 노출하지 않는다.
 pub struct CategoryDetails {
     pub love: CategoryDetail,
     pub career: CategoryDetail,
     pub health: CategoryDetail,
     pub wealth: CategoryDetail,
+    pub study: CategoryDetail,
+    pub travel: CategoryDetail,
+    pub relations: CategoryDetail,
 }
 
 pub struct CategoryDetail {
@@ -208,8 +212,13 @@ pub fn calculate_daily_detail_for_date(
     let day_master = user_pillars.day.stem;
     let relation = base.relation;
 
-    // 카테고리별 상세 (재물 추가)
+    // 카테고리별 상세 (7종: 재물·연애·직업·건강 + 학업·이동·대인).
+    // 결혼·자녀는 평생 카테고리라 본명(saju_marriage/saju_children)에만 노출.
     let wealth_score = category_score(base.scores.overall, day_master, base.today_pillar.stem, 3);
+    let study_score = category_score(base.scores.overall, day_master, base.today_pillar.stem, 4);
+    let travel_score = category_score(base.scores.overall, day_master, base.today_pillar.stem, 5);
+    let relations_score =
+        category_score(base.scores.overall, day_master, base.today_pillar.stem, 6);
     let category_details = CategoryDetails {
         love: CategoryDetail {
             score: base.scores.love,
@@ -226,6 +235,18 @@ pub fn calculate_daily_detail_for_date(
         wealth: CategoryDetail {
             score: wealth_score,
             advice: category_detail_advice(relation, day_master, "wealth"),
+        },
+        study: CategoryDetail {
+            score: study_score,
+            advice: category_detail_advice(relation, day_master, "study"),
+        },
+        travel: CategoryDetail {
+            score: travel_score,
+            advice: category_detail_advice(relation, day_master, "travel"),
+        },
+        relations: CategoryDetail {
+            score: relations_score,
+            advice: category_detail_advice(relation, day_master, "relations"),
         },
     };
 
@@ -328,6 +349,9 @@ fn category_detail_advice(relation: ElementRelation, day_master: Stem, category:
         "career" => career_detail_advice(relation, elem),
         "health" => health_detail_advice(relation, elem),
         "wealth" => wealth_detail_advice(relation, elem),
+        "study" => study_detail_advice(relation, elem),
+        "travel" => travel_detail_advice(relation, elem),
+        "relations" => relations_detail_advice(relation, elem),
         _ => String::new(),
     }
 }
@@ -438,6 +462,90 @@ fn wealth_detail_advice(relation: ElementRelation, elem: Element) -> String {
         Element::Earth => "안정적이고 꾸준한 저축이 큰 자산이 됩니다.",
         Element::Metal => "분석적 판단으로 현명한 소비를 할 수 있습니다.",
         Element::Water => "다양한 포트폴리오로 리스크를 분산하세요.",
+    };
+    format!("{} {}", base, personal)
+}
+
+fn study_detail_advice(relation: ElementRelation, elem: Element) -> String {
+    let base = match relation {
+        ElementRelation::Generated => {
+            "받아들이는 힘이 좋은 날입니다. 강의나 책에서 핵심을 빠르게 잡아낼 수 있습니다."
+        }
+        ElementRelation::Same => {
+            "집중력이 높은 날입니다. 어려운 단원이나 누적된 과제부터 정리해보세요."
+        }
+        ElementRelation::Generates => {
+            "정리·요약에 적합한 날입니다. 배운 것을 다시 풀어 쓰면 오래 남습니다."
+        }
+        ElementRelation::Controls => {
+            "성과를 만드는 날입니다. 모의고사·발표·자격증 등 결과 시험에 강합니다."
+        }
+        ElementRelation::Controlled => {
+            "잡생각으로 흔들리기 쉽습니다. 한 과목 한 챕터씩 짧게 끊어 가세요."
+        }
+    };
+    let personal = match elem {
+        Element::Wood => "새 분야 입문이나 큰 그림 잡기에 적합합니다.",
+        Element::Fire => "토론·발표·암기에서 평소 이상의 성과를 냅니다.",
+        Element::Earth => "기본기 다지기와 꾸준한 반복 학습에서 빛납니다.",
+        Element::Metal => "정밀한 문제 풀이와 논리 전개에 탁월합니다.",
+        Element::Water => "유연한 사고로 응용 문제와 서술형에 강합니다.",
+    };
+    format!("{} {}", base, personal)
+}
+
+fn travel_detail_advice(relation: ElementRelation, elem: Element) -> String {
+    let base = match relation {
+        ElementRelation::Generated => {
+            "이동 중 도움받는 기운이 강한 날입니다. 길안내·동행이 자연스럽게 따릅니다."
+        }
+        ElementRelation::Same => {
+            "혼자 움직여도 좋은 날입니다. 평소 가보고 싶었던 코스에 도전해보세요."
+        }
+        ElementRelation::Generates => {
+            "베푸는 이동(배웅·심부름)이 의외의 인연을 만들 수 있는 날입니다."
+        }
+        ElementRelation::Controls => {
+            "출장·계약·확장 같은 목적성 이동에 강합니다. 결정 짓고 돌아오기 좋은 날."
+        }
+        ElementRelation::Controlled => {
+            "이동 중 사고·지연 가능성. 여유 시간을 두고 짐도 가볍게 챙기세요."
+        }
+    };
+    let personal = match elem {
+        Element::Wood => "동쪽·신생 도시·자연이 있는 코스가 잘 맞습니다.",
+        Element::Fire => "남쪽·번화한 곳·사람 많은 행사가 에너지를 줍니다.",
+        Element::Earth => "익숙한 동선·근거리 이동이 안정감을 가져옵니다.",
+        Element::Metal => "서쪽·정돈된 도시·일정이 명확한 출장에 적합합니다.",
+        Element::Water => "북쪽·물가·해외 이동에서 기회를 잡기 쉽습니다.",
+    };
+    format!("{} {}", base, personal)
+}
+
+fn relations_detail_advice(relation: ElementRelation, elem: Element) -> String {
+    let base = match relation {
+        ElementRelation::Generated => {
+            "주변에서 먼저 다가오는 날입니다. 받아들이는 자세가 관계를 깊게 만듭니다."
+        }
+        ElementRelation::Same => {
+            "동등한 관계, 친구·동료와의 협력에 강한 날입니다. 모임에 적극적으로 참여해보세요."
+        }
+        ElementRelation::Generates => {
+            "후배·아랫사람·신규 커뮤니티에 베풀면 호의가 두 배로 돌아옵니다."
+        }
+        ElementRelation::Controls => {
+            "리더십이 통하는 날입니다. 의견을 정리하고 결정 짓는 역할에 적합합니다."
+        }
+        ElementRelation::Controlled => {
+            "의견 충돌이 생기기 쉽습니다. 한 박자 늦춘 반응이 관계를 지킵니다."
+        }
+    };
+    let personal = match elem {
+        Element::Wood => "공통 관심사·취미 모임에서 인연이 자연스럽게 풀립니다.",
+        Element::Fire => "밝은 자리·축하 모임에서 매력이 두드러집니다.",
+        Element::Earth => "가족·오랜 친구처럼 신뢰 기반 관계에서 빛납니다.",
+        Element::Metal => "원칙을 지키는 단단한 인상이 신뢰를 쌓습니다.",
+        Element::Water => "타인의 입장을 헤아리는 공감이 관계의 윤활유가 됩니다.",
     };
     format!("{} {}", base, personal)
 }

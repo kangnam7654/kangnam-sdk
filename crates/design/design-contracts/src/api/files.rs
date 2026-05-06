@@ -8,7 +8,7 @@ use crate::common::OkResponse;
 
 /// Coarse classification of a project file. Drives the file-tree icon
 /// + the auto-pick "open with" decision (artifacts → live artifact view,
-/// HTML → preview, sketch → sketch view, …).
+///   HTML → preview, sketch → sketch view, …).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[non_exhaustive]

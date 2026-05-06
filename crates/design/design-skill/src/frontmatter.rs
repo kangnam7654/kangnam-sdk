@@ -30,8 +30,8 @@ pub fn parse_frontmatter_raw(input: &str) -> Result<(serde_yaml::Value, String),
     }
     // Skip the opening fence line.
     let after_open = trimmed
-        .splitn(2, '\n')
-        .nth(1)
+        .split_once('\n')
+        .map(|(_, rest)| rest)
         .ok_or(FrontmatterError::MissingCloseFence)?;
     // The closing fence is a line that is exactly `---`.
     let mut frontmatter = String::new();

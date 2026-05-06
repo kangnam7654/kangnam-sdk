@@ -331,7 +331,7 @@ mod tests {
 
     #[test]
     fn template_filter_chain_combines_predicates() {
-        let templates = vec![
+        let templates = [
             make("a", Surface::Image, "Avatar", &["anime"], "gpt-image-2"),
             make("b", Surface::Image, "Cinematic", &["realistic"], "gpt-image-2"),
             make("c", Surface::Video, "Cinematic", &["anime", "drama"], "sora-2"),
@@ -348,7 +348,7 @@ mod tests {
 
     #[test]
     fn template_filter_with_category() {
-        let templates = vec![
+        let templates = [
             make("a", Surface::Image, "Avatar", &[], "m"),
             make("b", Surface::Video, "Cinematic", &[], "m"),
             make("c", Surface::Image, "Cinematic", &[], "m"),
@@ -363,7 +363,7 @@ mod tests {
 
     #[test]
     fn template_filter_with_model() {
-        let templates = vec![
+        let templates = [
             make("a", Surface::Image, "X", &[], "gpt-image-2"),
             make("b", Surface::Image, "X", &[], "sora-2"),
             make("c", Surface::Image, "X", &[], "gpt-image-2"),
@@ -378,7 +378,7 @@ mod tests {
 
     #[test]
     fn template_filter_empty_when_no_match() {
-        let templates = vec![make("a", Surface::Image, "X", &["foo"], "m")];
+        let templates = [make("a", Surface::Image, "X", &["foo"], "m")];
         let none: Vec<_> = templates.iter().with_tag("never").collect();
         assert!(none.is_empty());
     }

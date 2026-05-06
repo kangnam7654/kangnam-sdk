@@ -10,9 +10,9 @@ keywords = ["llm", "ai", "streaming", "gemini", "claude"]
 categories = ["api-bindings"]
 
 [dependencies]
-async-stream = "0.3"
+async-stream = { workspace = true }
 base64 = { workspace = true }
-futures = "0.3"
+futures = { workspace = true }
 regex-lite = "0.1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
 serde = { workspace = true }
@@ -20,7 +20,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["process", "io-util", "time"] }
 tokio-stream = { version = "0.1", features = ["io-util"] }
-tracing = "0.1"
+tracing = { workspace = true }
 uuid = { workspace = true }
 
 [features]

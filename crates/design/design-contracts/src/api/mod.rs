@@ -9,9 +9,11 @@ pub mod app_config;
 pub mod artifacts;
 pub mod chat;
 pub mod comments;
+pub mod connectors;
 pub mod files;
 pub mod live_artifacts;
 pub mod proxy;
+pub mod registry;
 pub mod version;
 
 pub use live_artifacts::{BoundedJsonObject, BoundedJsonValue};

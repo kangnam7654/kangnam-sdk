@@ -2592,6 +2592,7 @@ dependencies = [
  "kangnam-design-editor-site",
  "kangnam-design-editor-slide",
  "kangnam-design-export-pptx",
+ "kangnam-design-html-template",
  "kangnam-design-llm",
  "kangnam-design-prompt-template",
 ]
@@ -2718,6 +2719,14 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "zip",
+]
+
+[[package]]
+name = "kangnam-design-html-template"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

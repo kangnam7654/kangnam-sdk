@@ -7,6 +7,8 @@
 
 pub mod app_config;
 pub mod artifacts;
+pub mod chat;
+pub mod comments;
 pub mod files;
 pub mod proxy;
 pub mod version;

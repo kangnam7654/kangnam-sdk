@@ -321,31 +321,11 @@ pub struct ShutdownResult {
     pub accepted: ShutdownAccepted,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ShutdownAccepted;
-
-impl Serialize for ShutdownAccepted {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_bool(true)
-    }
-}
-
-impl<'de> Deserialize<'de> for ShutdownAccepted {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let v = bool::deserialize(deserializer)?;
-        if v {
-            Ok(ShutdownAccepted)
-        } else {
-            Err(serde::de::Error::custom("accepted must be true"))
-        }
-    }
-}
+crate::locked_true!(
+    /// `accepted: true` literal on `ShutdownResult` — see [`crate::locked_true`].
+    pub struct ShutdownAccepted
+    ; field_name = "accepted"
+);
 
 // ─── Message envelopes ──────────────────────────────────────────────────
 

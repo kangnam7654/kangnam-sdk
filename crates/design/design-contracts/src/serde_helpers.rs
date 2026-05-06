@@ -55,6 +55,122 @@ pub mod double_option {
     }
 }
 
+/// Define a unit struct that always serializes as the boolean literal
+/// `true` and only deserializes from `true`. Used to mirror upstream
+/// shapes like `{ ok: true }` / `{ accepted: true }` where the literal
+/// is a load-bearing schema discriminant.
+///
+/// ```
+/// use kangnam_design_contracts::locked_true;
+/// locked_true!(
+///     /// Locked-true marker for `{ ok: true }` envelopes.
+///     pub struct AlwaysOk
+///     ; field_name = "ok"
+/// );
+///
+/// let s = serde_json::to_string(&AlwaysOk).unwrap();
+/// assert_eq!(s, "true");
+/// let _: AlwaysOk = serde_json::from_str("true").unwrap();
+/// assert!(serde_json::from_str::<AlwaysOk>("false").is_err());
+/// ```
+#[macro_export]
+macro_rules! locked_true {
+    (
+        $(#[$attr:meta])*
+        $vis:vis struct $name:ident
+        ; field_name = $field:literal
+    ) => {
+        $(#[$attr])*
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        $vis struct $name;
+
+        impl ::serde::Serialize for $name {
+            fn serialize<S>(&self, serializer: S) -> ::core::result::Result<S::Ok, S::Error>
+            where
+                S: ::serde::Serializer,
+            {
+                serializer.serialize_bool(true)
+            }
+        }
+
+        impl<'de> ::serde::Deserialize<'de> for $name {
+            fn deserialize<D>(deserializer: D) -> ::core::result::Result<Self, D::Error>
+            where
+                D: ::serde::Deserializer<'de>,
+            {
+                let v = bool::deserialize(deserializer)?;
+                if v {
+                    ::core::result::Result::Ok($name)
+                } else {
+                    ::core::result::Result::Err(<D::Error as ::serde::de::Error>::custom(
+                        concat!($field, " must be true"),
+                    ))
+                }
+            }
+        }
+    };
+}
+
+/// Define a unit struct that always serializes as a fixed `u32` literal
+/// and only deserializes when the wire integer matches. Used for
+/// schema-version markers (`version: 1`, `schemaVersion: 1`).
+///
+/// ```
+/// use kangnam_design_contracts::locked_u32;
+/// locked_u32!(
+///     /// Locked-version marker for schema v1.
+///     pub struct V1
+///     ; value = 1
+///     ; label = "schemaVersion"
+/// );
+///
+/// let s = serde_json::to_string(&V1).unwrap();
+/// assert_eq!(s, "1");
+/// let _: V1 = serde_json::from_str("1").unwrap();
+/// assert!(serde_json::from_str::<V1>("2").is_err());
+/// ```
+#[macro_export]
+macro_rules! locked_u32 {
+    (
+        $(#[$attr:meta])*
+        $vis:vis struct $name:ident
+        ; value = $value:literal
+        ; label = $label:literal
+    ) => {
+        $(#[$attr])*
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        $vis struct $name;
+
+        impl ::serde::Serialize for $name {
+            fn serialize<S>(&self, serializer: S) -> ::core::result::Result<S::Ok, S::Error>
+            where
+                S: ::serde::Serializer,
+            {
+                serializer.serialize_u32($value)
+            }
+        }
+
+        impl<'de> ::serde::Deserialize<'de> for $name {
+            fn deserialize<D>(deserializer: D) -> ::core::result::Result<Self, D::Error>
+            where
+                D: ::serde::Deserializer<'de>,
+            {
+                let v = u32::deserialize(deserializer)?;
+                if v == $value {
+                    ::core::result::Result::Ok($name)
+                } else {
+                    ::core::result::Result::Err(<D::Error as ::serde::de::Error>::custom(
+                        ::std::format!(
+                            "unsupported {} value: {}, expected {}",
+                            $label, v, $value
+                        ),
+                    ))
+                }
+            }
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use serde::{Deserialize, Serialize};
@@ -88,5 +204,36 @@ mod tests {
         let h: Holder = serde_json::from_str(r#"{"x":"hi"}"#).unwrap();
         assert_eq!(h.x, Some(Some("hi".into())));
         assert_eq!(serde_json::to_string(&h).unwrap(), r#"{"x":"hi"}"#);
+    }
+
+    crate::locked_true!(
+        /// Test-only locked-true marker.
+        pub(super) struct TestOk
+        ; field_name = "ok"
+    );
+
+    #[test]
+    fn locked_true_serializes_to_true() {
+        assert_eq!(serde_json::to_string(&TestOk).unwrap(), "true");
+        let _: TestOk = serde_json::from_str("true").unwrap();
+        let err = serde_json::from_str::<TestOk>("false").unwrap_err();
+        assert!(err.to_string().contains("ok must be true"));
+    }
+
+    crate::locked_u32!(
+        /// Test-only locked-int marker.
+        pub(super) struct TestV1
+        ; value = 1
+        ; label = "schemaVersion"
+    );
+
+    #[test]
+    fn locked_u32_serializes_to_value() {
+        assert_eq!(serde_json::to_string(&TestV1).unwrap(), "1");
+        let _: TestV1 = serde_json::from_str("1").unwrap();
+        let err = serde_json::from_str::<TestV1>("2").unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("schemaVersion"));
+        assert!(msg.contains("expected 1"));
     }
 }

@@ -206,31 +206,11 @@ pub struct HealthResponse {
     pub version: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct HealthOk;
-
-impl Serialize for HealthOk {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_bool(true)
-    }
-}
-
-impl<'de> Deserialize<'de> for HealthOk {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let v = bool::deserialize(deserializer)?;
-        if v {
-            Ok(HealthOk)
-        } else {
-            Err(serde::de::Error::custom("ok must be true"))
-        }
-    }
-}
+crate::locked_true!(
+    /// `ok: true` literal on `/api/health` — see [`crate::locked_true`].
+    pub struct HealthOk
+    ; field_name = "ok"
+);
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]

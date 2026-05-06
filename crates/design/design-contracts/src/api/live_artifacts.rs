@@ -210,35 +210,13 @@ pub struct LiveArtifactProvenance {
     pub sources: Vec<LiveArtifactProvenanceSource>,
 }
 
-/// Schema-version newtype — locks the on-wire integer to `1` (mirrors
-/// the [`crate::api::artifacts::ManifestVersion`] approach).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct LiveArtifactSchemaVersion;
-
-impl Serialize for LiveArtifactSchemaVersion {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_u32(1)
-    }
-}
-
-impl<'de> Deserialize<'de> for LiveArtifactSchemaVersion {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let v = u32::deserialize(deserializer)?;
-        if v == 1 {
-            Ok(LiveArtifactSchemaVersion)
-        } else {
-            Err(serde::de::Error::custom(format!(
-                "unsupported LiveArtifact schemaVersion: {v}, expected 1"
-            )))
-        }
-    }
-}
+crate::locked_u32!(
+    /// Schema-version newtype — locks the on-wire integer to `1` (mirrors
+    /// the [`crate::api::artifacts::ManifestVersion`] approach).
+    pub struct LiveArtifactSchemaVersion
+    ; value = 1
+    ; label = "LiveArtifact schemaVersion"
+);
 
 /// One live artifact — the fully materialized record. `created_at` /
 /// `updated_at` / `last_refreshed_at` are ISO-8601 strings (matching

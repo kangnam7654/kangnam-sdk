@@ -4,6 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::api::live_artifacts::{BoundedJsonObject, BoundedJsonValue};
+// `crate::locked_true!` is re-exported via #[macro_export]; no use needed.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -182,34 +183,14 @@ pub struct ConnectorExecuteRequest {
     pub input: BoundedJsonObject,
 }
 
-/// `ok: true` literal upstream — locked single-variant via the
-/// [`crate::common::OkResponse`] approach. Inlined here to keep the
-/// envelope structurally distinct (it carries extra fields).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ConnectorExecuteOk;
-
-impl Serialize for ConnectorExecuteOk {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_bool(true)
-    }
-}
-
-impl<'de> Deserialize<'de> for ConnectorExecuteOk {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let v = bool::deserialize(deserializer)?;
-        if v {
-            Ok(ConnectorExecuteOk)
-        } else {
-            Err(serde::de::Error::custom("ok must be true"))
-        }
-    }
-}
+crate::locked_true!(
+    /// `ok: true` literal upstream — the response envelope carries
+    /// extra fields beyond the `ok` flag, so the `ok` field itself uses
+    /// this locked-true marker (vs the standalone [`crate::common::OkResponse`]
+    /// envelope used when `{ ok: true }` is the entire response body).
+    pub struct ConnectorExecuteOk
+    ; field_name = "ok"
+);
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]

@@ -106,34 +106,12 @@ pub struct ArtifactManifest {
     pub metadata: Option<HashMap<String, serde_json::Value>>,
 }
 
-/// Schema-version newtype — locks the on-wire integer to `1`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ManifestVersion;
-
-impl Serialize for ManifestVersion {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_u32(1)
-    }
-}
-
-impl<'de> Deserialize<'de> for ManifestVersion {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let v = u32::deserialize(deserializer)?;
-        if v == 1 {
-            Ok(ManifestVersion)
-        } else {
-            Err(serde::de::Error::custom(format!(
-                "unsupported ArtifactManifest version: {v}, expected 1"
-            )))
-        }
-    }
-}
+crate::locked_u32!(
+    /// Schema-version newtype — locks the on-wire integer to `1`.
+    pub struct ManifestVersion
+    ; value = 1
+    ; label = "ArtifactManifest version"
+);
 
 /// POST body to `/api/projects/:id/artifacts`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

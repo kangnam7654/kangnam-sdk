@@ -36,7 +36,10 @@ pub const LIVE_ARTIFACT_BOUNDED_JSON_CONSTRAINTS: BoundedJsonConstraints =
     };
 
 /// `{ "ok": true }` — the canonical "command succeeded, nothing else to
-/// say" response shape.
+/// say" response shape. Note this is a struct envelope (one-field JSON
+/// object), not a bare boolean — so it can't reuse the [`crate::locked_true!`]
+/// macro the way the bare-bool envelopes (e.g. [`crate::api::connectors::ConnectorExecuteOk`])
+/// do.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OkResponse;
 

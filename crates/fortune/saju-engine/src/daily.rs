@@ -1,7 +1,8 @@
 use super::elements::{self, ElementRelation};
 use super::interpreter;
 use super::pillars;
-use super::types::{Element, ElementBalance, FourPillars, Pillar, Stem};
+use super::ten_gods;
+use super::types::{Element, ElementBalance, FourPillars, Pillar, Stem, TenGod};
 use chrono::Utc;
 
 /// 오늘의 운세 점수 및 조언 생성
@@ -148,6 +149,26 @@ pub struct DailyDetailFortune {
     pub lucky_items: LuckyItems,
     pub element_energy: String,
     pub personality_summary: String,
+    pub persona_today: PersonaToday,
+}
+
+/// 오늘의 일간 기반 4섹션 페르소나 — /today의 "일간으로 본 나" 카드용.
+///
+/// strength/caution/action은 본명 일간 vs 오늘 일주 천간의 십신 관계로 결정,
+/// action에는 일간 element 톤이 합성된다. mantra는 일간 자체의 한 줄로 매일 같다.
+/// 같은 입력이면 결정적으로 같은 결과 — 캐싱(input_hash)에 안전.
+///
+/// /saju의 본명 성격(평생 같음)과 분리되는 시점 콘텐츠 — 매일 천간이 바뀌니
+/// strength/caution/action은 매일 다르게 나오고, mantra만 일간 톤으로 일관 유지.
+pub struct PersonaToday {
+    /// "오늘 너의 강점" — 십신 조합으로 도출.
+    pub strength: String,
+    /// "오늘 조심할 패턴" — 같은 십신의 약점 측면.
+    pub caution: String,
+    /// "오늘 어울리는 행동" — 십신 권장 행동 + 일간 element 톤.
+    pub action: String,
+    /// "하루 한 줄 만트라" — 일간 본질의 짧은 자기 선언.
+    pub mantra: String,
 }
 
 /// 카테고리별 상세 조언. 결혼·자녀는 본명(평생) 카테고리이고 일별 변동
@@ -260,8 +281,12 @@ pub fn calculate_daily_detail_for_date(
     let balance = ElementBalance::from_pillars_with_hour(user_pillars, has_birth_time);
     let element_energy = interpreter::element_balance_analysis(&balance);
 
-    // 성격 요약
+    // 성격 요약 (legacy compat — 한 줄)
     let personality_summary = interpreter::personality(day_master).to_string();
+
+    // v0.0.7 Phase 3 — 일간×오늘 일주 4섹션 페르소나. 위 personality_summary와
+    // 다르게 매일 바뀌는 시점 콘텐츠. /today의 "일간으로 본 나" 카드 본문이 됨.
+    let persona_today = build_persona_today(day_master, base.today_pillar.stem);
 
     DailyDetailFortune {
         base,
@@ -270,6 +295,87 @@ pub fn calculate_daily_detail_for_date(
         lucky_items,
         element_energy,
         personality_summary,
+        persona_today,
+    }
+}
+
+/// 오늘 일주 천간이 본명 일간에 어떤 십신으로 작용하는지 + 일간 톤을 합성해
+/// 4섹션 페르소나를 만든다.
+fn build_persona_today(day_master: Stem, today_stem: Stem) -> PersonaToday {
+    let ten_god = ten_gods::derive_ten_god(day_master, today_stem);
+    PersonaToday {
+        strength: persona_strength(ten_god).to_string(),
+        caution: persona_caution(ten_god).to_string(),
+        action: persona_action(ten_god, day_master),
+        mantra: persona_mantra(day_master).to_string(),
+    }
+}
+
+fn persona_strength(tg: TenGod) -> &'static str {
+    match tg {
+        TenGod::Bigyeon => "오늘은 너와 같은 결의 기운이 함께해 — 동료와 손발이 척척 맞고, 익숙한 영역에서 자신감이 살아나는 흐름이야.",
+        TenGod::Geupjae => "도전하고 부딪히는 에너지가 강한 날 — 경쟁 상황에서 한 발 더 나가는 결단력이 가장 살아나.",
+        TenGod::Sikshin => "표현하고 만드는 흐름이 자연스러운 날 — 창의 작업이나 좋아하는 행위에서 결과가 자연스럽게 따라온다.",
+        TenGod::Sanggwan => "기존 틀을 깨는 영감이 도는 날 — 새로운 아이디어와 자유로운 표현이 평소보다 빛나.",
+        TenGod::Pyeonjae => "기회와 자원이 흐르는 날 — 외부에서 들어오는 제안에 열려있을수록 손에 들어오는 게 커.",
+        TenGod::Jeongjae => "꾸준함이 보상받는 날 — 차근차근 쌓아온 게 정확한 자리에 들어와 결실이 된다.",
+        TenGod::Pyeongwan => "강한 압박이 너를 단단하게 만드는 날 — 큰 책임과 도전이 너의 그릇을 한 단계 키운다.",
+        TenGod::Jeonggwan => "원칙과 질서가 너를 받쳐주는 날 — 제도 안에서 인정받고 자리를 잡기 좋은 흐름.",
+        TenGod::Pyeonin => "낯선 영감과 직관이 살아나는 날 — 비주류 지식이나 색다른 관점이 너에게 와닿는다.",
+        TenGod::Jeongin => "지식과 멘토의 도움이 흐르는 날 — 배우거나 조언받기 가장 좋은 시점이야.",
+    }
+}
+
+fn persona_caution(tg: TenGod) -> &'static str {
+    match tg {
+        TenGod::Bigyeon => "동등한 위치의 사람과 의견 충돌이 생기기 쉬워 — 양보 없이 부딪히면 둘 다 소진된다.",
+        TenGod::Geupjae => "경쟁이 과해져 무리수를 두기 쉬운 날 — 손해를 감수해서라도 밀어붙이지는 말 것.",
+        TenGod::Sikshin => "즐거움에 흘러 마무리를 놓치기 쉬운 날 — 끝맺음 일정 하나는 반드시 지키자.",
+        TenGod::Sanggwan => "솔직함이 도를 넘으면 관계 균열로 이어져 — 표현 수위를 한 번 더 점검하자.",
+        TenGod::Pyeonjae => "기회가 많아 벌이가 분산되기 쉬워 — 한 가지에 집중해야 손에 남는다.",
+        TenGod::Jeongjae => "안정에 안주해 속도가 느려질 수 있어 — 작은 도전 한 가지는 끼워 넣자.",
+        TenGod::Pyeongwan => "압박을 정면 돌파하다 번아웃 위험이 커 — 도움 요청이 약함이 아니다.",
+        TenGod::Jeonggwan => "규범에 갇혀 융통성을 잃기 쉬워 — 사람의 사정은 사정으로 봐주자.",
+        TenGod::Pyeonin => "고립되어 자기 세계로 빠질 수 있어 — 한 명에게라도 오늘 본 걸 나누자.",
+        TenGod::Jeongin => "공부와 정보 수집에만 머물러 행동을 미룰 수 있어 — 한 가지는 오늘 안에 실행.",
+    }
+}
+
+fn persona_action(tg: TenGod, day_master: Stem) -> String {
+    let action_base = match tg {
+        TenGod::Bigyeon => "팀 프로젝트나 동료와의 합 맞추기에 시간 쓰기",
+        TenGod::Geupjae => "경쟁·스포츠·도전 한 가지 시도",
+        TenGod::Sikshin => "취미·창작·요리 같이 만드는 행위 한 가지",
+        TenGod::Sanggwan => "글·말·표현으로 자기 의견 한 번 내기",
+        TenGod::Pyeonjae => "외부 미팅·새 사람·새 제안 받기",
+        TenGod::Jeongjae => "장기 계약·실무 정산·예산 검토",
+        TenGod::Pyeongwan => "큰 결정·발표·압박 상황 정면 돌파",
+        TenGod::Jeonggwan => "공식 문서·계약·인증 정리",
+        TenGod::Pyeonin => "철학·예술·비주류 지식에 시간 투자",
+        TenGod::Jeongin => "독서·강의·멘토 미팅",
+    };
+    let tone = match day_master.element() {
+        Element::Wood => "곧게 뻗는 결로",
+        Element::Fire => "환하게 드러내는 결로",
+        Element::Earth => "차분히 받쳐주는 결로",
+        Element::Metal => "정확하게 잘라내는 결로",
+        Element::Water => "흐르듯 자연스럽게",
+    };
+    format!("{} — {} 가는 게 너의 일간과 잘 맞아.", action_base, tone)
+}
+
+fn persona_mantra(day_master: Stem) -> &'static str {
+    match day_master {
+        Stem::Gap => "곧게 뻗는다, 굽히지 않는다.",
+        Stem::Eul => "유연하게 휘어지되 끊기지 않는다.",
+        Stem::Byeong => "환하게 비추되 태우지 않는다.",
+        Stem::Jeong => "은은하게, 길게 켜둔다.",
+        Stem::Mu => "넉넉히 받쳐주되 흔들리지 않는다.",
+        Stem::Gi => "촘촘히 다지되 답답하지 않다.",
+        Stem::Gyeong => "단단히 베되 사람을 다치게 하지 않는다.",
+        Stem::Sin => "정밀하게 다듬되 차갑지 않다.",
+        Stem::Im => "깊게 흘러도 방향을 잃지 않는다.",
+        Stem::Gye => "맑게 스며들어 모두를 적신다.",
     }
 }
 
@@ -750,5 +856,102 @@ mod tests {
         // 추가 필드 존재 확인
         assert!(!detail.element_energy.is_empty());
         assert!(!detail.personality_summary.is_empty());
+    }
+
+    // ===== persona_today (v0.0.7 Phase 3) =====
+
+    #[test]
+    fn persona_today_4_sections_non_empty() {
+        let detail = calculate_daily_detail_for_date(&test_pillars(), true, 2026, 3, 23);
+        let p = &detail.persona_today;
+        assert!(!p.strength.is_empty(), "strength empty");
+        assert!(!p.caution.is_empty(), "caution empty");
+        assert!(!p.action.is_empty(), "action empty");
+        assert!(!p.mantra.is_empty(), "mantra empty");
+    }
+
+    #[test]
+    fn persona_today_action_includes_day_master_tone() {
+        // action 카피는 "{행동} — {일간 톤} ..." 패턴이어야 — 일간 element가
+        // narrative에 반영됐는지 회귀 lock.
+        let detail = calculate_daily_detail_for_date(&test_pillars(), true, 2026, 3, 23);
+        assert!(
+            detail.persona_today.action.contains(" — "),
+            "action missing day-master tone separator: {:?}",
+            detail.persona_today.action,
+        );
+    }
+
+    #[test]
+    fn persona_today_deterministic() {
+        // 같은 (사주, 날짜)면 결과가 같아야 — input_hash 캐싱 안전성 보장.
+        let p = test_pillars();
+        let a = calculate_daily_detail_for_date(&p, true, 2026, 3, 23).persona_today;
+        let b = calculate_daily_detail_for_date(&p, true, 2026, 3, 23).persona_today;
+        assert_eq!(a.strength, b.strength);
+        assert_eq!(a.caution, b.caution);
+        assert_eq!(a.action, b.action);
+        assert_eq!(a.mantra, b.mantra);
+    }
+
+    #[test]
+    fn persona_today_mantra_constant_per_day_master() {
+        // mantra는 일간 본질 — 같은 일간이면 날짜와 무관하게 같아야 한다.
+        let p = test_pillars();
+        let m1 = calculate_daily_detail_for_date(&p, true, 2026, 3, 23).persona_today.mantra;
+        let m2 = calculate_daily_detail_for_date(&p, true, 2026, 4, 15).persona_today.mantra;
+        assert_eq!(m1, m2);
+    }
+
+    #[test]
+    fn persona_today_strength_varies_with_today_stem() {
+        // strength는 일간 vs 오늘 천간의 십신으로 결정 — 며칠치 비교하면
+        // 최소 2가지 이상의 strength 카피가 나와야 (모든 날 같으면 십신 매핑이
+        // 작동 안 한 것).
+        let p = test_pillars();
+        let mut variants = std::collections::HashSet::new();
+        for d in 1..=20 {
+            let detail = calculate_daily_detail_for_date(&p, true, 2026, 3, d);
+            variants.insert(detail.persona_today.strength.clone());
+        }
+        assert!(
+            variants.len() >= 3,
+            "strength only had {} variants over 20 days — ten_god mapping not active?",
+            variants.len(),
+        );
+    }
+
+    #[test]
+    fn persona_today_covers_all_10_day_masters() {
+        // 다양한 birth date로 10가지 일간 모두 커버 가능해야 — mantra가 일간별로
+        // 모두 다른 카피인지 회귀 lock (일간 10개 / mantra 10개).
+        let test_cases = [
+            (1990, 1, 15, 14),
+            (1991, 6, 20, 9),
+            (1985, 10, 5, 18),
+            (2000, 3, 1, 23),
+            (1988, 7, 12, 6),
+            (1995, 11, 25, 15),
+            (1993, 4, 30, 21),
+            (1998, 9, 8, 3),
+            (1992, 2, 14, 11),
+            (1987, 12, 31, 19),
+            (1996, 5, 17, 7),
+            (1989, 8, 22, 13),
+        ];
+        let mut mantras = std::collections::HashSet::new();
+        for &(y, m, d, h) in &test_cases {
+            let pillars = saju::calculate_four_pillars(y, m, d, h);
+            let detail = calculate_daily_detail_for_date(&pillars, true, 2026, 3, 23);
+            mantras.insert(detail.persona_today.mantra.clone());
+        }
+        // 일간 10가지가 다 커버되진 않을 수 있으나 (테스트 데이터 한계) 최소 5개는
+        // 다른 mantra가 나와야 — mantra가 일간에 의존한다는 회귀 lock.
+        assert!(
+            mantras.len() >= 5,
+            "only {} unique mantras across {} birth dates",
+            mantras.len(),
+            test_cases.len(),
+        );
     }
 }

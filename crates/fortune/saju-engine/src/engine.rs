@@ -187,6 +187,12 @@ impl SajuEngine {
             "lucky": lucky_to_json(&lk),
             "element_energy": detail.element_energy,
             "personality_summary": detail.personality_summary,
+            "persona_today": {
+                "strength": detail.persona_today.strength,
+                "caution": detail.persona_today.caution,
+                "action": detail.persona_today.action,
+                "mantra": detail.persona_today.mantra,
+            },
         });
 
         (result, version.to_string())

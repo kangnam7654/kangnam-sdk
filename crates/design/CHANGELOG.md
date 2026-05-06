@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added (round 14)
+- `kangnam-design-skill::docs/` — vendored protocol references from open-design `docs/`: `skills-protocol.md` (355 lines, full `od:` namespace spec including `od.craft.requires`, `od.kangnam_design_system`, mode/platform/scenario taxonomy) and `modes.md` (273 lines, the 7 mode/surface combinations: prototype, deck, template, design-system, image, video, audio). Linked from the crate-level docs at `lib.rs`.
+
 ### Added (round 13)
 - `kangnam-design-contracts::sidecar` — port of upstream `@open-design/packages/sidecar-proto` (boundary types only; the Node-specific spawn/IPC implementation in `@open-design/sidecar` is intentionally not ported). New types: `AppKey` (3 lowercase: daemon/desktop/web), `APP_KEYS` slice, `SidecarMode` (dev/runtime), `SidecarSource` (3 kebab-case: packaged/tools-dev/tools-pack), constants modules `env::*` (10 env-var names), `stamp_flags::*` (5 CLI flags), `defaults::*` (host/ipcBase/namespace/projectTmpDirName/windowsPipePrefix), `messages::*` (6 message-tag constants), `SidecarErrorCode` (2 SCREAMING_SNAKE), `SidecarContractError`, `SidecarStamp` with `validate()` enforcing the upstream `normalizeIpcPath`/`normalizeNamespace` constraints, `SidecarStampCriteria`, `ServiceRuntimeState` (5), `DesktopRuntimeState` (3), `DaemonStatusSnapshot` / `WebStatusSnapshot` (alias) / `DesktopStatusSnapshot` (camelCase, double-Option for nullable pid/title), desktop intro shapes (`DesktopEvalInput`/`DesktopEvalResult`, screenshot/console/click), `ShutdownAccepted` locked-true newtype + `ShutdownResult`, `SharedSidecarMessage` (status/shutdown enum, used for daemon + web sidecars via aliases), `DesktopSidecarMessage` (5 variants: shared 2 + console + eval/screenshot/click with payloads), `normalize_namespace`/`normalize_ipc_path`/`is_windows_named_pipe_path` validators. 23 unit tests; 173 total in design-contracts (was 150).
 

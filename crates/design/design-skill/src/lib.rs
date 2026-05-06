@@ -13,6 +13,16 @@
 //! Apache-2.0, with bundled `guizang-ppt`, `html-ppt`, and `hatch-pet`
 //! skills retaining their original LICENSE files.
 //!
+//! ## Protocol references
+//!
+//! Vendored from open-design at `docs/`:
+//! - [`docs/skills-protocol.md`](https://github.com/kangnam7654/kangnam-sdk/blob/main/crates/design/design-skill/docs/skills-protocol.md)
+//!   — full `od:` namespace spec, including `od.craft.requires`,
+//!   `od.kangnam_design_system`, mode/platform/scenario taxonomy.
+//! - [`docs/modes.md`](https://github.com/kangnam7654/kangnam-sdk/blob/main/crates/design/design-skill/docs/modes.md)
+//!   — the 7 mode/surface combinations (`prototype`, `deck`, `template`,
+//!   `design-system`, `image`, `video`, `audio`).
+//!
 //! [skv]: https://docs.anthropic.com/en/docs/claude-code/skills
 //! [odp]: https://github.com/nexu-io/open-design/blob/main/docs/skills-protocol.md
 

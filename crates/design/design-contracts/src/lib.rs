@@ -21,10 +21,8 @@
 //! [`api::live_artifacts`], [`api::projects`], [`api::proxy`],
 //! [`api::registry`], [`api::version`].
 //!
-//! ## Not yet ported
+//! ## Not ported
 //!
-//! - `src/critique.ts` — debate config + 5-role panelist enums (zod-heavy
-//!   refinements). Will need a custom validator pass.
 //! - `src/prompts/system.ts` — already implemented separately by
 //!   `kangnam-design-prompt` (Rust port of the system-prompt composer).
 //! - `src/examples.ts` — fixture data, not boundary types.
@@ -42,6 +40,7 @@
 
 pub mod api;
 pub mod common;
+pub mod critique;
 pub mod errors;
 pub mod serde_helpers;
 pub mod sse;

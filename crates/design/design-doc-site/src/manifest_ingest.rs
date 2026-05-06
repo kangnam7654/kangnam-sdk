@@ -91,7 +91,7 @@ pub struct ManifestColor {
 }
 
 impl ManifestColor {
-    fn to_css(&self) -> String {
+    fn to_css(self) -> String {
         if self.a == 255 {
             format!("#{:02x}{:02x}{:02x}", self.r, self.g, self.b)
         } else {

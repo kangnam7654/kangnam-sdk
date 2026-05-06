@@ -204,6 +204,20 @@ enum GeminiPart {
         #[serde(rename = "functionResponse")]
         function_response: GeminiFunctionResponse,
     },
+    /// Replays an assistant turn's tool invocation. Gemini pairs by
+    /// function `name`, not by id, so the originating
+    /// [`crate::ChatContent::ToolUse::name`] must match the responding
+    /// [`crate::ChatContent::ToolResult::tool_use_id`].
+    FunctionCall {
+        #[serde(rename = "functionCall")]
+        function_call: GeminiFunctionCallOut,
+    },
+}
+
+#[derive(Serialize)]
+struct GeminiFunctionCallOut {
+    name: String,
+    args: serde_json::Value,
 }
 
 #[derive(Serialize)]
@@ -692,6 +706,14 @@ impl GeminiProvider {
                                 None
                             }
                         },
+                        ChatContent::ToolUse {
+                            name, arguments, ..
+                        } => Some(GeminiPart::FunctionCall {
+                            function_call: GeminiFunctionCallOut {
+                                name: name.clone(),
+                                args: arguments.clone(),
+                            },
+                        }),
                     })
                     .collect();
                 GeminiContent {

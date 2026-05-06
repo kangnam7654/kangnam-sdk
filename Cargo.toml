@@ -27,6 +27,7 @@ repository = "https://github.com/kangnam7654/kangnam-sdk"
 # ── shared utilities ──
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde_yaml = "0.9"
 thiserror = "2"
 chrono = { version = "0.4", features = ["serde"] }
 async-trait = "0.1"
@@ -40,11 +41,18 @@ base64 = "0.22"
 rand = "0.8"
 sha2 = "0.10"
 
+# ── design-family shared deps (4+ design crates each) ──
+async-stream = "0.3"
+futures = "0.3"
+tera = "1"
+tracing = "0.1"
+
 # ── workspace internal crates ──
-kangnam-harness-core    = { path = "crates/harness/core" }
-kangnam-harness-store   = { path = "crates/harness/store" }
-kangnam-harness-runtime = { path = "crates/harness/runtime" }
-kangnam-harness         = { path = "crates/harness/harness" }
+kangnam-harness-core       = { path = "crates/harness/core" }
+kangnam-harness-store      = { path = "crates/harness/store" }
+kangnam-harness-runtime    = { path = "crates/harness/runtime" }
+kangnam-harness-llm-bridge = { path = "crates/harness/llm-bridge" }
+kangnam-harness            = { path = "crates/harness/harness" }
 kangnam-router        = { path = "crates/router" }
 kangnam-chat-core     = { path = "crates/chat/core" }
 kangnam-chat-agent    = { path = "crates/chat/agent" }
@@ -63,7 +71,11 @@ kangnam-design-direction      = { path = "crates/design/design-direction" }
 kangnam-design-system         = { path = "crates/design/design-system" }
 kangnam-design-skill          = { path = "crates/design/design-skill" }
 kangnam-design-prompt         = { path = "crates/design/design-prompt" }
+kangnam-design-prompt-template= { path = "crates/design/design-prompt-template" }
+kangnam-design-contracts      = { path = "crates/design/design-contracts" }
+kangnam-design-html-template  = { path = "crates/design/design-html-template" }
 kangnam-design-artifact       = { path = "crates/design/design-artifact" }
+kangnam-design-craft          = { path = "crates/design/design-craft" }
 kangnam-design-tools          = { path = "crates/design/design-tools" }
 saju-engine           = { path = "crates/fortune/saju-engine" }
 tarot-engine          = { path = "crates/fortune/tarot-engine" }

@@ -5,15 +5,23 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "SKILL.md catalog — Anthropic SkillFrontmatterV1 + open-design `od:` extension parser, with 30 vendored design skills (web-prototype, dashboard, mobile-app, guizang-ppt, …)."
+description = "SKILL.md catalog — Anthropic SkillFrontmatterV1 + open-design `od:` extension parser, with 64 vendored design skills (web-prototype, dashboard, mobile-app, html-ppt family, kami, guizang-ppt, …)."
 keywords = ["skill", "design", "frontmatter", "anthropic"]
 categories = ["multimedia"]
 
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_yaml = "0.9"
+serde_yaml = { workspace = true }
 thiserror = { workspace = true }
 kangnam-harness-core = { workspace = true }
+kangnam-design-craft = { workspace = true, optional = true }
+
+[features]
+default = []
+# Bridge `od.craft.requires` slugs to the vendored craft references in
+# `kangnam-design-craft`. When enabled, `DesignSkill::resolve_crafts()`
+# returns the matching `&'static Craft` slice for prompt injection.
+craft = ["dep:kangnam-design-craft"]
 
 [dev-dependencies]

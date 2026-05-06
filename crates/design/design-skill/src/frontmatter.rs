@@ -30,8 +30,8 @@ pub fn parse_frontmatter_raw(input: &str) -> Result<(serde_yaml::Value, String),
     }
     // Skip the opening fence line.
     let after_open = trimmed
-        .splitn(2, '\n')
-        .nth(1)
+        .split_once('\n')
+        .map(|(_, rest)| rest)
         .ok_or(FrontmatterError::MissingCloseFence)?;
     // The closing fence is a line that is exactly `---`.
     let mut frontmatter = String::new();
@@ -144,6 +144,23 @@ mod tests {
     fn missing_required_name_errors() {
         let err = parse_frontmatter("---\ndescription: x\n---\nbody\n").unwrap_err();
         assert!(matches!(err, FrontmatterError::RequiredField("name")));
+    }
+
+    #[test]
+    fn parses_od_craft_requires_block() {
+        let input = "---\nname: web-prototype\nod:\n  craft:\n    requires: [typography, color, anti-ai-slop]\n---\nbody\n";
+        let parsed = parse_frontmatter(input).unwrap();
+        assert_eq!(
+            parsed.od.craft.requires,
+            vec!["typography", "color", "anti-ai-slop"]
+        );
+    }
+
+    #[test]
+    fn missing_od_craft_block_yields_empty_requires() {
+        let input = "---\nname: x\nod:\n  mode: deck\n---\nbody\n";
+        let parsed = parse_frontmatter(input).unwrap();
+        assert!(parsed.od.craft.requires.is_empty());
     }
 
     #[test]

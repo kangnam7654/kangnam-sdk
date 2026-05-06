@@ -2584,13 +2584,22 @@ dependencies = [
 name = "kangnam-design"
 version = "0.3.0"
 dependencies = [
+ "kangnam-design-artifact",
+ "kangnam-design-contracts",
+ "kangnam-design-craft",
+ "kangnam-design-direction",
  "kangnam-design-doc-site",
  "kangnam-design-doc-slide",
  "kangnam-design-editor-html",
  "kangnam-design-editor-site",
  "kangnam-design-editor-slide",
  "kangnam-design-export-pptx",
+ "kangnam-design-html-template",
  "kangnam-design-llm",
+ "kangnam-design-prompt",
+ "kangnam-design-prompt-template",
+ "kangnam-design-skill",
+ "kangnam-design-system",
 ]
 
 [[package]]
@@ -2602,6 +2611,25 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "zip",
+]
+
+[[package]]
+name = "kangnam-design-contracts"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "kangnam-design-craft"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -2699,6 +2727,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "kangnam-design-html-template"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "kangnam-design-llm"
 version = "0.3.0"
 dependencies = [
@@ -2726,9 +2762,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "kangnam-design-prompt-template"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "kangnam-design-skill"
 version = "0.3.0"
 dependencies = [
+ "kangnam-design-craft",
  "kangnam-harness-core",
  "serde",
  "serde_json",
@@ -2779,6 +2826,23 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "uuid",
+]
+
+[[package]]
+name = "kangnam-harness-llm-bridge"
+version = "0.3.0"
+dependencies = [
+ "async-stream",
+ "async-trait",
+ "futures",
+ "kangnam-harness-runtime",
+ "kangnam-router",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "wiremock",
 ]
 
 [[package]]

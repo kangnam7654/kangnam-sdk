@@ -8,6 +8,10 @@ use kangnam_design_doc_slide::slide::{
 };
 use kangnam_design_export_pptx::{from_deck, write_deck_to_bytes};
 
+// TextStyle is `#[non_exhaustive]` (since v0.3.3), so external crates
+// can't use struct-literal init. The clippy::field_reassign_with_default
+// suggestion doesn't apply here.
+#[allow(clippy::field_reassign_with_default)]
 fn deck_with_text_color(color: &str) -> kangnam_design_doc_slide::deck::Deck {
     let mut style = TextStyle::default();
     style.color = color.into();

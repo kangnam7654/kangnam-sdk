@@ -92,11 +92,19 @@ mod tests {
         }
         let ids = list_skill_ids(&root).unwrap();
         assert!(
-            ids.len() >= 25,
-            "expected at least 25 vendored skills, got {}",
+            ids.len() >= 60,
+            "expected at least 60 vendored skills, got {}",
             ids.len()
         );
-        for id in ["web-prototype", "dashboard", "guizang-ppt", "mobile-app"] {
+        for id in [
+            "web-prototype",
+            "dashboard",
+            "guizang-ppt",
+            "mobile-app",
+            "html-ppt",
+            "hatch-pet",
+            "kami-deck",
+        ] {
             assert!(
                 ids.iter().any(|i| i == id),
                 "expected `{id}` in vendored catalog"
@@ -139,5 +147,35 @@ mod tests {
         // od: keys land in frontmatter_extras.
         let extras = h.frontmatter_extras.as_object().unwrap();
         assert!(extras.contains_key("mode") || extras.contains_key("platform"));
+    }
+
+    #[cfg(feature = "craft")]
+    #[test]
+    fn resolve_crafts_returns_vendored_refs_for_typed_requires() {
+        // Build a skill in-memory with explicit od.craft.requires — no need
+        // to find a vendored skill that already opts in.
+        let yaml = r#"---
+name: x
+od:
+  craft:
+    requires: [typography, anti-ai-slop, totally-fictional]
+---
+body
+"#;
+        let skill = crate::frontmatter::parse_frontmatter(yaml).unwrap();
+        let crafts = skill.resolve_crafts();
+        // Two known slugs resolve, the fictional one drops.
+        assert_eq!(crafts.len(), 2);
+        assert_eq!(crafts[0].id, "typography");
+        assert_eq!(crafts[1].id, "anti-ai-slop");
+    }
+
+    #[cfg(feature = "craft")]
+    #[test]
+    fn resolve_crafts_empty_when_no_requires() {
+        let yaml = "---\nname: x\n---\nbody\n";
+        let skill = crate::frontmatter::parse_frontmatter(yaml).unwrap();
+        let crafts = skill.resolve_crafts();
+        assert!(crafts.is_empty());
     }
 }

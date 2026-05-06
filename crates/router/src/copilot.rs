@@ -127,6 +127,7 @@ impl CopilotProvider {
             let mut text_parts: Vec<&str> = Vec::new();
             let mut image_blocks: Vec<Value> = Vec::new();
             let mut tool_results: Vec<Value> = Vec::new();
+            let mut tool_calls_array: Vec<Value> = Vec::new();
             let mut has_image = false;
 
             for block in &m.content {
@@ -161,24 +162,45 @@ impl CopilotProvider {
                             "content": wire_content,
                         }));
                     }
+                    ChatContent::ToolUse {
+                        id,
+                        name,
+                        arguments,
+                    } => {
+                        let args_str = serde_json::to_string(arguments)
+                            .unwrap_or_else(|_| "{}".to_string());
+                        tool_calls_array.push(json!({
+                            "id": id,
+                            "type": "function",
+                            "function": {
+                                "name": name,
+                                "arguments": args_str,
+                            },
+                        }));
+                    }
                 }
             }
 
             let text = text_parts.join("");
             let has_content = !text.is_empty() || has_image;
-            if has_content {
-                if has_image {
-                    // Array form: interleave text block (if any) then image blocks.
+            let has_tool_calls = !tool_calls_array.is_empty();
+            if has_content || has_tool_calls {
+                let mut msg = if has_image {
                     let mut content_arr: Vec<Value> = Vec::new();
                     if !text.is_empty() {
                         content_arr.push(json!({"type": "text", "text": text}));
                     }
                     content_arr.extend(image_blocks);
-                    out.push(json!({"role": m.role, "content": content_arr}));
+                    json!({"role": m.role, "content": content_arr})
+                } else if has_tool_calls && text.is_empty() {
+                    json!({"role": m.role, "content": Value::Null})
                 } else {
-                    // Plain string form for text-only messages.
-                    out.push(json!({"role": m.role, "content": text}));
+                    json!({"role": m.role, "content": text})
+                };
+                if has_tool_calls {
+                    msg["tool_calls"] = json!(tool_calls_array);
                 }
+                out.push(msg);
             }
             out.extend(tool_results);
         }

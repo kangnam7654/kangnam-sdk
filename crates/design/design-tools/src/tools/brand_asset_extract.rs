@@ -59,7 +59,10 @@ impl AgentTool for BrandAssetExtractTool {
         let body = String::from_utf8_lossy(&body_bytes);
         let palette = extract_palette(&body);
 
-        let primary = palette.get(0).cloned().unwrap_or_else(|| "#000000".into());
+        let primary = palette
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "#000000".into());
         let accent = palette.get(1).cloned().unwrap_or_else(|| "#888888".into());
 
         let spec = format!(

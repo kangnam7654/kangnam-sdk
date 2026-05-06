@@ -1,0 +1,50 @@
+[package]
+name = "kangnam-harness-llm-bridge"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Bridge between kangnam-harness AgentTool runtime and kangnam-router LLM providers — multi-turn tool-calling loop, AgentTool↔ToolDef adapter, scripted MockLlmProvider for tests. LM Studio (OpenAI-compat) is the canonical target."
+keywords = ["llm", "agent", "tool-calling", "lmstudio", "openai"]
+categories = ["api-bindings"]
+
+[dependencies]
+async-stream = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+kangnam-harness-runtime = { workspace = true }
+kangnam-router = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync", "macros", "rt"] }
+tracing = { workspace = true }
+
+[features]
+default = []
+# Expose MockLlmProvider — a scripted in-memory LlmProviderDyn for unit
+# tests. Gated so production builds don't ship the test harness.
+test-util = []
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+wiremock = "0.6"
+
+# Integration tests below depend on `MockLlmProvider`, which lives in the
+# gated `test-util` module. Enable the feature whenever each test target
+# runs so `cargo test --workspace` (which does not auto-enable features)
+# excludes them rather than fails compilation. Run them with
+# `cargo test -p kangnam-harness-llm-bridge --features test-util`.
+[[test]]
+name = "loop_with_mock"
+path = "tests/loop_with_mock.rs"
+required-features = ["test-util"]
+
+[[test]]
+name = "lm_studio_wire"
+path = "tests/lm_studio_wire.rs"
+required-features = ["test-util"]
+
+# `lm_studio_live` does not use `MockLlmProvider`, so no required-features.
+# It is `#[ignore]`-gated and only fires with `--ignored` + an env var.

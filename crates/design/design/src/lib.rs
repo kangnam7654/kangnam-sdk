@@ -26,3 +26,30 @@ pub use kangnam_design_editor_site as editor_site;
 
 #[cfg(feature = "pptx-write")]
 pub use kangnam_design_export_pptx as pptx;
+
+#[cfg(feature = "craft")]
+pub use kangnam_design_craft as craft;
+
+#[cfg(feature = "prompt-template")]
+pub use kangnam_design_prompt_template as prompt_template;
+
+#[cfg(feature = "contracts")]
+pub use kangnam_design_contracts as contracts;
+
+#[cfg(feature = "html-template")]
+pub use kangnam_design_html_template as html_template;
+
+#[cfg(feature = "skill")]
+pub use kangnam_design_skill as skill;
+
+#[cfg(feature = "system")]
+pub use kangnam_design_system as system;
+
+#[cfg(feature = "direction")]
+pub use kangnam_design_direction as direction;
+
+#[cfg(feature = "prompt")]
+pub use kangnam_design_prompt as prompt;
+
+#[cfg(feature = "artifact")]
+pub use kangnam_design_artifact as artifact;

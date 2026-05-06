@@ -110,9 +110,9 @@ mod tests {
             return;
         }
         let ids = list_system_ids(&root).unwrap();
-        assert!(ids.len() >= 60, "expected at least 60 vendored systems, got {}", ids.len());
+        assert!(ids.len() >= 130, "expected at least 130 vendored systems, got {}", ids.len());
         // A few canonical entries we know are vendored.
-        for id in ["cursor", "linear-app", "stripe", "vercel"] {
+        for id in ["cursor", "linear-app", "stripe", "vercel", "agentic", "shadcn", "discord"] {
             assert!(
                 ids.iter().any(|i| i == id),
                 "expected `{id}` in vendored catalog"

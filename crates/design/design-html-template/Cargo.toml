@@ -1,0 +1,16 @@
+[package]
+name = "kangnam-design-html-template"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Vendored HTML scaffold templates for deck-mode skills (deck-framework, kami-deck). Embedded as `&'static str` via `include_str!`. Counterpart to `kangnam-design-prompt` (system prompts) and `kangnam-design-prompt-template` (gen-media prompts)."
+keywords = ["html", "deck", "template", "scaffold", "presentation"]
+categories = ["multimedia"]
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]

@@ -51,7 +51,10 @@ impl AiProvider {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    /// Parse a provider id slug. Returns `None` for unknown ids.
+    /// Inherent method (rather than [`std::str::FromStr`] impl) so the
+    /// "unknown id is not an error" semantic stays explicit at call sites.
+    pub fn from_slug(s: &str) -> Option<Self> {
         match s {
             "gemini-cli" => Some(Self::GeminiCli),
             "claude-cli" => Some(Self::ClaudeCli),
@@ -88,7 +91,7 @@ impl AiProviderConfig {
         endpoint: Option<&str>,
         model: Option<&str>,
     ) -> Result<Self, AiProviderError> {
-        let provider = AiProvider::from_str(provider)
+        let provider = AiProvider::from_slug(provider)
             .ok_or_else(|| AiProviderError::Unknown(provider.to_string()))?;
 
         let endpoint = endpoint.map(str::trim).filter(|s| !s.is_empty()).map(String::from);
@@ -141,9 +144,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn from_str_round_trip() {
+    fn from_slug_round_trip() {
         for p in [AiProvider::GeminiCli, AiProvider::ClaudeCli, AiProvider::LmStudio] {
-            assert_eq!(AiProvider::from_str(p.as_str()), Some(p));
+            assert_eq!(AiProvider::from_slug(p.as_str()), Some(p));
         }
     }
 

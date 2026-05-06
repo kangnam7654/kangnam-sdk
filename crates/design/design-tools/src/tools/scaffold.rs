@@ -97,14 +97,16 @@ async fn walk_and_copy(
             }
             let rel = path
                 .strip_prefix(root)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+                .map_err(|e| std::io::Error::other(e.to_string()))?;
             let dest = dest_root.join(rel);
             let bytes = tokio::fs::read(&path).await?;
             // Write through the ToolCtx so the host's FsCallbacks can
             // sandbox / log uniformly.
-            ctx.capabilities.fs.write(&dest, &bytes).await.map_err(|e| {
-                std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
-            })?;
+            ctx.capabilities
+                .fs
+                .write(&dest, &bytes)
+                .await
+                .map_err(|e| std::io::Error::other(e.to_string()))?;
             copied.push(rel.display().to_string());
         }
     }

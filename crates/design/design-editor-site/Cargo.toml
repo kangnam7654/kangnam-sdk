@@ -10,16 +10,16 @@ keywords = ["ai", "site", "llm", "editor"]
 categories = ["multimedia"]
 
 [dependencies]
-async-stream = "0.3"
+async-stream = { workspace = true }
 kangnam-design-llm = { workspace = true }
 kangnam-design-doc-slide = { workspace = true }
 kangnam-design-doc-site = { workspace = true }
-futures = "0.3"
+futures = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tera = "1"
+tera = { workspace = true }
 thiserror = { workspace = true }
-tracing = "0.1"
+tracing = { workspace = true }
 uuid = { workspace = true }
 
 [features]

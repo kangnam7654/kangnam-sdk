@@ -383,10 +383,10 @@ mod tests {
         let mut p = ArtifactParser::new();
         let _ = p.feed("<artifact id=\"e\" type=\"some-future-kind\">x</artifact>");
         let last = p.finish();
-        let kind = match p.feed("") {
-            // already finished — but the start event came from the earlier feed
-            _ => None::<ArtifactKind>,
-        };
+        // Already finished — the start event came from the earlier feed,
+        // so feeding more input no longer surfaces an artifact kind.
+        let _ = p.feed("");
+        let kind: Option<ArtifactKind> = None;
         let _ = (kind, last);
     }
 

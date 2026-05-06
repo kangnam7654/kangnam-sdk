@@ -129,10 +129,43 @@ impl ChatMessage {
         }
     }
 
+    /// Assistant turn that emitted one or more tool calls.
+    ///
+    /// `text` is the optional pre-tool-call narration ("Checking the
+    /// weather…"). `calls` are the tool invocations the model emitted.
+    /// Used by multi-turn tool-calling loops to record the assistant's
+    /// previous turn so the next request body correctly pairs each
+    /// subsequent `tool_result` with its originating `tool_call_id`.
+    ///
+    /// Each [`ToolCall`] becomes a [`ChatContent::ToolUse`] block. The
+    /// `text`, when non-empty, is prepended as a [`ChatContent::Text`]
+    /// block.
+    pub fn assistant_with_tool_calls(
+        text: impl Into<String>,
+        calls: Vec<ToolCall>,
+    ) -> Self {
+        let text = text.into();
+        let mut content = Vec::with_capacity(calls.len() + 1);
+        if !text.is_empty() {
+            content.push(ChatContent::Text(text));
+        }
+        for c in calls {
+            content.push(ChatContent::ToolUse {
+                id: c.id,
+                name: c.name,
+                arguments: c.arguments,
+            });
+        }
+        Self {
+            role: "assistant".to_string(),
+            content,
+        }
+    }
+
     /// Concatenate all `Text` blocks into a single String. Skips
-    /// `Image` and `ToolResult` blocks. Useful for legacy text-only paths
-    /// (e.g. local CLI prompt construction) and for the trait default
-    /// impl of `chat_dyn`.
+    /// `Image`, `ToolResult`, and `ToolUse` blocks. Useful for legacy
+    /// text-only paths (e.g. local CLI prompt construction) and for the
+    /// trait default impl of `chat_dyn`.
     pub fn text_content(&self) -> String {
         self.content
             .iter()
@@ -377,6 +410,31 @@ pub enum ChatContent {
         content: String,
         /// `true` if the tool execution produced an error.
         is_error: bool,
+    },
+    /// Tool invocation block — assistant turn that records a tool call
+    /// the model previously emitted. Used by multi-turn tool-calling
+    /// loops to replay history so the provider can correlate the
+    /// subsequent [`ToolResult`] with the originating call.
+    ///
+    /// Wire format per provider:
+    /// - OpenAI / OpenAI-compat / Copilot: folded into the assistant
+    ///   message's `tool_calls` array.
+    /// - Anthropic: emitted as a `tool_use` content block.
+    /// - Gemini: emitted as a `functionCall` part on the model turn.
+    /// - Local CLI providers: skipped (CLI handles its own internal
+    ///   tools).
+    ///
+    /// Construct via [`ChatMessage::assistant_with_tool_calls`] rather
+    /// than struct literal.
+    ToolUse {
+        /// Provider-assigned call id. Must match the
+        /// [`ChatContent::ToolResult::tool_use_id`] in the next user
+        /// turn so the model can pair them.
+        id: String,
+        /// Tool name the model chose to invoke.
+        name: String,
+        /// Parsed JSON arguments the model produced for this call.
+        arguments: serde_json::Value,
     },
 }
 

@@ -28,8 +28,7 @@ pub fn parse_css_color(s: &str) -> Option<Color> {
     // Hex shortcuts. Accept #RRGGBB / #RRGGBBAA (alpha stripped) /
     // #RGB shorthand. Existing `Color::from_hex` only handles 6-char,
     // so widen here.
-    if trimmed.starts_with('#') {
-        let stripped = &trimmed[1..];
+    if let Some(stripped) = trimmed.strip_prefix('#') {
         match stripped.len() {
             6 => return Color::from_hex(stripped),
             8 => return Color::from_hex(&stripped[..6]), // alpha stripped

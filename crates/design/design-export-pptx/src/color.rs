@@ -306,7 +306,7 @@ fn build_dot_tile_png(
                     a_sum += p[3] as u32;
                 }
             }
-            let n = (SS * SS) as u32;
+            let n = SS * SS;
             img.put_pixel(
                 x,
                 y,

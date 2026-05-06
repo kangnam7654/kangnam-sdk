@@ -93,7 +93,7 @@ impl OuterShadow {
     /// EMU conversion: `1 px = 9525 EMU`. Direction math: `dist = √(dx²+dy²) × 9525`,
     /// `dir = atan2(dy,dx) deg mod 360 × 60_000`. Ported from dear-jeongbin
     /// `build_outer_shadow_xml` (`export_pptx_ooxml.rs:1808-1841`).
-    pub(crate) fn to_ooxml_effect_xml(&self) -> String {
+    pub(crate) fn to_ooxml_effect_xml(self) -> String {
         const EMU_PER_PX: f32 = 9525.0;
         let blur_rad = (self.blur_px.max(0.0) * EMU_PER_PX).round() as i64;
         let dist_px = (self.dx_px.powi(2) + self.dy_px.powi(2)).sqrt();

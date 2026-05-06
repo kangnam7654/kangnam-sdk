@@ -126,6 +126,14 @@ enum ContentBlock {
         #[serde(skip_serializing_if = "Option::is_none")]
         cache_control: Option<CacheControl>,
     },
+    /// Anthropic-native `tool_use` block — replays an assistant turn's
+    /// tool invocation in multi-turn loops so the next [`ToolResult`]
+    /// pairs against this `id`.
+    ToolUse {
+        id: String,
+        name: String,
+        input: serde_json::Value,
+    },
     #[allow(dead_code)]
     Thinking { thinking: String },
 }
@@ -255,6 +263,15 @@ impl ClaudeProvider {
                                 cache_control: None,
                             }
                         }
+                        ChatContent::ToolUse {
+                            id,
+                            name,
+                            arguments,
+                        } => ContentBlock::ToolUse {
+                            id: id.clone(),
+                            name: name.clone(),
+                            input: arguments.clone(),
+                        },
                     })
                     .collect();
                 ClaudeMessage {
@@ -346,6 +363,13 @@ impl ClaudeProvider {
                                 // Thinking blocks don't support cache_control.
                                 tracing::warn!(
                                     "claude: cache_breakpoint MessageIndex({}) targets a message whose last content block is a Thinking block; cache_control not applicable; skipping",
+                                    idx
+                                );
+                            }
+                            ContentBlock::ToolUse { .. } => {
+                                // tool_use blocks don't carry cache_control.
+                                tracing::warn!(
+                                    "claude: cache_breakpoint MessageIndex({}) targets a message whose last content block is a tool_use block; cache_control not applicable; skipping",
                                     idx
                                 );
                             }

@@ -13,12 +13,13 @@
 //! | [`tasks`] | `src/tasks.ts` | `TaskState` (6 variants), `TaskStatus` |
 //! | [`sse`] | `src/sse/common.ts` + `src/sse/chat.ts` + `src/sse/proxy.ts` | `SseEvent<P>`, `DaemonAgentPayload` enum, chat/proxy SSE event variants |
 //!
-//! ## Partially ported
+//! ## REST endpoints — fully ported
 //!
-//! - `src/api/*` — small REST shapes ported in [`api`] module
-//!   ([`api::app_config`], [`api::artifacts`], [`api::files`],
-//!   [`api::proxy`], [`api::version`]). Outstanding: chat, projects,
-//!   live-artifacts, comments, connectors, registry.
+//! All 11 upstream `src/api/*.ts` files have a Rust port in [`api`]:
+//! [`api::app_config`], [`api::artifacts`], [`api::chat`],
+//! [`api::comments`], [`api::connectors`], [`api::files`],
+//! [`api::live_artifacts`], [`api::projects`], [`api::proxy`],
+//! [`api::registry`], [`api::version`].
 //!
 //! ## Not yet ported
 //!

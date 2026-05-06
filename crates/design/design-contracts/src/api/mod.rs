@@ -12,6 +12,7 @@ pub mod comments;
 pub mod connectors;
 pub mod files;
 pub mod live_artifacts;
+pub mod projects;
 pub mod proxy;
 pub mod registry;
 pub mod version;

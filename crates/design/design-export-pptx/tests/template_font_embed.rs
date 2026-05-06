@@ -32,8 +32,7 @@ fn zip_has_entry(bytes: &[u8], name: &str) -> bool {
         Ok(a) => a,
         Err(_) => return false,
     };
-    let found = archive.by_name(name).is_ok();
-    found
+    archive.by_name(name).is_ok()
 }
 
 /// Read a zip entry as a UTF-8 string. Returns `None` on missing entry or

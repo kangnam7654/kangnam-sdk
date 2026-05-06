@@ -50,7 +50,7 @@ pub fn notes_slide_xml(slide: &PptxSlide) -> Vec<u8> {
     let body = slide.speaker_notes.as_deref().unwrap_or("");
     let paragraphs = body
         .split('\n')
-        .map(|line| paragraph_xml(line))
+        .map(paragraph_xml)
         .collect::<String>();
 
     let xml = format!(

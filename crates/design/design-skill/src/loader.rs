@@ -92,11 +92,19 @@ mod tests {
         }
         let ids = list_skill_ids(&root).unwrap();
         assert!(
-            ids.len() >= 25,
-            "expected at least 25 vendored skills, got {}",
+            ids.len() >= 60,
+            "expected at least 60 vendored skills, got {}",
             ids.len()
         );
-        for id in ["web-prototype", "dashboard", "guizang-ppt", "mobile-app"] {
+        for id in [
+            "web-prototype",
+            "dashboard",
+            "guizang-ppt",
+            "mobile-app",
+            "html-ppt",
+            "hatch-pet",
+            "kami-deck",
+        ] {
             assert!(
                 ids.iter().any(|i| i == id),
                 "expected `{id}` in vendored catalog"

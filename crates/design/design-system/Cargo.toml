@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "DESIGN.md catalog — 9-section design-system parser + token extractor (#hex / oklch / rgb), built around the awesome-design-md schema."
+description = "DESIGN.md catalog — 9-section design-system parser + token extractor (#hex / oklch / rgb), built around the awesome-design-md schema. Ships 139 vendored systems (cursor, linear-app, stripe, vercel, agentic, shadcn, …)."
 keywords = ["design", "design-system", "tokens", "palette"]
 categories = ["multimedia"]
 

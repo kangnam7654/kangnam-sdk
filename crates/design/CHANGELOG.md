@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+- `kangnam-design-skill`: vendored catalog grew from **30 → 64 skills** by absorbing the open-design v0.4 catalog. New: `audio-jingle`, `design-brief`, `hatch-pet`, the entire `html-ppt` family (16 themes — pitch-deck, course-module, weekly-report, taste-brutalist/editorial, xhs-pastel-card/post/white-editorial, hermes-cyber-terminal, graphify-dark-graph, knowledge-arch-blueprint, obsidian-claude-gradient, presenter-mode-reveal, product-launch, tech-sharing, testing-safety-alert, dir-key-nav-minimal), `hyperframes`, `image-poster`, `kami-deck`, `kami-landing`, `live-artifact`, `open-design-landing`, `open-design-landing-deck`, `pptx-html-fidelity-audit`, `replit-deck`, `video-shortform`, `web-prototype-taste-brutalist`, `web-prototype-taste-editorial`, `web-prototype-taste-soft`. Each skill retains its bundled LICENSE file where present (e.g. `html-ppt`, `hatch-pet`, `guizang-ppt`).
+- `kangnam-design-system`: vendored catalog grew from **73 → 139 systems** by absorbing the open-design v0.4 catalog. New themed systems include `agentic`, `ant`, `arc`, `atelier-zero`, `bento`, `brutalism`, `canva`, `claymorphism`, `cosmic`, `discord`, `dithered`, `doodle`, `duolingo`, `editorial`, `enterprise`, `fantasy`, `flat`, `friendly`, `futuristic`, `github`, `glassmorphism`, `gradient`, `huggingface`, `kami`, `levels`, `lingo`, `luxury`, `material`, `minimal`, `modern`, `mono`, `neobrutalism`, `neon`, `neumorphism`, `openai`, `pacman`, `paper`, `perspective`, `premium`, `professional`, `publication`, `refined`, `retro`, `shadcn`, `simple`, `skeumorphism`, `sleek`, `spacious`, `storytelling`, `tetris`, `vibrant`, `vintage`, plus modifier systems (`application`, `dashboard`, etc.).
+
+### Changed
+- Loader test floors raised: skills `>= 60` (was 25), systems `>= 130` (was 60). Canonical-id sanity checks extended (`html-ppt`, `hatch-pet`, `kami-deck` for skills; `agentic`, `shadcn`, `discord` for systems).
+
 ## [0.3.5] — 2026-04-28
 
 ### Fixed

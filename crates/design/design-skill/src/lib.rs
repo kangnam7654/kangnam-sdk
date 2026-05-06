@@ -7,9 +7,11 @@
 //! kangnam_design_system) and open-codesign extras (user_invocable, allowed_tools,
 //! disable_model_invocation).
 //!
-//! Ships a 30-skill vendored catalog at `skills/` (web-prototype, dashboard,
-//! mobile-app, guizang-ppt, …) — Apache-2.0, with the bundled `guizang-ppt`
-//! skill retaining its original MIT LICENSE.
+//! Ships a 64-skill vendored catalog at `skills/` covering web-prototype +
+//! taste variants, dashboard, mobile-app, the html-ppt family (16 themes),
+//! kami-deck/kami-landing, hatch-pet, guizang-ppt, replit-deck, and others —
+//! Apache-2.0, with bundled `guizang-ppt`, `html-ppt`, and `hatch-pet`
+//! skills retaining their original LICENSE files.
 //!
 //! [skv]: https://docs.anthropic.com/en/docs/claude-code/skills
 //! [odp]: https://github.com/nexu-io/open-design/blob/main/docs/skills-protocol.md

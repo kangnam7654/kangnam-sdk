@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "SKILL.md catalog — Anthropic SkillFrontmatterV1 + open-design `od:` extension parser, with 30 vendored design skills (web-prototype, dashboard, mobile-app, guizang-ppt, …)."
+description = "SKILL.md catalog — Anthropic SkillFrontmatterV1 + open-design `od:` extension parser, with 64 vendored design skills (web-prototype, dashboard, mobile-app, html-ppt family, kami, guizang-ppt, …)."
 keywords = ["skill", "design", "frontmatter", "anthropic"]
 categories = ["multimedia"]
 

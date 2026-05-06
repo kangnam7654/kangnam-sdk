@@ -10,5 +10,8 @@ pub mod artifacts;
 pub mod chat;
 pub mod comments;
 pub mod files;
+pub mod live_artifacts;
 pub mod proxy;
 pub mod version;
+
+pub use live_artifacts::{BoundedJsonObject, BoundedJsonValue};

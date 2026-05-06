@@ -1,0 +1,18 @@
+[package]
+name = "kangnam-design-craft"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Brand-agnostic craft references (typography, color, anti-AI-slop, accessibility, animation, RTL/bidi, state coverage). Skill-side `od.craft.requires` lookup + system-prompt concatenation."
+keywords = ["craft", "design", "typography", "color", "accessibility"]
+categories = ["multimedia"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

@@ -26,3 +26,6 @@ pub use kangnam_design_editor_site as editor_site;
 
 #[cfg(feature = "pptx-write")]
 pub use kangnam_design_export_pptx as pptx;
+
+#[cfg(feature = "craft")]
+pub use kangnam_design_craft as craft;

@@ -147,6 +147,23 @@ mod tests {
     }
 
     #[test]
+    fn parses_od_craft_requires_block() {
+        let input = "---\nname: web-prototype\nod:\n  craft:\n    requires: [typography, color, anti-ai-slop]\n---\nbody\n";
+        let parsed = parse_frontmatter(input).unwrap();
+        assert_eq!(
+            parsed.od.craft.requires,
+            vec!["typography", "color", "anti-ai-slop"]
+        );
+    }
+
+    #[test]
+    fn missing_od_craft_block_yields_empty_requires() {
+        let input = "---\nname: x\nod:\n  mode: deck\n---\nbody\n";
+        let parsed = parse_frontmatter(input).unwrap();
+        assert!(parsed.od.craft.requires.is_empty());
+    }
+
+    #[test]
     fn arbitrary_extras_land_in_frontmatter_extras() {
         let input = "---\nname: x\nallowed_tools: [Read, Bash]\nuser_invocable: true\n---\nbody\n";
         let parsed = parse_frontmatter(input).unwrap();

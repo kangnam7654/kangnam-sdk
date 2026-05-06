@@ -2584,6 +2584,7 @@ dependencies = [
 name = "kangnam-design"
 version = "0.3.0"
 dependencies = [
+ "kangnam-design-craft",
  "kangnam-design-doc-site",
  "kangnam-design-doc-slide",
  "kangnam-design-editor-html",
@@ -2602,6 +2603,16 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "zip",
+]
+
+[[package]]
+name = "kangnam-design-craft"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

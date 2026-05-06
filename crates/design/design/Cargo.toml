@@ -17,9 +17,10 @@ kangnam-design-editor-html  = { path = "../design-editor-html", optional = true 
 kangnam-design-editor-slide = { path = "../design-editor-slide", optional = true }
 kangnam-design-editor-site  = { path = "../design-editor-site", optional = true }
 kangnam-design-export-pptx  = { path = "../design-export-pptx", optional = true, default-features = false }
+kangnam-design-craft        = { path = "../design-craft", optional = true }
 
 [features]
-default       = ["slide", "site", "llm", "editor-html", "editor-slide", "editor-site", "pptx-write"]
+default       = ["slide", "site", "llm", "editor-html", "editor-slide", "editor-site", "pptx-write", "craft"]
 slide         = ["dep:kangnam-design-doc-slide"]
 site          = ["dep:kangnam-design-doc-site", "slide"]
 llm           = ["dep:kangnam-design-llm"]
@@ -27,5 +28,6 @@ editor-html   = ["dep:kangnam-design-editor-html", "llm"]
 editor-slide  = ["dep:kangnam-design-editor-slide", "slide", "llm"]
 editor-site   = ["dep:kangnam-design-editor-site", "site", "llm"]
 pptx-write    = ["dep:kangnam-design-export-pptx", "kangnam-design-export-pptx/slide-doc", "slide"]
+craft         = ["dep:kangnam-design-craft"]
 test-util     = ["kangnam-design-llm?/test-util", "kangnam-design-editor-html?/test-util", "kangnam-design-editor-slide?/test-util", "kangnam-design-editor-site?/test-util"]
-full          = ["slide", "site", "llm", "editor-html", "editor-slide", "editor-site", "pptx-write"]
+full          = ["slide", "site", "llm", "editor-html", "editor-slide", "editor-site", "pptx-write", "craft"]

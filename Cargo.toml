@@ -64,6 +64,7 @@ kangnam-design-system         = { path = "crates/design/design-system" }
 kangnam-design-skill          = { path = "crates/design/design-skill" }
 kangnam-design-prompt         = { path = "crates/design/design-prompt" }
 kangnam-design-artifact       = { path = "crates/design/design-artifact" }
+kangnam-design-craft          = { path = "crates/design/design-craft" }
 kangnam-design-tools          = { path = "crates/design/design-tools" }
 saju-engine           = { path = "crates/fortune/saju-engine" }
 tarot-engine          = { path = "crates/fortune/tarot-engine" }

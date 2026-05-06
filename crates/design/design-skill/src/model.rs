@@ -29,9 +29,27 @@ pub struct OdMetadata {
     /// Whether the skill needs an active DESIGN.md.
     #[serde(default)]
     pub kangnam_design_system: Option<OdDesignSystem>,
+    /// Universal craft references this skill opts into. Resolve via
+    /// `kangnam_design_craft::requires_to_crafts(&self.craft.requires)`
+    /// downstream — design-skill stays craft-agnostic to avoid cross-crate
+    /// coupling.
+    #[serde(default)]
+    pub craft: OdCraft,
     /// Catch-all for any further keys we haven't promoted.
     #[serde(flatten)]
     pub extras: serde_json::Map<String, serde_json::Value>,
+}
+
+/// `od.craft` block — list of brand-agnostic craft references this skill
+/// needs injected into the system prompt above the active skill body.
+/// Defaults to empty (no opt-in).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct OdCraft {
+    /// Slug list, matching `kangnam_design_craft::Craft::id` (e.g.
+    /// `["typography", "anti-ai-slop"]`). Unknown slugs are silently
+    /// dropped at resolution time.
+    #[serde(default)]
+    pub requires: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

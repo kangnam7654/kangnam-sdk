@@ -100,6 +100,20 @@ pub struct DesignSkill {
 }
 
 impl DesignSkill {
+    /// Resolve this skill's `od.craft.requires` slugs into the matching
+    /// vendored crafts from `kangnam-design-craft`. Preserves input order,
+    /// dedupes, and silently drops unknown slugs (forward-compatible).
+    ///
+    /// Use [`kangnam_design_craft::render_for_prompt`] to concatenate the
+    /// returned crafts into a system-prompt block.
+    ///
+    /// Gated behind the optional `craft` feature so the default
+    /// design-skill build stays craft-agnostic.
+    #[cfg(feature = "craft")]
+    pub fn resolve_crafts(&self) -> Vec<&'static kangnam_design_craft::Craft> {
+        kangnam_design_craft::requires_to_crafts(&self.od.craft.requires)
+    }
+
     /// Convert into the harness-core canonical [`Skill`]. Lossy by design:
     /// `triggers` → `SkillTrigger::Auto { keywords }`; everything else that
     /// doesn't map to a canonical column lands in `frontmatter_extras` so

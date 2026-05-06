@@ -21,9 +21,31 @@ kangnam-design-craft        = { path = "../design-craft", optional = true }
 kangnam-design-prompt-template = { path = "../design-prompt-template", optional = true }
 kangnam-design-contracts    = { path = "../design-contracts", optional = true }
 kangnam-design-html-template= { path = "../design-html-template", optional = true }
+kangnam-design-skill        = { path = "../design-skill", optional = true }
+kangnam-design-system       = { path = "../design-system", optional = true }
+kangnam-design-direction    = { path = "../design-direction", optional = true }
+kangnam-design-prompt       = { path = "../design-prompt", optional = true }
+kangnam-design-artifact     = { path = "../design-artifact", optional = true }
 
 [features]
-default       = ["slide", "site", "llm", "editor-html", "editor-slide", "editor-site", "pptx-write", "craft", "prompt-template", "contracts", "html-template"]
+default = [
+    "slide",
+    "site",
+    "llm",
+    "editor-html",
+    "editor-slide",
+    "editor-site",
+    "pptx-write",
+    "craft",
+    "prompt-template",
+    "contracts",
+    "html-template",
+    "skill",
+    "system",
+    "direction",
+    "prompt",
+    "artifact",
+]
 slide         = ["dep:kangnam-design-doc-slide"]
 site          = ["dep:kangnam-design-doc-site", "slide"]
 llm           = ["dep:kangnam-design-llm"]
@@ -35,5 +57,30 @@ craft         = ["dep:kangnam-design-craft"]
 prompt-template = ["dep:kangnam-design-prompt-template"]
 contracts     = ["dep:kangnam-design-contracts"]
 html-template = ["dep:kangnam-design-html-template"]
+# Skill catalog — opting in propagates the optional `craft` feature
+# downstream so `DesignSkill::resolve_crafts()` is wired up when the
+# umbrella's `craft` feature is also on.
+skill         = ["dep:kangnam-design-skill", "kangnam-design-skill?/craft"]
+system        = ["dep:kangnam-design-system"]
+direction     = ["dep:kangnam-design-direction"]
+prompt        = ["dep:kangnam-design-prompt"]
+artifact      = ["dep:kangnam-design-artifact"]
 test-util     = ["kangnam-design-llm?/test-util", "kangnam-design-editor-html?/test-util", "kangnam-design-editor-slide?/test-util", "kangnam-design-editor-site?/test-util"]
-full          = ["slide", "site", "llm", "editor-html", "editor-slide", "editor-site", "pptx-write", "craft", "prompt-template", "contracts", "html-template"]
+full = [
+    "slide",
+    "site",
+    "llm",
+    "editor-html",
+    "editor-slide",
+    "editor-site",
+    "pptx-write",
+    "craft",
+    "prompt-template",
+    "contracts",
+    "html-template",
+    "skill",
+    "system",
+    "direction",
+    "prompt",
+    "artifact",
+]

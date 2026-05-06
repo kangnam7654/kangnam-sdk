@@ -2584,8 +2584,10 @@ dependencies = [
 name = "kangnam-design"
 version = "0.3.0"
 dependencies = [
+ "kangnam-design-artifact",
  "kangnam-design-contracts",
  "kangnam-design-craft",
+ "kangnam-design-direction",
  "kangnam-design-doc-site",
  "kangnam-design-doc-slide",
  "kangnam-design-editor-html",
@@ -2594,7 +2596,10 @@ dependencies = [
  "kangnam-design-export-pptx",
  "kangnam-design-html-template",
  "kangnam-design-llm",
+ "kangnam-design-prompt",
  "kangnam-design-prompt-template",
+ "kangnam-design-skill",
+ "kangnam-design-system",
 ]
 
 [[package]]
@@ -2770,6 +2775,7 @@ dependencies = [
 name = "kangnam-design-skill"
 version = "0.3.0"
 dependencies = [
+ "kangnam-design-craft",
  "kangnam-harness-core",
  "serde",
  "serde_json",

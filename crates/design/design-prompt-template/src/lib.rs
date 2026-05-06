@@ -138,6 +138,96 @@ impl PromptTemplate {
     }
 }
 
+/// Iterator-extension helpers for `IntoIterator<Item = &PromptTemplate>` —
+/// keeps filter-chain UX terse without allocating per call.
+///
+/// ```
+/// use kangnam_design_prompt_template::{PromptTemplate, Surface, TemplateFilter};
+///
+/// fn examples(templates: &[PromptTemplate]) -> Vec<&PromptTemplate> {
+///     templates
+///         .iter()
+///         .with_surface(Surface::Image)
+///         .with_tag("anime")
+///         .collect()
+/// }
+/// ```
+pub trait TemplateFilter<'a>: Iterator<Item = &'a PromptTemplate> + Sized {
+    /// Keep only templates targeting the given surface.
+    fn with_surface(self, surface: Surface) -> WithSurface<'a, Self> {
+        WithSurface { inner: self, surface }
+    }
+
+    /// Keep only templates whose `tags` contain `tag` (case-sensitive).
+    fn with_tag(self, tag: &'a str) -> WithTag<'a, Self> {
+        WithTag { inner: self, tag }
+    }
+
+    /// Keep only templates in the given category (case-sensitive).
+    fn with_category(self, category: &'a str) -> WithCategory<'a, Self> {
+        WithCategory {
+            inner: self,
+            category,
+        }
+    }
+
+    /// Keep only templates targeting the given upstream model
+    /// (`"gpt-image-2"`, `"sora-2"`, `"hyperframes-html"`, …).
+    fn with_model(self, model: &'a str) -> WithModel<'a, Self> {
+        WithModel { inner: self, model }
+    }
+}
+
+impl<'a, I> TemplateFilter<'a> for I where I: Iterator<Item = &'a PromptTemplate> {}
+
+pub struct WithSurface<'a, I: Iterator<Item = &'a PromptTemplate>> {
+    inner: I,
+    surface: Surface,
+}
+
+impl<'a, I: Iterator<Item = &'a PromptTemplate>> Iterator for WithSurface<'a, I> {
+    type Item = &'a PromptTemplate;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.find(|t| t.surface == self.surface)
+    }
+}
+
+pub struct WithTag<'a, I: Iterator<Item = &'a PromptTemplate>> {
+    inner: I,
+    tag: &'a str,
+}
+
+impl<'a, I: Iterator<Item = &'a PromptTemplate>> Iterator for WithTag<'a, I> {
+    type Item = &'a PromptTemplate;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.find(|t| t.has_tag(self.tag))
+    }
+}
+
+pub struct WithCategory<'a, I: Iterator<Item = &'a PromptTemplate>> {
+    inner: I,
+    category: &'a str,
+}
+
+impl<'a, I: Iterator<Item = &'a PromptTemplate>> Iterator for WithCategory<'a, I> {
+    type Item = &'a PromptTemplate;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.find(|t| t.in_category(self.category))
+    }
+}
+
+pub struct WithModel<'a, I: Iterator<Item = &'a PromptTemplate>> {
+    inner: I,
+    model: &'a str,
+}
+
+impl<'a, I: Iterator<Item = &'a PromptTemplate>> Iterator for WithModel<'a, I> {
+    type Item = &'a PromptTemplate;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.find(|t| t.model == self.model)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -214,6 +304,83 @@ mod tests {
             back.get("future_field").unwrap(),
             &serde_json::json!([1, 2, 3])
         );
+    }
+
+    fn make(id: &str, surface: Surface, category: &str, tags: &[&str], model: &str) -> PromptTemplate {
+        PromptTemplate {
+            id: id.into(),
+            surface,
+            title: id.into(),
+            summary: String::new(),
+            category: category.into(),
+            tags: tags.iter().map(|s| s.to_string()).collect(),
+            model: model.into(),
+            aspect: "1:1".into(),
+            prompt: "p".into(),
+            preview_image_url: None,
+            preview_video_url: None,
+            source: TemplateSource {
+                repo: "r".into(),
+                license: "MIT".into(),
+                author: "a".into(),
+                url: "u".into(),
+            },
+            extras: serde_json::Map::new(),
+        }
+    }
+
+    #[test]
+    fn template_filter_chain_combines_predicates() {
+        let templates = vec![
+            make("a", Surface::Image, "Avatar", &["anime"], "gpt-image-2"),
+            make("b", Surface::Image, "Cinematic", &["realistic"], "gpt-image-2"),
+            make("c", Surface::Video, "Cinematic", &["anime", "drama"], "sora-2"),
+            make("d", Surface::Image, "Avatar", &["realistic"], "gpt-image-2"),
+        ];
+        let result: Vec<_> = templates
+            .iter()
+            .with_surface(Surface::Image)
+            .with_tag("anime")
+            .map(|t| t.id.as_str())
+            .collect();
+        assert_eq!(result, vec!["a"]);
+    }
+
+    #[test]
+    fn template_filter_with_category() {
+        let templates = vec![
+            make("a", Surface::Image, "Avatar", &[], "m"),
+            make("b", Surface::Video, "Cinematic", &[], "m"),
+            make("c", Surface::Image, "Cinematic", &[], "m"),
+        ];
+        let cinematic: Vec<_> = templates
+            .iter()
+            .with_category("Cinematic")
+            .map(|t| t.id.as_str())
+            .collect();
+        assert_eq!(cinematic, vec!["b", "c"]);
+    }
+
+    #[test]
+    fn template_filter_with_model() {
+        let templates = vec![
+            make("a", Surface::Image, "X", &[], "gpt-image-2"),
+            make("b", Surface::Image, "X", &[], "sora-2"),
+            make("c", Surface::Image, "X", &[], "gpt-image-2"),
+        ];
+        let chosen: Vec<_> = templates
+            .iter()
+            .with_model("gpt-image-2")
+            .map(|t| t.id.as_str())
+            .collect();
+        assert_eq!(chosen, vec!["a", "c"]);
+    }
+
+    #[test]
+    fn template_filter_empty_when_no_match() {
+        let templates = vec![make("a", Surface::Image, "X", &["foo"], "m")];
+        let none: Vec<_> = templates.iter().with_tag("never").collect();
+        assert!(none.is_empty());
     }
 
     #[test]

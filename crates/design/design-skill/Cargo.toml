@@ -15,5 +15,13 @@ serde_json = { workspace = true }
 serde_yaml = "0.9"
 thiserror = { workspace = true }
 kangnam-harness-core = { workspace = true }
+kangnam-design-craft = { workspace = true, optional = true }
+
+[features]
+default = []
+# Bridge `od.craft.requires` slugs to the vendored craft references in
+# `kangnam-design-craft`. When enabled, `DesignSkill::resolve_crafts()`
+# returns the matching `&'static Craft` slice for prompt injection.
+craft = ["dep:kangnam-design-craft"]
 
 [dev-dependencies]

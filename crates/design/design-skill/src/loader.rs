@@ -148,4 +148,34 @@ mod tests {
         let extras = h.frontmatter_extras.as_object().unwrap();
         assert!(extras.contains_key("mode") || extras.contains_key("platform"));
     }
+
+    #[cfg(feature = "craft")]
+    #[test]
+    fn resolve_crafts_returns_vendored_refs_for_typed_requires() {
+        // Build a skill in-memory with explicit od.craft.requires — no need
+        // to find a vendored skill that already opts in.
+        let yaml = r#"---
+name: x
+od:
+  craft:
+    requires: [typography, anti-ai-slop, totally-fictional]
+---
+body
+"#;
+        let skill = crate::frontmatter::parse_frontmatter(yaml).unwrap();
+        let crafts = skill.resolve_crafts();
+        // Two known slugs resolve, the fictional one drops.
+        assert_eq!(crafts.len(), 2);
+        assert_eq!(crafts[0].id, "typography");
+        assert_eq!(crafts[1].id, "anti-ai-slop");
+    }
+
+    #[cfg(feature = "craft")]
+    #[test]
+    fn resolve_crafts_empty_when_no_requires() {
+        let yaml = "---\nname: x\n---\nbody\n";
+        let skill = crate::frontmatter::parse_frontmatter(yaml).unwrap();
+        let crafts = skill.resolve_crafts();
+        assert!(crafts.is_empty());
+    }
 }

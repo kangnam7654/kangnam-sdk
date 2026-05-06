@@ -29,3 +29,6 @@ pub use kangnam_design_export_pptx as pptx;
 
 #[cfg(feature = "craft")]
 pub use kangnam_design_craft as craft;
+
+#[cfg(feature = "prompt-template")]
+pub use kangnam_design_prompt_template as prompt_template;

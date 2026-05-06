@@ -43,6 +43,7 @@ pub mod common;
 pub mod critique;
 pub mod errors;
 pub mod serde_helpers;
+pub mod sidecar;
 pub mod sse;
 pub mod tasks;
 

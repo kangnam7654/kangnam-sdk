@@ -13,9 +13,15 @@
 //! | [`tasks`] | `src/tasks.ts` | `TaskState` (6 variants), `TaskStatus` |
 //! | [`sse`] | `src/sse/common.ts` + `src/sse/chat.ts` + `src/sse/proxy.ts` | `SseEvent<P>`, `DaemonAgentPayload` enum, chat/proxy SSE event variants |
 //!
+//! ## Partially ported
+//!
+//! - `src/api/*` — small REST shapes ported in [`api`] module
+//!   ([`api::app_config`], [`api::artifacts`], [`api::files`],
+//!   [`api::proxy`], [`api::version`]). Outstanding: chat, projects,
+//!   live-artifacts, comments, connectors, registry.
+//!
 //! ## Not yet ported
 //!
-//! - `src/api/*` — REST request/response shapes (~14 files). Port on demand.
 //! - `src/critique.ts` — debate config + 5-role panelist enums (zod-heavy
 //!   refinements). Will need a custom validator pass.
 //! - `src/prompts/system.ts` — already implemented separately by
@@ -33,8 +39,10 @@
 //!   so the emitted JSON omits them — matching the TS interface (where
 //!   `field?: T` produces `{}` not `{ field: undefined }`).
 
+pub mod api;
 pub mod common;
 pub mod errors;
+pub mod serde_helpers;
 pub mod sse;
 pub mod tasks;
 

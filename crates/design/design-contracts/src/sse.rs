@@ -222,22 +222,22 @@ pub enum ChatSseEvent {
 }
 
 // ─── Proxy-channel SSE event payloads ───────────────────────────────────
-//
-// The full proxy stream payloads (start/delta/end) live in `api/proxy.ts`
-// upstream — to keep this initial port small they're modeled as
-// `serde_json::Value` until that module is ported. ProxySseEvent retains
-// the discriminated event-name layer so consumers can dispatch on the
-// SSE event field without parsing the inner payload yet.
+
+use crate::api::proxy::{
+    ProxyStreamDeltaPayload, ProxyStreamEndPayload, ProxyStreamStartPayload,
+};
 
 pub const PROXY_SSE_PROTOCOL_VERSION: u32 = 1;
 
+/// Discriminated proxy-channel SSE event. Each variant carries the
+/// matching typed payload from [`crate::api::proxy`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "event", content = "data", rename_all = "lowercase")]
 pub enum ProxySseEvent {
-    Start(serde_json::Value),
-    Delta(serde_json::Value),
+    Start(ProxyStreamStartPayload),
+    Delta(ProxyStreamDeltaPayload),
     Error(SseErrorPayload),
-    End(serde_json::Value),
+    End(ProxyStreamEndPayload),
 }
 
 #[cfg(test)]
@@ -379,11 +379,32 @@ mod tests {
     }
 
     #[test]
-    fn proxy_sse_event_round_trip_with_opaque_payload() {
-        let evt = ProxySseEvent::Start(serde_json::json!({"requestId": "r1"}));
+    fn proxy_sse_event_round_trip_typed_payload() {
+        let evt = ProxySseEvent::Start(ProxyStreamStartPayload {
+            model: Some("gpt-4".into()),
+        });
         let s = serde_json::to_string(&evt).unwrap();
         assert!(s.contains("\"event\":\"start\""));
-        assert!(s.contains("\"requestId\":\"r1\""));
+        assert!(s.contains("\"model\":\"gpt-4\""));
+        let back: ProxySseEvent = serde_json::from_str(&s).unwrap();
+        match back {
+            ProxySseEvent::Start(p) => assert_eq!(p.model.as_deref(), Some("gpt-4")),
+            other => panic!("got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn proxy_sse_event_delta_and_end_round_trip() {
+        let d = ProxySseEvent::Delta(ProxyStreamDeltaPayload {
+            delta: "tok".into(),
+        });
+        let s = serde_json::to_string(&d).unwrap();
+        assert!(s.contains("\"event\":\"delta\""));
+        assert!(s.contains("\"delta\":\"tok\""));
+        let e = ProxySseEvent::End(ProxyStreamEndPayload { code: Some(200) });
+        let s2 = serde_json::to_string(&e).unwrap();
+        assert!(s2.contains("\"event\":\"end\""));
+        assert!(s2.contains("\"code\":200"));
     }
 
     #[test]

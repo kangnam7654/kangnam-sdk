@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added (round 7)
+- `kangnam-design-contracts::api`: 5 new REST module ports — `app_config` (`AppConfigPrefs` with double-Option for `agentId`/`skillId`/`designSystemId`, `AgentModelPrefs`, `AppConfigResponse`, `UpdateAppConfigRequest`), `version` (`AppVersionInfo`, `AppVersionResponse`), `proxy` (`ProxyMessage`, `ProxyMessageRole`, `ProxyStreamRequest`, `ProxyStreamStartPayload`, `ProxyStreamDeltaPayload`, `ProxyStreamEndPayload`), `artifacts` (`ArtifactKind`, `ArtifactRendererId`, `ArtifactExportKind`, `ArtifactStatus`, `ArtifactManifest` with version-locked `ManifestVersion`, `SaveArtifactRequest`/`SaveArtifactResponse`), `files` (`ProjectFile`, `ProjectFileKind`, `ProjectFileType`, `ProjectFilesResponse`/`ProjectFileResponse`, `UploadProjectFilesResponse`, `DeleteProjectFileResponse`).
+- `kangnam-design-contracts::serde_helpers::double_option` — adapter module for `T | null | undefined` shapes that distinguish "explicitly cleared" (`null`) from "not provided" (omitted). Three states map to `Option<Option<T>>`. 3 unit tests.
+- `kangnam-design-contracts::sse::ProxySseEvent` upgraded from `serde_json::Value` placeholders to typed payloads (`ProxyStreamStartPayload`, `ProxyStreamDeltaPayload`, `ProxyStreamEndPayload`) now that `api::proxy` is ported.
+
 ### Changed
 - `kangnam-design` umbrella now re-exports the catalog/spec sister crates (`skill`, `system`, `direction`, `prompt`, `artifact`) under matching feature flags (all in default set). The umbrella's `craft` feature additionally propagates to `kangnam-design-skill`'s new `craft` feature so `DesignSkill::resolve_crafts()` is wired up automatically when the umbrella's `craft` feature is on.
 - `kangnam-design-skill`: new optional `craft` feature gates a `DesignSkill::resolve_crafts() -> Vec<&'static Craft>` bridge to `kangnam-design-craft`. Without the feature the crate stays craft-agnostic (no extra dep). Replaces the previous "caller must call `kangnam_design_craft::requires_to_crafts(&skill.od.craft.requires)` themselves" ergonomics with a one-method shortcut.

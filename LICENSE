@@ -1,21 +1,46 @@
-MIT License
+PROPRIETARY SOFTWARE LICENSE — ALL RIGHTS RESERVED
 
-Copyright (c) 2026 Kangnam Kim
+Copyright (c) 2026 Kangnam Kim. All Rights Reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This software, including its source code, compiled artifacts, documentation,
+and any associated files (collectively, the "Software"), is the exclusive
+intellectual property of Kangnam Kim (the "Owner").
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+NO LICENSE OR OTHER RIGHTS ARE GRANTED. The Software is made source-visible
+on a public repository for transparency, portfolio, and personal-archive
+purposes only. Public visibility does NOT grant any license, express or
+implied, to use, copy, modify, merge, publish, distribute, sublicense, sell,
+or create derivative works of the Software, in whole or in part, for any
+purpose whatsoever.
+
+The following are expressly prohibited without the prior, separately
+executed, written permission of the Owner:
+
+  (a) Copying or reproducing the Software, in source or binary form;
+  (b) Modifying, adapting, translating, or creating derivative works;
+  (c) Distributing, sublicensing, leasing, renting, or selling the Software;
+  (d) Using the Software in any product, service, research, or process —
+      whether commercial, academic, personal, or otherwise — except by the
+      Owner;
+  (e) Reverse-engineering, decompiling, or disassembling the Software,
+      except to the minimum extent permitted by mandatory applicable law.
+
+GitHub's Terms of Service permit users to view and fork public repositories
+on the GitHub platform; that platform permission is independent of, and
+does NOT extend, the rights granted under this license. Forking on GitHub
+confers no right to use, run, or distribute the Software outside that
+platform's view-and-fork mechanism.
+
+Prior versions of the Software released under different license terms remain
+governed by the license under which they were originally distributed. This
+license applies to all commits made on or after the date this file is
+committed to the repository.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL
+THE OWNER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN
+AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+For licensing inquiries, contact: kangnam7654@naver.com

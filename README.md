@@ -180,4 +180,10 @@ Active development. Core backend is functional. UI needs overhaul.
 
 ## License
 
-[MIT](LICENSE) -- Copyright (c) 2026 Kangnam Kim
+**Proprietary — All Rights Reserved.** Copyright (c) 2026 Kangnam Kim.
+
+This repository is source-visible for transparency and personal-archive
+purposes only. It is **not open source**. No license is granted to use, copy,
+modify, or distribute the code except by the copyright holder. See
+[LICENSE](LICENSE) for full terms. For licensing inquiries, contact
+kangnam7654@naver.com.

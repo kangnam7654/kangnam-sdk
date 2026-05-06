@@ -16,7 +16,11 @@ version = "0.3.0"
 edition = "2024"
 rust-version = "1.85"
 authors = ["Kangnam Kim <kangnam7654@naver.com>"]
-license = "MIT"
+# Source-available proprietary — see LICENSE for full terms. SPDX `LicenseRef-`
+# prefix marks this as a non-OSI custom license. publish=false hard-stops any
+# accidental `cargo publish` to crates.io.
+license = "LicenseRef-Proprietary-AllRightsReserved"
+publish = false
 repository = "https://github.com/kangnam7654/kangnam-sdk"
 
 [workspace.dependencies]

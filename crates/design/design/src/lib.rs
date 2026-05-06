@@ -32,3 +32,6 @@ pub use kangnam_design_craft as craft;
 
 #[cfg(feature = "prompt-template")]
 pub use kangnam_design_prompt_template as prompt_template;
+
+#[cfg(feature = "contracts")]
+pub use kangnam_design_contracts as contracts;

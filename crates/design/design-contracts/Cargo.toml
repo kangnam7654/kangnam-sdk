@@ -1,0 +1,17 @@
+[package]
+name = "kangnam-design-contracts"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Pure-Rust port of open-design's `@open-design/contracts` package — shared web/daemon boundary types: API error codes, task states, SSE transport, live-artifact constraints. Wire-compatible with the upstream TypeScript zod schemas."
+keywords = ["contract", "api", "sse", "zod", "boundary"]
+categories = ["api-bindings", "data-structures"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]

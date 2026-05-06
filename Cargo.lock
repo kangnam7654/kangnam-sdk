@@ -2584,6 +2584,7 @@ dependencies = [
 name = "kangnam-design"
 version = "0.3.0"
 dependencies = [
+ "kangnam-design-contracts",
  "kangnam-design-craft",
  "kangnam-design-doc-site",
  "kangnam-design-doc-slide",
@@ -2604,6 +2605,15 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "zip",
+]
+
+[[package]]
+name = "kangnam-design-contracts"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

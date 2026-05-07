@@ -13,6 +13,7 @@ categories = ["multimedia"]
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+kangnam-design-catalog-core = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

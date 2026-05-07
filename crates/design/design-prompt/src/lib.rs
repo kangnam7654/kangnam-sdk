@@ -50,6 +50,25 @@ pub const DECK_FRAMEWORK_PROMPT: &str = include_str!("../prompts/deck-framework.
 /// `brand-spec.md` · vocalise.
 pub const BRAND_ASSET_PROMPT: &str = include_str!("../prompts/brand-asset-protocol.md");
 
+/// Generic deck starter — load-bearing HTML/CSS scaffolding used by deck-mode
+/// skills that don't ship their own seed template. Mirrors the
+/// [`DECK_FRAMEWORK_PROMPT`] markdown rules but as an actual HTML skeleton
+/// (slide grid, counter, scroll-snap, print stylesheet). Ported from
+/// open-design's [`templates/deck-framework.html`][odt] (Apache-2.0).
+///
+/// [odt]: https://github.com/nexu-io/open-design/blob/main/templates/deck-framework.html
+pub const DECK_FRAMEWORK_HTML: &str = include_str!("../templates/deck-framework.html");
+
+/// `kami` deck starter — paper-editorial HTML scaffolding paired with the
+/// `kami` design system (warm parchment canvas, ink-blue accent, serif at
+/// one weight). Ported from open-design's
+/// [`templates/kami-deck.html`][odk] (Apache-2.0); the styling rules trace
+/// back to [`tw93/kami`][kami] (MIT).
+///
+/// [odk]: https://github.com/nexu-io/open-design/blob/main/templates/kami-deck.html
+/// [kami]: https://github.com/tw93/kami
+pub const KAMI_DECK_HTML: &str = include_str!("../templates/kami-deck.html");
+
 /// Composer input. All fields except metadata are optional — composing with
 /// no skill / DS still produces a usable system prompt, just less specific.
 #[derive(Debug, Clone, Default)]

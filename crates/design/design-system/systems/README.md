@@ -1,28 +1,49 @@
 # Design Systems
 
-Each subfolder is a portable design system in [`DESIGN.md`](../docs/spec.md)
-format. Pick one in the top-bar **Design system** dropdown and every skill
-will read it as part of its system prompt.
+Each subfolder is a portable design system in [`DESIGN.md`](../../../../docs/design-system-spec.md)
+format. The [`kangnam-design-system`](../) crate parses these into typed
+9-section records (`color`, `typography`, `spacing`, `layout`, `components`,
+`motion`, `voice`, `brand`, `anti-patterns`) and feeds the result into any
+skill's system prompt.
 
 ## What's bundled
 
 - **`default/`** — Neutral Modern. Hand-authored starter for the OD spec.
 - **`warm-editorial/`** — Warm Editorial. Hand-authored serif starter.
-- **69 product systems**, imported from
+- **`atelier-zero/`** — Atelier Zero. Hand-authored magazine-grade collage
+  system: warm paper canvas, plaster-and-architecture imagery, oversized
+  italic-mixed display type, Roman-numeral section markers, side rails of
+  rotated micro-text, coordinate annotations, single coral accent. Pairs with
+  [`open-design-landing/`](../../../design-skill/skills/open-design-landing/)
+  and [`open-design-landing-deck/`](../../../design-skill/skills/open-design-landing-deck/)
+  for the canonical landing-page and slide-deck renderings.
+- **`kami/`** — 紙 / 纸. Editorial paper system distilled from
+  [`tw93/kami`](https://github.com/tw93/kami) (MIT). Warm parchment canvas,
+  ink-blue accent, serif at one weight, no italic, no cool grays. Pairs with
+  the [`kami-deck/`](../../../design-skill/skills/kami-deck/) and
+  [`kami-landing/`](../../../design-skill/skills/kami-landing/) skills for
+  slide and landing work.
+- **64 design-genre systems**, sourced from
+  [`bergside/awesome-design-skills`](https://github.com/bergside/awesome-design-skills)
+  and added directly as normalized 9-section `DESIGN.md` files. Cover
+  aesthetic genres rather than brands: `brutalism`, `glassmorphism`,
+  `claymorphism`, `neumorphism`, `neobrutalism`, `editorial`, `dithered`,
+  `dashboard`, `pacman`, `tetris`, etc.
+- **70 product systems**, imported from
   [`VoltAgent/awesome-design-md`](https://github.com/VoltAgent/awesome-design-md)
   (the [`getdesign@latest`](https://www.npmjs.com/package/getdesign) npm
   package, MIT-licensed). One folder per brand:
 
   | Category | Systems |
   |---|---|
-  | AI & LLM | claude · cohere · elevenlabs · minimax · mistral-ai · ollama · opencode-ai · replicate · runwayml · together-ai · voltagent · x-ai |
-  | Developer Tools | cursor · expo · lovable · raycast · superhuman · vercel · warp |
-  | Productivity & SaaS | cal · intercom · linear-app · mintlify · notion · resend · zapier |
+  | AI & LLM | claude · cohere · elevenlabs · huggingface · minimax · mistral-ai · ollama · openai · opencode-ai · replicate · runwayml · together-ai · voltagent · x-ai |
+  | Developer Tools | cursor · expo · github · lovable · raycast · shadcn · superhuman · vercel · warp |
+  | Productivity & SaaS | cal · discord · intercom · linear-app · lingo · mintlify · notion · resend · zapier |
   | Backend & Data | clickhouse · composio · hashicorp · mongodb · posthog · sanity · sentry · supabase |
-  | Design & Creative | airtable · clay · figma · framer · miro · webflow |
+  | Design & Creative | airtable · ant · arc · canva · clay · figma · framer · miro · webflow |
   | Fintech & Crypto | binance · coinbase · kraken · mastercard · revolut · stripe · wise |
-  | E-Commerce & Retail | airbnb · meta · nike · shopify · starbucks |
-  | Media & Consumer | apple · ibm · nvidia · pinterest · playstation · spacex · spotify · theverge · uber · vodafone · wired |
+  | E-Commerce & Retail | airbnb · duolingo · meta · nike · shopify · starbucks |
+  | Media & Consumer | apple · ibm · levels · nvidia · pinterest · playstation · spacex · spotify · theverge · uber · vodafone · wired · xiaohongshu |
   | Automotive | bmw · bugatti · ferrari · lamborghini · renault · tesla |
 
 Folders use ASCII slugs — dotted brands are normalized (`linear.app` →
@@ -31,7 +52,7 @@ Folders use ASCII slugs — dotted brands are normalized (`linear.app` →
 ## File shape
 
 The first H1 is the title shown in the picker. The line immediately after
-the H1 is parsed for `> Category: <name>` and used to group the dropdown:
+the H1 is parsed for `> Category: <name>` and used to group lookups:
 
 ```markdown
 # Design System Inspired by Cohere
@@ -44,32 +65,41 @@ the H1 is parsed for `> Category: <name>` and used to group the dropdown:
 ```
 
 Both the boilerplate prefix `Design System Inspired by ` and the
-`> Category: ...` line are stripped from the dropdown label and the summary
-preview at runtime — they're only metadata.
+`> Category: ...` line are stripped from the label and the summary preview
+at runtime — they're metadata, not body content.
 
 ## Adding your own
 
-Drop a new folder containing a `DESIGN.md` and it shows up on next refresh.
-Add a `> Category: <Group>` line to slot it under an existing group, or use
-any new label and it lands at the bottom of the dropdown.
+Drop a new folder containing a `DESIGN.md` and it shows up on next
+[`load_systems_from_dir`](../src/loader.rs) call. Add a `> Category: <Group>`
+line to slot it under an existing group, or use any new label and it lands
+at the bottom of the dropdown.
 
 ## Refreshing the bundled set
 
-The 69 product systems are pulled from the upstream npm package. To re-sync
-to the latest hashes:
+The 70 product systems are pulled from the upstream npm package. To re-sync
+to the latest hashes (mirrors open-design's importer):
 
 ```bash
 curl -sL $(npm view getdesign dist.tarball) -o /tmp/getdesign.tgz
 tar -xzf /tmp/getdesign.tgz -C /tmp
-node scripts/sync-design-systems.mjs   # planned helper — see roadmap
+node --experimental-strip-types scripts/sync-design-systems.ts
 ```
 
-For now, the original importer lives at the top of the
-[`excessive-climb` branch](../) — re-run it against a fresh tarball.
+The 64 design-genre systems and the `atelier-zero` / `kami` hand-authored
+starters track [`nexu-io/open-design`](https://github.com/nexu-io/open-design).
+To re-sync, mirror the `design-systems/` directory.
 
 ## Attribution
 
-The 69 product systems are sourced from
-[`VoltAgent/awesome-design-md`](https://github.com/VoltAgent/awesome-design-md)
-(MIT, © VoltAgent contributors). They are aesthetic *inspirations* — none
-of them are official assets of the brands they reference.
+- The 70 product systems are sourced from
+  [`VoltAgent/awesome-design-md`](https://github.com/VoltAgent/awesome-design-md)
+  (MIT, © VoltAgent contributors). They are aesthetic *inspirations* — none
+  of them are official assets of the brands they reference.
+- The 64 design-genre systems are sourced from
+  [`bergside/awesome-design-skills`](https://github.com/bergside/awesome-design-skills).
+- The `kami/` system adapts tokens, type rules, and the "ten invariants" from
+  [`tw93/kami`](https://github.com/tw93/kami) (MIT, © Tw93 and contributors),
+  a Claude skill for typesetting professional documents and slide decks.
+- The `atelier-zero/`, `default/`, and `warm-editorial/` starters originate
+  in [`nexu-io/open-design`](https://github.com/nexu-io/open-design).

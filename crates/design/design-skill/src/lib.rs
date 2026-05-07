@@ -4,14 +4,18 @@
 //! optional `assets/` and `references/` side files. Frontmatter follows
 //! Anthropic's [SkillFrontmatterV1][skv] convention augmented with the
 //! open-design [`od:`][odp] namespace (mode / platform / scenario / preview /
-//! kangnam_design_system) and open-codesign extras (user_invocable, allowed_tools,
-//! disable_model_invocation).
+//! kangnam_design_system / craft) and open-codesign extras (user_invocable,
+//! allowed_tools, disable_model_invocation).
 //!
 //! Ships a 64-skill vendored catalog at `skills/` covering web-prototype +
 //! taste variants, dashboard, mobile-app, the html-ppt family (16 themes),
 //! kami-deck/kami-landing, hatch-pet, guizang-ppt, replit-deck, and others —
 //! Apache-2.0, with bundled `guizang-ppt`, `html-ppt`, and `hatch-pet`
 //! skills retaining their original LICENSE files.
+//!
+//! Skills opt into brand-agnostic craft rulebooks (typography, color, a11y,
+//! motion, RTL/BiDi, anti-AI-slop, state coverage) via the `od.craft.requires`
+//! array — see the [`kangnam-design-craft`] crate.
 //!
 //! ## Protocol references
 //!

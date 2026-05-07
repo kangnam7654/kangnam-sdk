@@ -11,9 +11,11 @@
 pub mod client;
 pub mod models;
 pub mod providers;
+pub mod streaming_editor;
 
 pub use client::{AiAttachment, AiChunk, AiClient, AiError};
 pub use models::{list_models, ModelList, ModelListError, ModelSource};
+pub use streaming_editor::{run_stream, strip_code_fence, truncate_for_msg, EditEvent};
 pub use providers::{
     AiProvider, AiProviderConfig, AiProviderError, ClaudeCliClient, GeminiCliClient,
     LmStudioClient,

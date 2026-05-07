@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Added (round 23) — `kangnam-harness-llm-bridge::mcp` — native MCP client + AgentTool adapter
+
+Architectural inspiration absorbed from RisuAI's `process/mcp/` (GPL-3 — patterns only, no code copy). Adds first-class Model Context Protocol support to `LlmAgent` so the bridge can consume tools advertised by external MCP servers (filesystem, brave-search, github, custom Python tools, etc.).
+
+- `mcp::McpClient` (clone-cheap, `Arc`-shared) — high-level client with `initialize` handshake, `list_tools`, `call_tool`. Accepts both nested `serverInfo` and flat name/version response shapes (some early MCP servers ship the legacy flat form). Logs a `tracing::warn!` when the server's `protocolVersion` differs from the client's `2024-11-05` advertisement, but proceeds optimistically (handshake is forward-compatible).
+- `mcp::transport::McpTransport` trait — pluggable async transport. Two implementations:
+  - `StdioTransport::spawn(command, args)` — spawns a child process, line-delimited JSON-RPC over stdin/stdout, background reader task routes responses by request id, `kill_on_drop(true)` for clean shutdown. Uses `tokio::sync::Mutex` for stdin (held across `.await`) + `std::sync::Mutex` for the pending-id map (held only briefly). 30s default per-request timeout, configurable via `with_timeout`.
+  - `InMemoryTransport` (Clone) — scripted per-method responses for tests. Records every observed request so tests can assert on dispatch order. `ScriptedResponse::Ok(Value)` / `Error { code, message, data }` cover both success and JSON-RPC error envelopes.
+- `mcp::McpAgentTool<C>` — implements `AgentTool<C>` over an `McpClient`. Flattens `MCpToolContent::Text` blocks into a single string (image/resource blocks render as `<image:mime>` / `<resource:uri>` placeholders so the LLM sees deterministic payloads). Maps `result.isError == true` to `ToolResult::Failed` so the bridge surfaces it to the model with `is_error: true` on the wire.
+- `LlmAgent::with_mcp_server_stdio(label, command, args)` — one-shot builder that spawns + initialises + lists + registers all advertised tools. `with_mcp_client(label, client)` — lower-level variant for custom transports (in-memory, future SSE).
+- `BridgeError::Mcp { server_label, source }` — wraps every MCP-side failure with the label so multi-server agents can identify which spawn failed.
+- Tests (3 new test targets):
+  - **Layer 1** `tests/mcp_in_memory.rs` (9 tests) — `McpClient` against `InMemoryTransport`. Covers nested + flat `serverInfo` shapes, `tools/list` round-trip with default schema fallback, text content flattening, `isError` propagation, JSON-RPC error envelope mapping, missing-field protocol errors, and full `LlmAgent::with_mcp_client` integration with `MockLlmProvider` (verifies dispatch order and arg passthrough).
+  - **Layer 2** `tests/mcp_stdio.rs` (3 tests) — spawned-process integration against `tests/mcp_fixtures/echo_server.py`. Verifies handshake + listing + call round-trip, unknown-tool server errors, and **8 concurrent tool calls** that exercise the stdin Mutex + reader task race-free dispatch path. Skips early when `python3` is not on `PATH`.
+  - 5 new unit tests in `mcp::types` (content flattening, default schema, isError default).
+- 30 bridge tests pass + 1 ignored live LM Studio test (was 13). Workspace remains clippy-clean. Note: a pre-existing flaky `tarot-engine::test_draw_index_changes_card` (probabilistic seed) is unrelated to this round.
+
+**Why MCP and not just direct AgentTool impls?** AgentTool requires Rust code per tool. MCP lets users plug in *any* tool by pointing at an executable that speaks the MCP protocol — `npx @modelcontextprotocol/server-filesystem`, `python3 my_tool.py`, etc. The bridge adapts those to the same `LlmAgent` registry so they coexist with native AgentTool impls.
+
 ### Added (round 22) — LM Studio tool calling: 3-layer test infrastructure
 
 - `kangnam-harness-llm-bridge::test_util::MockLlmProvider` — scripted in-memory `LlmProviderDyn` for unit tests. State (steps queue + observed-call log) wrapped in `Arc<Mutex<…>>` so tests `clone()` once before boxing the original into `LlmAgent::new()`, then inspect `observed()` post-`run()`. `Step::text` / `Step::tool_call` / `Step::tool_calls` constructors. Gated behind the `test-util` feature.

@@ -18,8 +18,9 @@ kangnam-router = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["sync", "macros", "rt"] }
+tokio = { workspace = true, features = ["sync", "macros", "rt", "process", "io-util", "time"] }
 tracing = { workspace = true }
+uuid = { workspace = true }
 
 [features]
 default = []
@@ -48,3 +49,8 @@ required-features = ["test-util"]
 
 # `lm_studio_live` does not use `MockLlmProvider`, so no required-features.
 # It is `#[ignore]`-gated and only fires with `--ignored` + an env var.
+
+[[test]]
+name = "mcp_in_memory"
+path = "tests/mcp_in_memory.rs"
+required-features = ["test-util"]

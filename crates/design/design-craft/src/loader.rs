@@ -25,6 +25,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use kangnam_design_catalog_core as catalog;
+
 use crate::{AsCraftRef, Craft};
 
 /// Owned craft loaded from disk. Mirrors [`Craft`] but heap-allocated
@@ -85,68 +87,48 @@ pub enum LoadError {
     NotDir(PathBuf),
 }
 
-/// Load every `<id>.md` at `<root>/`. Returns crafts sorted by id.
-/// Title defaults to the first H1 in the body (or the id, capitalized,
-/// if no H1 is found). `when_to_require` is empty for user-supplied
-/// crafts — the field exists for symmetry with the built-ins; consumers
-/// who want it should encode their own convention (e.g. a `> Required for: …`
-/// blockquote on the first line) and post-process.
-pub fn load_crafts_from_dir(root: impl AsRef<Path>) -> Result<Vec<OwnedCraft>, LoadError> {
-    let root = root.as_ref();
-    if !root.is_dir() {
-        return Err(LoadError::NotDir(root.to_path_buf()));
+impl From<catalog::CatalogError> for LoadError {
+    fn from(e: catalog::CatalogError) -> Self {
+        match e {
+            catalog::CatalogError::Io(e) => LoadError::Io(e),
+            // NotFound and Parse cannot be produced by the craft parse closure
+            // (which only returns io::Error), but we handle them defensively.
+            catalog::CatalogError::NotFound(id) => {
+                LoadError::Io(std::io::Error::other(format!("craft not found: {id}")))
+            }
+            catalog::CatalogError::Parse { id, source } => LoadError::Io(std::io::Error::other(
+                format!("parse error for craft `{id}`: {source}"),
+            )),
+        }
     }
-    let mut crafts = Vec::new();
-    for entry in fs::read_dir(root)? {
-        let entry = entry?;
-        let path = entry.path();
-        let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
-            continue;
-        };
-        if !path.is_file() {
-            continue;
-        }
-        if path.extension().and_then(|s| s.to_str()) != Some("md") {
-            continue;
-        }
-        if stem.starts_with('_') {
-            continue;
-        }
-        let body = fs::read_to_string(&path)?;
-        let title = first_h1(&body).unwrap_or_else(|| pretty_title(stem));
-        crafts.push(OwnedCraft {
-            id: stem.to_string(),
-            title,
-            when_to_require: String::new(),
-            body,
-        });
-    }
-    crafts.sort_by(|a, b| a.id.cmp(&b.id));
-    Ok(crafts)
 }
 
-/// Cheap directory-scan alternative — returns just the ids.
-pub fn list_craft_ids(root: impl AsRef<Path>) -> Result<Vec<String>, LoadError> {
-    let root = root.as_ref();
-    if !root.is_dir() {
-        return Err(LoadError::NotDir(root.to_path_buf()));
+// ── helpers ───────────────────────────────────────────────────────────────
+
+/// Filter: accept `.md` files whose stem does not start with `_`.
+fn md_craft_filter(path: &Path) -> Option<String> {
+    if !path.is_file() {
+        return None;
     }
-    let mut ids = Vec::new();
-    for entry in fs::read_dir(root)? {
-        let entry = entry?;
-        let path = entry.path();
-        let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
-            continue;
-        };
-        if path.is_file()
-            && path.extension().and_then(|s| s.to_str()) == Some("md")
-            && !stem.starts_with('_')
-        {
-            ids.push(stem.to_string());
-        }
+    let stem = path.file_stem()?.to_str()?;
+    if stem.starts_with('_') {
+        return None;
     }
-    ids.sort();
-    Ok(ids)
+    if path.extension()?.to_str() != Some("md") {
+        return None;
+    }
+    Some(stem.to_string())
+}
+
+fn parse_craft(id: &str, path: &Path) -> Result<OwnedCraft, std::io::Error> {
+    let body = fs::read_to_string(path)?;
+    let title = first_h1(&body).unwrap_or_else(|| pretty_title(id));
+    Ok(OwnedCraft {
+        id: id.to_string(),
+        title,
+        when_to_require: String::new(),
+        body,
+    })
 }
 
 fn first_h1(body: &str) -> Option<String> {
@@ -171,6 +153,31 @@ fn pretty_title(stem: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join("-")
+}
+
+// ── public API ────────────────────────────────────────────────────────────
+
+/// Load every `<id>.md` at `<root>/`. Returns crafts sorted by id.
+/// Title defaults to the first H1 in the body (or the id, capitalized,
+/// if no H1 is found). `when_to_require` is empty for user-supplied
+/// crafts — the field exists for symmetry with the built-ins; consumers
+/// who want it should encode their own convention (e.g. a `> Required for: …`
+/// blockquote on the first line) and post-process.
+pub fn load_crafts_from_dir(root: impl AsRef<Path>) -> Result<Vec<OwnedCraft>, LoadError> {
+    let root = root.as_ref();
+    if !root.is_dir() {
+        return Err(LoadError::NotDir(root.to_path_buf()));
+    }
+    catalog::load_dir(root, md_craft_filter, parse_craft).map_err(LoadError::from)
+}
+
+/// Cheap directory-scan alternative — returns just the ids.
+pub fn list_craft_ids(root: impl AsRef<Path>) -> Result<Vec<String>, LoadError> {
+    let root = root.as_ref();
+    if !root.is_dir() {
+        return Err(LoadError::NotDir(root.to_path_buf()));
+    }
+    catalog::list_ids(root, md_craft_filter).map_err(LoadError::from)
 }
 
 #[cfg(test)]

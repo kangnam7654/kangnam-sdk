@@ -15,6 +15,7 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 thiserror = { workspace = true }
 kangnam-harness-core = { workspace = true }
+kangnam-design-catalog-core = { workspace = true }
 kangnam-design-craft = { workspace = true, optional = true }
 
 [features]

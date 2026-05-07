@@ -7,6 +7,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use kangnam_design_catalog_core as catalog;
+
 use crate::parser::{parse_design_md, NineSections, ParseError};
 use crate::tokens::{extract_color_tokens, ColorToken};
 
@@ -34,64 +36,85 @@ pub enum LoadError {
     Missing(PathBuf),
 }
 
+/// Internal error type that can hold both io and parse errors for use with
+/// `catalog::load_dir`'s `E: Into<Box<dyn Error + Send + Sync>>` bound.
+#[derive(Debug, thiserror::Error)]
+enum ParseSystemError {
+    #[error("io: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("parse: {0}")]
+    Parse(#[from] ParseError),
+}
+
+impl From<catalog::CatalogError> for LoadError {
+    fn from(e: catalog::CatalogError) -> Self {
+        match e {
+            catalog::CatalogError::Io(e) => LoadError::Io(e),
+            catalog::CatalogError::NotFound(id) => LoadError::Missing(PathBuf::from(id)),
+            catalog::CatalogError::Parse { id: _, source } => {
+                // Downcast to ParseSystemError variants.
+                if let Ok(inner) = source.downcast::<ParseSystemError>() {
+                    match *inner {
+                        ParseSystemError::Io(e) => LoadError::Io(e),
+                        ParseSystemError::Parse(e) => LoadError::Parse(e),
+                    }
+                } else {
+                    LoadError::Io(std::io::Error::other("unknown parse error"))
+                }
+            }
+        }
+    }
+}
+
+// ── filter ────────────────────────────────────────────────────────────────
+
+/// Accepts subdirectories that contain a `DESIGN.md`.
+fn system_filter(path: &Path) -> Option<String> {
+    if !path.is_dir() {
+        return None;
+    }
+    if !path.join("DESIGN.md").exists() {
+        return None;
+    }
+    path.file_name()?.to_str().map(|s| s.to_string())
+}
+
+// ── parse ─────────────────────────────────────────────────────────────────
+
+fn parse_system(id: &str, path: &Path) -> Result<DesignSystem, ParseSystemError> {
+    let body = fs::read_to_string(path.join("DESIGN.md"))?;
+    let sections = parse_design_md(&body)?;
+    let color_tokens = sections
+        .color
+        .as_deref()
+        .map(extract_color_tokens)
+        .unwrap_or_default();
+    Ok(DesignSystem {
+        id: id.to_string(),
+        body,
+        sections,
+        color_tokens,
+    })
+}
+
+// ── public API ────────────────────────────────────────────────────────────
+
 /// Load every system at `<root>/<id>/DESIGN.md`. Returns systems sorted by
 /// id. Errors short-circuit (use [`load_systems_from_dir_lossy`] for a
 /// best-effort variant when bundled vendored data is partially malformed).
 pub fn load_systems_from_dir(root: impl AsRef<Path>) -> Result<Vec<DesignSystem>, LoadError> {
-    let mut systems = Vec::new();
-    for entry in fs::read_dir(root.as_ref())? {
-        let entry = entry?;
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
-        }
-        let design_md = path.join("DESIGN.md");
-        if !design_md.exists() {
-            // Tolerate non-system dirs (e.g. starter "default" might exist).
-            continue;
-        }
-        let body = fs::read_to_string(&design_md)?;
-        let sections = parse_design_md(&body)?;
-        let color_tokens = sections
-            .color
-            .as_deref()
-            .map(extract_color_tokens)
-            .unwrap_or_default();
-        let id = path
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("")
-            .to_string();
-        systems.push(DesignSystem {
-            id,
-            body,
-            sections,
-            color_tokens,
-        });
-    }
-    systems.sort_by(|a, b| a.id.cmp(&b.id));
-    Ok(systems)
+    catalog::load_dir(root.as_ref(), system_filter, parse_system).map_err(LoadError::from)
 }
 
 /// Cheap directory-scan alternative — returns just the ids.
 pub fn list_system_ids(root: impl AsRef<Path>) -> Result<Vec<String>, LoadError> {
-    let mut out = Vec::new();
-    for entry in fs::read_dir(root.as_ref())? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_dir() && path.join("DESIGN.md").exists() {
-            if let Some(name) = path.file_name().and_then(|s| s.to_str()) {
-                out.push(name.to_string());
-            }
-        }
-    }
-    out.sort();
-    Ok(out)
+    catalog::list_ids(root.as_ref(), system_filter).map_err(LoadError::from)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     fn vendored_root() -> PathBuf {
         // From this test we are at $WORKSPACE/crates/design/design-system/.

@@ -1,0 +1,16 @@
+[package]
+name = "kangnam-design-catalog-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Shared catalog-loader primitives (directory walk, id listing, parse dispatch) reused by design-skill, design-system, design-craft, and design-prompt-template."
+keywords = ["design", "catalog", "loader"]
+categories = ["multimedia"]
+
+[dependencies]
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

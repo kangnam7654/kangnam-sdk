@@ -68,6 +68,7 @@ kangnam-design-editor-slide   = { path = "crates/design/design-editor-slide" }
 kangnam-design-editor-site    = { path = "crates/design/design-editor-site" }
 kangnam-design-export-pptx    = { path = "crates/design/design-export-pptx" }
 kangnam-design-direction      = { path = "crates/design/design-direction" }
+kangnam-design-catalog-core   = { path = "crates/design/design-catalog-core" }
 kangnam-design-system         = { path = "crates/design/design-system" }
 kangnam-design-skill          = { path = "crates/design/design-skill" }
 kangnam-design-prompt         = { path = "crates/design/design-prompt" }

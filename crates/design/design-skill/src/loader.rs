@@ -6,6 +6,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use kangnam_design_catalog_core as catalog;
+
 use crate::frontmatter::{parse_frontmatter, FrontmatterError};
 use crate::model::DesignSkill;
 
@@ -19,22 +21,62 @@ pub enum LoadError {
     Missing(PathBuf),
 }
 
+/// Internal error covering both io and frontmatter variants.
+#[derive(Debug, thiserror::Error)]
+enum ParseSkillError {
+    #[error("io: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("frontmatter: {0}")]
+    Frontmatter(#[from] FrontmatterError),
+}
+
+impl From<catalog::CatalogError> for LoadError {
+    fn from(e: catalog::CatalogError) -> Self {
+        match e {
+            catalog::CatalogError::Io(e) => LoadError::Io(e),
+            catalog::CatalogError::NotFound(id) => LoadError::Missing(PathBuf::from(id)),
+            catalog::CatalogError::Parse { id: _, source } => {
+                if let Ok(inner) = source.downcast::<ParseSkillError>() {
+                    match *inner {
+                        ParseSkillError::Io(e) => LoadError::Io(e),
+                        ParseSkillError::Frontmatter(e) => LoadError::Frontmatter(e),
+                    }
+                } else {
+                    LoadError::Io(std::io::Error::other("unknown parse error"))
+                }
+            }
+        }
+    }
+}
+
+// ── filter ────────────────────────────────────────────────────────────────
+
+fn skill_filter(path: &Path) -> Option<String> {
+    if !path.is_dir() {
+        return None;
+    }
+    if !path.join("SKILL.md").exists() {
+        return None;
+    }
+    path.file_name()?.to_str().map(|s| s.to_string())
+}
+
+// ── parse ─────────────────────────────────────────────────────────────────
+
+fn parse_skill_entry(id: &str, path: &Path) -> Result<DesignSkill, ParseSkillError> {
+    let skill_md = path.join("SKILL.md");
+    let body = fs::read_to_string(&skill_md)?;
+    let mut skill = parse_frontmatter(&body)?;
+    skill.id = id.to_string();
+    skill.root = path.to_path_buf();
+    Ok(skill)
+}
+
+// ── public API ────────────────────────────────────────────────────────────
+
 /// Load every skill at `<root>/<id>/SKILL.md`. Returns sorted by id.
 pub fn load_skills_from_dir(root: impl AsRef<Path>) -> Result<Vec<DesignSkill>, LoadError> {
-    let mut skills = Vec::new();
-    for entry in fs::read_dir(root.as_ref())? {
-        let entry = entry?;
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
-        }
-        if !path.join("SKILL.md").exists() {
-            continue;
-        }
-        skills.push(load_skill(&path)?);
-    }
-    skills.sort_by(|a, b| a.id.cmp(&b.id));
-    Ok(skills)
+    catalog::load_dir(root.as_ref(), skill_filter, parse_skill_entry).map_err(LoadError::from)
 }
 
 /// Load a single skill from a directory containing `SKILL.md`. The skill's
@@ -45,31 +87,23 @@ pub fn load_skill(dir: impl AsRef<Path>) -> Result<DesignSkill, LoadError> {
     if !skill_md.exists() {
         return Err(LoadError::Missing(skill_md));
     }
-    let body = fs::read_to_string(&skill_md)?;
-    let mut skill = parse_frontmatter(&body)?;
-    skill.id = dir
+    let id = dir
         .file_name()
         .and_then(|s| s.to_str())
         .unwrap_or_default()
         .to_string();
-    skill.root = dir.to_path_buf();
-    Ok(skill)
+    parse_skill_entry(&id, dir).map_err(|e| match e {
+        ParseSkillError::Io(e) => LoadError::Io(e),
+        ParseSkillError::Frontmatter(e) => LoadError::Frontmatter(e),
+    })
 }
 
 /// Cheap directory-scan alternative — returns just the ids (no parse).
 pub fn list_skill_ids(root: impl AsRef<Path>) -> Result<Vec<String>, std::io::Error> {
-    let mut ids = Vec::new();
-    for entry in fs::read_dir(root.as_ref())? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_dir() && path.join("SKILL.md").exists() {
-            if let Some(name) = path.file_name().and_then(|s| s.to_str()) {
-                ids.push(name.to_string());
-            }
-        }
-    }
-    ids.sort();
-    Ok(ids)
+    catalog::list_ids(root.as_ref(), skill_filter).map_err(|e| match e {
+        catalog::CatalogError::Io(e) => e,
+        other => std::io::Error::other(other),
+    })
 }
 
 #[cfg(test)]

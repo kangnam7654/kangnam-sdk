@@ -2614,6 +2614,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "kangnam-design-catalog-core"
+version = "0.3.0"
+dependencies = [
+ "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "kangnam-design-contracts"
 version = "0.3.0"
 dependencies = [
@@ -2775,6 +2783,7 @@ dependencies = [
 name = "kangnam-design-skill"
 version = "0.3.0"
 dependencies = [
+ "kangnam-design-catalog-core",
  "kangnam-design-craft",
  "kangnam-harness-core",
  "serde",
@@ -2787,6 +2796,7 @@ dependencies = [
 name = "kangnam-design-system"
 version = "0.3.0"
 dependencies = [
+ "kangnam-design-catalog-core",
  "serde",
  "serde_json",
  "tempfile",

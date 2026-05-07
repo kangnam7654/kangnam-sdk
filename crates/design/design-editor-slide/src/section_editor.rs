@@ -7,6 +7,10 @@
 //! element's HTML fragment, because web-mode section edits can rewrite
 //! layout, background, and element set — not just copy.
 //!
+//! The streaming orchestration loop is shared via
+//! [`kangnam_design_llm::run_stream`]; only prompt rendering and the
+//! parse closure remain here.
+//!
 //! Handler-level concerns (loading the existing SiteDoc, splicing the
 //! new section back in, creating a new Version row) live in
 //! `handlers/canvas.rs`.
@@ -16,7 +20,7 @@ use futures::stream::{BoxStream, StreamExt};
 use tera::{Context, Tera};
 use thiserror::Error;
 
-use kangnam_design_llm::{AiChunk, AiClient, AiError};
+use kangnam_design_llm::{run_stream, truncate_for_msg, AiClient, AiError, EditEvent};
 use kangnam_design_doc_slide::SlideDoc;
 
 const TEMPLATE_NAME: &str = "section-edit-prompt";
@@ -158,42 +162,16 @@ impl SectionEditor {
         };
         let upstream = self.ai.complete(prompt, Vec::new());
 
-        let stream = async_stream::stream! {
-            let mut upstream = upstream;
-            let mut full_text = String::new();
-            while let Some(item) = upstream.next().await {
-                match item {
-                    Ok(AiChunk::Delta(t)) => {
-                        full_text.push_str(&t);
-                        yield Ok(SectionAddEvent::Delta(t));
+        run_stream(upstream, parse_section_lenient, SectionEditError::Ai)
+            .map(|ev| {
+                ev.map(|e| match e {
+                    EditEvent::Delta(t) => SectionAddEvent::Delta(t),
+                    EditEvent::Complete((section, section_json)) => {
+                        SectionAddEvent::Complete { section, section_json }
                     }
-                    Ok(AiChunk::Done { full_text: ai_full }) => {
-                        let raw = if ai_full.is_empty() {
-                            full_text.clone()
-                        } else {
-                            ai_full
-                        };
-                        match parse_section_lenient(&raw) {
-                            Ok((section, section_json)) => {
-                                yield Ok(SectionAddEvent::Complete {
-                                    section,
-                                    section_json,
-                                });
-                            }
-                            Err(e) => {
-                                yield Err(e);
-                            }
-                        }
-                        return;
-                    }
-                    Err(e) => {
-                        yield Err(SectionEditError::Ai(e));
-                        return;
-                    }
-                }
-            }
-        };
-        stream.boxed()
+                })
+            })
+            .boxed()
     }
 
     pub fn edit(
@@ -208,54 +186,32 @@ impl SectionEditor {
         let expected_id = input.section_id.to_string();
         let upstream = self.ai.complete(prompt, Vec::new());
 
-        let stream = async_stream::stream! {
-            let mut upstream = upstream;
-            let mut full_text = String::new();
-            while let Some(item) = upstream.next().await {
-                match item {
-                    Ok(AiChunk::Delta(t)) => {
-                        full_text.push_str(&t);
-                        yield Ok(SectionEditEvent::Delta(t));
-                    }
-                    Ok(AiChunk::Done { full_text: ai_full }) => {
-                        let raw = if ai_full.is_empty() {
-                            full_text.clone()
-                        } else {
-                            ai_full
-                        };
-                        match parse_section(&raw, &expected_id) {
-                            Ok((section, section_json)) => {
-                                yield Ok(SectionEditEvent::Complete {
-                                    section,
-                                    section_json,
-                                });
-                            }
-                            Err(e) => {
-                                yield Err(e);
-                            }
-                        }
-                        return;
-                    }
-                    Err(e) => {
-                        yield Err(SectionEditError::Ai(e));
-                        return;
-                    }
+        run_stream(
+            upstream,
+            move |cleaned| parse_section(cleaned, &expected_id),
+            SectionEditError::Ai,
+        )
+        .map(|ev| {
+            ev.map(|e| match e {
+                EditEvent::Delta(t) => SectionEditEvent::Delta(t),
+                EditEvent::Complete((section, section_json)) => {
+                    SectionEditEvent::Complete { section, section_json }
                 }
-            }
-        };
-        stream.boxed()
+            })
+        })
+        .boxed()
     }
 }
 
 /// Parse the raw AI response into a validated `SlideDoc` + its canonical
-/// JSON. Strips markdown fences, enforces that the returned `id` matches
-/// the section being edited, and re-serializes so downstream consumers
-/// get a clean, whitespace-normalized payload.
+/// JSON. `run_stream` strips markdown fences and trims before calling this,
+/// so `cleaned` is already fence-free. Enforces that the returned `id`
+/// matches the section being edited, and re-serializes so downstream
+/// consumers get a clean, whitespace-normalized payload.
 fn parse_section(
-    raw: &str,
+    cleaned: &str,
     expected_id: &str,
 ) -> Result<(SlideDoc, String), SectionEditError> {
-    let cleaned = strip_code_fence(raw.trim()).trim();
     if cleaned.is_empty() {
         return Err(SectionEditError::InvalidSection(
             "empty response".to_string(),
@@ -264,7 +220,7 @@ fn parse_section(
     let section: SlideDoc = serde_json::from_str(cleaned).map_err(|e| {
         SectionEditError::InvalidSection(format!(
             "{e} :: {}",
-            truncate(cleaned, 200)
+            truncate_for_msg(cleaned, 200)
         ))
     })?;
     if section.id != expected_id {
@@ -280,9 +236,8 @@ fn parse_section(
 
 /// Parse a raw AI response as a SlideDoc without enforcing any id
 /// constraint. Used by the `add` path where the server generates the
-/// final id post-parse.
-fn parse_section_lenient(raw: &str) -> Result<(SlideDoc, String), SectionEditError> {
-    let cleaned = strip_code_fence(raw.trim()).trim();
+/// final id post-parse. `run_stream` strips fences before calling this.
+fn parse_section_lenient(cleaned: &str) -> Result<(SlideDoc, String), SectionEditError> {
     if cleaned.is_empty() {
         return Err(SectionEditError::InvalidSection(
             "empty response".to_string(),
@@ -291,30 +246,13 @@ fn parse_section_lenient(raw: &str) -> Result<(SlideDoc, String), SectionEditErr
     let section: SlideDoc = serde_json::from_str(cleaned).map_err(|e| {
         SectionEditError::InvalidSection(format!(
             "{e} :: {}",
-            truncate(cleaned, 200)
+            // Use shared truncate helper — consistent formatting across editors.
+            truncate_for_msg(cleaned, 200)
         ))
     })?;
     let json = serde_json::to_string(&section)
         .map_err(|e| SectionEditError::InvalidSection(e.to_string()))?;
     Ok((section, json))
-}
-
-fn strip_code_fence(s: &str) -> &str {
-    let s = s.trim();
-    let stripped = s
-        .strip_prefix("```json")
-        .or_else(|| s.strip_prefix("```"));
-    let s = stripped.unwrap_or(s);
-    let s = s.trim_start_matches('\n').trim();
-    s.strip_suffix("```").map(str::trim).unwrap_or(s)
-}
-
-fn truncate(s: &str, n: usize) -> String {
-    if s.len() <= n {
-        s.to_string()
-    } else {
-        format!("{}…", &s[..n])
-    }
 }
 
 #[cfg(test)]

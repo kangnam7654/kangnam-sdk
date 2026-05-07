@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tera::{Context, Tera};
 use thiserror::Error;
 
-use kangnam_design_llm::{AiChunk, AiClient, AiError};
+use kangnam_design_llm::{run_stream, strip_code_fence, truncate_for_msg, AiClient, AiError, EditEvent};
 
 const SYSTEM_PROMPT_TEMPLATE: &str = include_str!("../templates/zone-edit-prompt.tera");
 const TEMPLATE_NAME: &str = "zone-edit-prompt";
@@ -151,33 +151,23 @@ impl ZoneEditor {
         };
         let upstream = self.ai.complete(prompt, Vec::new());
 
-        let stream = async_stream::stream! {
-            let mut upstream = upstream;
-            let mut full_text = String::new();
-            while let Some(item) = upstream.next().await {
-                match item {
-                    Ok(AiChunk::Delta(t)) => {
-                        full_text.push_str(&t);
-                        yield Ok(ZoneEditEvent::Delta(t));
-                    }
-                    Ok(AiChunk::Done { full_text: ai_full }) => {
-                        let raw = if ai_full.is_empty() { full_text.clone() } else { ai_full };
-                        let cleaned = strip_code_fence(raw.trim()).trim();
-                        if cleaned.is_empty() {
-                            yield Err(ZoneEditError::EmptyOutput);
-                            return;
-                        }
-                        yield Ok(ZoneEditEvent::Complete { html: cleaned.to_string() });
-                        return;
-                    }
-                    Err(e) => {
-                        yield Err(ZoneEditError::Ai(e));
-                        return;
-                    }
+        run_stream(
+            upstream,
+            |cleaned| {
+                if cleaned.is_empty() {
+                    return Err(ZoneEditError::EmptyOutput);
                 }
-            }
-        };
-        stream.boxed()
+                Ok(cleaned.to_string())
+            },
+            ZoneEditError::Ai,
+        )
+        .map(|ev| {
+            ev.map(|e| match e {
+                EditEvent::Delta(t) => ZoneEditEvent::Delta(t),
+                EditEvent::Complete(html) => ZoneEditEvent::Complete { html },
+            })
+        })
+        .boxed()
     }
 
     /// Batch-edit multiple zones in a single AI call. Deltas stream through
@@ -201,48 +191,32 @@ impl ZoneEditor {
             input.zones.iter().map(|z| z.zone_id.to_string()).collect();
         let upstream = self.ai.complete(prompt, Vec::new());
 
-        let stream = async_stream::stream! {
-            let mut upstream = upstream;
-            let mut full_text = String::new();
-            while let Some(item) = upstream.next().await {
-                match item {
-                    Ok(AiChunk::Delta(t)) => {
-                        full_text.push_str(&t);
-                        yield Ok(BatchEditEvent::Delta(t));
-                    }
-                    Ok(AiChunk::Done { full_text: ai_full }) => {
-                        let raw = if ai_full.is_empty() { full_text.clone() } else { ai_full };
-                        match parse_batch_response(&raw, &requested_ids) {
-                            Ok(zones) => {
-                                yield Ok(BatchEditEvent::Complete { zones });
-                            }
-                            Err(msg) => {
-                                yield Err(ZoneEditError::InvalidBatchResponse(msg));
-                            }
-                        }
-                        return;
-                    }
-                    Err(e) => {
-                        yield Err(ZoneEditError::Ai(e));
-                        return;
-                    }
-                }
-            }
-        };
-        stream.boxed()
+        run_stream(
+            upstream,
+            move |cleaned| parse_batch_response(cleaned, &requested_ids),
+            ZoneEditError::Ai,
+        )
+        .map(|ev| {
+            ev.map(|e| match e {
+                EditEvent::Delta(t) => BatchEditEvent::Delta(t),
+                EditEvent::Complete(zones) => BatchEditEvent::Complete { zones },
+            })
+        })
+        .boxed()
     }
 }
 
 /// Parse `{"zones":[{"id","html"},...]}` from the AI's raw output. Rules:
 /// - Strip markdown code fences (models sometimes wrap JSON despite the
-///   prompt saying not to).
+///   prompt saying not to). `run_stream` already strips fences before
+///   calling this, so the inner call is a no-op on well-formed input.
 /// - Require valid JSON with a `zones` array of objects each carrying
 ///   non-empty `id` and `html` strings.
 /// - The set of returned ids must equal `requested` exactly — no missing,
 ///   no duplicates, no extras. This is what enforces all-or-nothing.
 /// - Returned order preserves the request order so UIs can render progress
 ///   deterministically.
-fn parse_batch_response(raw: &str, requested: &[String]) -> Result<Vec<(String, String)>, String> {
+fn parse_batch_response(raw: &str, requested: &[String]) -> Result<Vec<(String, String)>, ZoneEditError> {
     #[derive(Deserialize)]
     struct Outer {
         zones: Vec<Inner>,
@@ -253,29 +227,30 @@ fn parse_batch_response(raw: &str, requested: &[String]) -> Result<Vec<(String, 
         html: String,
     }
 
+    // `run_stream` has already stripped fences; this is idempotent.
     let cleaned = strip_code_fence(raw.trim()).trim();
     if cleaned.is_empty() {
-        return Err("empty response".to_string());
+        return Err(ZoneEditError::InvalidBatchResponse("empty response".to_string()));
     }
     let parsed: Outer = serde_json::from_str(cleaned)
-        .map_err(|e| format!("json parse: {e} :: {}", truncate_for_msg(cleaned)))?;
+        .map_err(|e| ZoneEditError::InvalidBatchResponse(format!("json parse: {e} :: {}", truncate_for_msg(cleaned, 200))))?;
 
     let requested_set: BTreeSet<&str> = requested.iter().map(|s| s.as_str()).collect();
     let response_set: BTreeSet<&str> = parsed.zones.iter().map(|z| z.id.as_str()).collect();
 
     if response_set.len() != parsed.zones.len() {
-        return Err(format!(
+        return Err(ZoneEditError::InvalidBatchResponse(format!(
             "duplicate zone id in response (got {} entries, {} unique)",
             parsed.zones.len(),
             response_set.len()
-        ));
+        )));
     }
     if response_set != requested_set {
         let missing: Vec<&&str> = requested_set.difference(&response_set).collect();
         let extra: Vec<&&str> = response_set.difference(&requested_set).collect();
-        return Err(format!(
+        return Err(ZoneEditError::InvalidBatchResponse(format!(
             "zone id set mismatch: missing={missing:?} extra={extra:?}"
-        ));
+        )));
     }
 
     // Preserve request order in the returned vector so downstream rendering
@@ -293,34 +268,11 @@ fn parse_batch_response(raw: &str, requested: &[String]) -> Result<Vec<(String, 
             .cloned()
             .expect("set equality guarantees presence");
         if html.trim().is_empty() {
-            return Err(format!("empty html for zone '{id}'"));
+            return Err(ZoneEditError::InvalidBatchResponse(format!("empty html for zone '{id}'")));
         }
         out.push((id.clone(), html));
     }
     Ok(out)
-}
-
-fn truncate_for_msg(s: &str) -> String {
-    const MAX: usize = 200;
-    if s.len() <= MAX {
-        s.to_string()
-    } else {
-        format!("{}… (+{} more bytes)", &s[..MAX], s.len() - MAX)
-    }
-}
-
-fn strip_code_fence(s: &str) -> &str {
-    // Models occasionally wrap their output in ```html, ```json, or a bare
-    // ``` fence despite prompt-level instructions not to. We strip the most
-    // common language tags up front so downstream parsers see raw content.
-    let s = s.trim();
-    let stripped = s
-        .strip_prefix("```html")
-        .or_else(|| s.strip_prefix("```json"))
-        .or_else(|| s.strip_prefix("```"));
-    let s = stripped.unwrap_or(s);
-    let s = s.trim_start_matches('\n').trim();
-    s.strip_suffix("```").map(str::trim).unwrap_or(s)
 }
 
 #[cfg(test)]

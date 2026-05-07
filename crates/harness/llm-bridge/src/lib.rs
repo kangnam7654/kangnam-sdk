@@ -126,6 +126,16 @@ pub enum BridgeError {
 
     #[error("max iterations exceeded ({max}): model still emitting tool_calls")]
     MaxIterations { max: u32 },
+
+    /// MCP server interaction failed during tool discovery (e.g.
+    /// `with_mcp_server_stdio` couldn't spawn the server, complete the
+    /// `initialize` handshake, or `tools/list` returned an error).
+    #[error("MCP server '{server_label}': {source}")]
+    Mcp {
+        server_label: String,
+        #[source]
+        source: mcp::McpError,
+    },
 }
 
 /// One tool invocation captured during a [`LlmAgent::run`].
@@ -346,7 +356,74 @@ impl<C: Send + Sync + 'static> LlmAgent<C> {
     pub fn tool_count(&self) -> usize {
         self.tools.len()
     }
+
+    /// Spawn an MCP server over stdio, run the handshake, list its
+    /// tools, and register each one as an [`mcp::McpAgentTool`].
+    ///
+    /// `command` + `args` are forwarded to `tokio::process::Command`
+    /// (e.g. `("npx", &["-y", "@modelcontextprotocol/server-everything"])`).
+    /// `server_label` is used in error messages so multi-server agents
+    /// can tell which spawn failed.
+    ///
+    /// Returns the augmented agent on success. The MCP client is held
+    /// internally by each `McpAgentTool` so the spawned process lives
+    /// as long as the agent (or until the stdio reader observes EOF).
+    ///
+    /// # Errors
+    ///
+    /// Wraps every MCP-side failure in [`BridgeError::Mcp`].
+    pub async fn with_mcp_server_stdio(
+        mut self,
+        server_label: impl Into<String>,
+        command: &str,
+        args: &[&str],
+    ) -> Result<Self, BridgeError> {
+        let server_label = server_label.into();
+        let client =
+            mcp::McpClient::new_stdio(command, args, mcp::ClientInfo::default())
+                .await
+                .map_err(|source| BridgeError::Mcp {
+                    server_label: server_label.clone(),
+                    source,
+                })?;
+
+        let tools = client.list_tools().await.map_err(|source| BridgeError::Mcp {
+            server_label: server_label.clone(),
+            source,
+        })?;
+
+        for tool in tools {
+            let description = tool.description.clone().unwrap_or_default();
+            let adapter: mcp::McpAgentTool<C> = mcp::McpAgentTool::new(client.clone(), tool);
+            self = self.with_boxed_tool(Arc::new(adapter), description);
+        }
+        Ok(self)
+    }
+
+    /// Register every tool advertised by an existing [`mcp::McpClient`].
+    /// Lower-level than [`Self::with_mcp_server_stdio`] — useful when
+    /// the client was constructed against a custom transport (e.g.
+    /// [`mcp::InMemoryTransport`] in tests, or a future SSE transport).
+    pub async fn with_mcp_client(
+        mut self,
+        server_label: impl Into<String>,
+        client: mcp::McpClient,
+    ) -> Result<Self, BridgeError> {
+        let server_label = server_label.into();
+        let tools = client.list_tools().await.map_err(|source| BridgeError::Mcp {
+            server_label: server_label.clone(),
+            source,
+        })?;
+        for tool in tools {
+            let description = tool.description.clone().unwrap_or_default();
+            let adapter: mcp::McpAgentTool<C> = mcp::McpAgentTool::new(client.clone(), tool);
+            self = self.with_boxed_tool(Arc::new(adapter), description);
+        }
+        Ok(self)
+    }
 }
+
+pub mod mcp;
 
 #[cfg(feature = "test-util")]
 pub mod test_util;

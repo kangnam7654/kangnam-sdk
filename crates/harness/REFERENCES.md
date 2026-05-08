@@ -53,6 +53,73 @@
 2. **Steering / follow-up message 큐 모델** — 우리 `InteractionBridge`가 suspend/resume 모델인데, 큐 모델이 동시 사용자 입력에 더 자연. 비교 ADR 가치.
 3. **Cost/token tracking** — `design-llm` 확장. provider별 가격표 + per-call 누적. 운영 시 즉시 가치.
 
+---
+
+## OpenCode — `anomalyco/opencode`
+
+| | |
+|---|---|
+| Repo | https://github.com/anomalyco/opencode |
+| License | MIT |
+| Stack | TypeScript 61% + MDX 35.8%, Bun + Turbo + SST monorepo |
+| Maturity | 157k stars, 12,345 commits, 791 releases (v1.14.41, May 2026) |
+| Domain | OSS coding agent, TUI-first, "Claude Code 대안" 자처 |
+| Added | 2026-05-08 |
+
+### 한 줄 요약
+TypeScript 모노레포 19 packages. Provider-agnostic (Claude/OpenAI/Google/local) + LSP 내장 + 멀티 에이전트 (build/plan/general) + TUI 우선 + client/server 분리. 별 수 Pi의 3.4배(157k vs 45.9k).
+
+### Package ↔ 우리 crate 대응
+
+| OpenCode (TS) | Kangnam-SDK (Rust) | 메모 |
+|---|---|---|
+| `packages/core` | `crates/harness/core` | 코어 타입 |
+| `packages/opencode` | `apps/kangnam-client` 일부 | CLI 본체 |
+| `packages/sdk` | `crates/harness/llm-bridge` + `crates/router` | provider SDK |
+| `packages/plugin` | `crates/harness/runtime` (AgentTool) | tool 확장 |
+| `packages/function` | tool 정의 | function-call schema |
+| `packages/containers` | — | 우리는 sandbox 없음 |
+| `packages/console` | — | 우리는 TUI 없음 |
+| `packages/ui` + `web` + `desktop` | `apps/kangnam-client` (Tauri) | 우리는 단일 데스크톱 |
+| `sdks/vscode` | — | IDE 통합 미진행 |
+
+### 훔칠 만한 패턴
+
+1. **멀티 에이전트 (build / plan / general)** — 같은 LLM이라도 *agent persona* 단위로 permission scope 분리. `plan`은 read-only + bash 실행 시 사용자 승인. `general`은 검색·멀티스텝 추론 전용 sub-agent. 우리는 단일 에이전트 + per-tool permission. **agent 레이어 분리 검토 가치**.
+2. **LSP 내장** — Language Server Protocol을 에이전트 도구로. 코드 정의/참조/리팩터링 navigation을 LLM이 직접 사용. 우리 harness에 코드 navigation 도구 없음. Rust 측은 `tower-lsp` 클라이언트로 가능.
+3. **Container sandboxing** — bash/file ops 컨테이너 격리. 우리 `ToolCtx` capability 모델은 in-process. 외부 명령 실행 시 격리 layer 추가 가치 (Docker/Podman backend).
+4. **client/server 분리** — backend agent server + 다중 frontend (TUI, web, desktop). 우리는 Tauri 단일. 백엔드 분리 시 web/CLI 클라이언트 가능.
+5. **Plan agent의 "bash 실행 시 사용자 승인"** — permission UX 패턴. 우리 `ToolResult::AwaitUser`와 비슷하지만 OpenCode는 agent 레벨 default. 디폴트 정책 모델로 가치.
+
+### 적용하지 말 패턴
+
+- **Bun + Turbo + SST** — 우리는 Cargo workspace. JS 도구체인 무관.
+- **VSCode SDK** — IDE 통합은 현재 우선순위 외.
+- **`enterprise` 패키지 분리** — 우리는 단일 독점 라이선스. SKU 분기 없음.
+- **다중 README 번역 (15+ 언어)** — 우리 사주/타로 도메인은 한국 우선.
+- **Plugin dynamic loading** — Rust dynamic crate 로딩은 무겁고 안전성 떨어짐. 정적 dispatch (`AgentTool` trait) 유지가 안전.
+
+### 1차 시사점
+
+import 후보 3개:
+1. **Plan/Build agent 분리** — Pi에 없는 고유 패턴. permission scope 기반 멀티 에이전트는 우리 harness에 자연스러운 추가. 변경 범위 **M / med risk** — agent abstraction이 새로 필요.
+2. **LSP 통합** — 코드베이스 navigation 즉시 ROI. `tower-lsp` 클라이언트 구현 필요. **M-L / low risk**.
+3. **Container sandboxing** — bash/file 격리. **M / low risk** — Docker/Podman 의존만 추가.
+
+### Pi vs OpenCode 비교
+
+| 축 | Pi | OpenCode |
+|---|---|---|
+| 핵심 가치 | real-world session 데이터로 학습 | Claude Code OSS 대안 |
+| 에이전트 모델 | 단일 + steering/follow-up 큐 | 멀티 (build/plan/general) |
+| UI | TUI + web (per-package) | TUI 우선 + web/desktop 분리 |
+| 격리 | 명시 없음 | containers 내장 |
+| 성숙도 | 45.9k stars | 157k stars |
+
+OpenCode의 **agent 분리** + Pi의 **큐 모델**은 **서로 보완** 가능 — persona별 permission scope에 큐 기반 사용자 inject 결합.
+
+---
+
 ### Reference 형식 — 다음 reference 추가 시
 
 이 파일에 같은 표 + 섹션 구조로 append. 다른 framework 추가 후보:

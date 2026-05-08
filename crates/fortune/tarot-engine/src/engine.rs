@@ -179,7 +179,14 @@ impl TarotEngine {
             drawn_cards
         };
 
-        // 해석 (사주 무관)
+        // 해석 (사주 무관). options.category가 있으면 카테고리별 본문 사용
+        // (메이저만), 없거나 매칭 안 되는 마이너는 cards.rs 일반 톤 fallback.
+        // 카테고리 후보: "love" | "career" | "wealth" | "health" | "general".
+        let category = input
+            .get("options")
+            .and_then(|o| o.get("category"))
+            .and_then(|v| v.as_str());
+
         let mut reading = TarotReading {
             spread_type,
             cards: drawn_cards,
@@ -187,7 +194,7 @@ impl TarotEngine {
             overall_message: String::new(),
         };
 
-        let basics = interpreter::interpret(&mut reading);
+        let basics = interpreter::interpret_with_category(&mut reading, category);
 
         // JSON 결과 구성 — interpretation 단일 키만 유지. saju/mixed/basic 분기 키 없음.
         let cards_json: Vec<Value> = reading

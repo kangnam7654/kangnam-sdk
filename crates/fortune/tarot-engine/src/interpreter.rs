@@ -1,4 +1,5 @@
 use super::cards;
+use super::category_meanings;
 use super::{DrawnCard, TarotReading};
 
 /// 카드 해석 텍스트 생성 (사주 무관, 카드 단독 의미만 전달).
@@ -6,7 +7,21 @@ use super::{DrawnCard, TarotReading};
 /// `reading.interpretations`에 각 카드별 basic 해석을 채우고,
 /// `reading.overall_message`에 종합 메시지를 채운다.
 /// 반환값은 카드별 basic 해석 문자열 리스트.
+///
+/// 하위 호환: category 미지정. cards.rs의 일반 톤 의미 사용.
 pub fn interpret(reading: &mut TarotReading) -> Vec<String> {
+    interpret_with_category(reading, None)
+}
+
+/// 카테고리 기반 해석. `category`가 메이저 카드의 카테고리 lookup에 매칭되면
+/// 그 본문을, 매칭 안 되면 cards.rs의 일반 톤으로 fallback.
+///
+/// `category` 후보: "love" | "career" | "wealth" | "health" | "general".
+/// 마이너 카드(22~77)는 카테고리와 무관하게 항상 일반 톤 fallback.
+pub fn interpret_with_category(
+    reading: &mut TarotReading,
+    category: Option<&str>,
+) -> Vec<String> {
     let mut basics: Vec<String> = Vec::with_capacity(reading.cards.len());
 
     for drawn in &reading.cards {
@@ -18,11 +33,16 @@ pub fn interpret(reading: &mut TarotReading) -> Vec<String> {
             }
         };
 
-        let base_meaning = if drawn.is_reversed {
-            card.reversed_meaning
-        } else {
-            card.upright_meaning
-        };
+        // 카테고리별 lookup 우선, fallback은 카드 자체의 일반 톤.
+        let base_meaning: &str = category
+            .and_then(|cat| {
+                category_meanings::major_category_meaning(card.id, cat, drawn.is_reversed)
+            })
+            .unwrap_or(if drawn.is_reversed {
+                card.reversed_meaning
+            } else {
+                card.upright_meaning
+            });
 
         basics.push(build_interpretation(
             &drawn.position_name,
@@ -181,5 +201,56 @@ mod tests {
         let mut celtic = make_reading(SpreadType::CelticCross, "spread_variety");
         interpret(&mut celtic);
         assert!(celtic.overall_message.contains("현재"));
+    }
+
+    /// 카테고리별 lookup이 메이저 카드에 적용되는지 회귀 lock.
+    /// 같은 시드로 두 카테고리 호출 시 카드는 같지만 본문은 카테고리별로 달라야.
+    #[test]
+    fn category_changes_meaning_for_major_cards() {
+        // 메이저 카드만 뽑힐 때까지 시드 시도. 보통 OneCard는 22/78 확률로 메이저.
+        for seed in [
+            "cat_test_a",
+            "cat_test_b",
+            "cat_test_c",
+            "cat_test_d",
+            "cat_test_e",
+        ] {
+            let mut a = make_reading(SpreadType::OneCard, seed);
+            let mut b = make_reading(SpreadType::OneCard, seed);
+            // 메이저(0~21)일 때만 검증
+            if a.cards[0].card_id > 21 {
+                continue;
+            }
+            let basic_a = interpret_with_category(&mut a, Some("love"));
+            let basic_b = interpret_with_category(&mut b, Some("career"));
+            assert_eq!(a.cards[0].card_id, b.cards[0].card_id, "same seed, same card");
+            assert_ne!(
+                basic_a[0], basic_b[0],
+                "same major card with different categories must differ — got identical: {}",
+                basic_a[0]
+            );
+            return; // 한 번 성공하면 충분
+        }
+        panic!("no major card drawn across 5 seeds — adjust seeds");
+    }
+
+    /// category=None은 cards.rs의 일반 톤 fallback. 마이너도 항상 fallback.
+    #[test]
+    fn category_none_uses_default_meaning() {
+        let mut r1 = make_reading(SpreadType::OneCard, "fallback_test");
+        let mut r2 = make_reading(SpreadType::OneCard, "fallback_test");
+        let basic_default = interpret(&mut r1);
+        let basic_none = interpret_with_category(&mut r2, None);
+        assert_eq!(basic_default, basic_none, "category=None == default interpret");
+    }
+
+    /// 알 수 없는 카테고리 — fallback to default 일반 톤.
+    #[test]
+    fn unknown_category_falls_back_to_default() {
+        let mut r1 = make_reading(SpreadType::OneCard, "unknown_cat");
+        let mut r2 = make_reading(SpreadType::OneCard, "unknown_cat");
+        let default_basic = interpret(&mut r1);
+        let unknown_basic = interpret_with_category(&mut r2, Some("nonsense"));
+        assert_eq!(default_basic, unknown_basic);
     }
 }

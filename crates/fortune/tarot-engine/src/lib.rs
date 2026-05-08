@@ -11,6 +11,7 @@
 #![deny(unsafe_code)]
 
 pub mod cards;
+pub mod category_meanings;
 pub mod draw;
 pub mod engine;
 pub mod interpreter;

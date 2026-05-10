@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useAppStore } from '../../stores/app-store'
 import { cliApi } from '../../lib/cli-api'
 import { SketchEditor } from '../sketch/SketchEditor'
+import { useAvailableModels } from '../../hooks/useAvailableModels'
 
 /**
  * Composer for outgoing chat messages — auto-resizing textarea, an
@@ -10,23 +11,75 @@ import { SketchEditor } from '../sketch/SketchEditor'
  *
  * Extracted verbatim from `ChatView.tsx` in Phase 5a-06.
  */
-type EffortLevel = 'low' | 'medium' | 'high'
+type EffortLevel = string
 
-const EFFORT_OPTIONS: { value: EffortLevel; label: string; desc: string }[] = [
-  { value: 'low', label: 'Low', desc: '빠른 응답' },
-  { value: 'medium', label: 'Medium', desc: '균형' },
-  { value: 'high', label: 'High', desc: '깊은 사고' },
-]
+const KNOWN_EFFORTS: Record<string, { label: string; desc: string }> = {
+  low: { label: 'Low', desc: '빠른 응답' },
+  medium: { label: 'Medium', desc: '균형' },
+  high: { label: 'High', desc: '깊은 사고' },
+  xhigh: { label: 'XHigh', desc: '가장 깊게' },
+}
+
+const BASE_EFFORTS = ['low', 'medium', 'high']
+const CODEX_FALLBACK_EFFORTS = ['low', 'medium', 'high', 'xhigh']
+
+function effortOption(value: string, description?: string | null) {
+  const known = KNOWN_EFFORTS[value]
+  return {
+    value,
+    label: known?.label ?? value,
+    desc: description || known?.desc || '',
+  }
+}
 
 export function MessageInput() {
   const [text, setText] = useState('')
-  const [effortLevel, setEffortLevel] = useState<EffortLevel>('high')
+  const [effortLevel, setEffortLevel] = useState<EffortLevel>('medium')
   const [effortDropdownOpen, setEffortDropdownOpen] = useState(false)
   const [sketchOpen, setSketchOpen] = useState(false)
-  const { currentSessionId, addMessage, isStreaming, setIsStreaming } = useAppStore()
+  const {
+    currentSessionId,
+    addMessage,
+    isStreaming,
+    setIsStreaming,
+    currentProvider,
+    selectedModel,
+    sessionMeta,
+  } = useAppStore()
+  const availableModels = useAvailableModels()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const effortDropdownRef = useRef<HTMLDivElement>(null)
-  const effortApplied = useRef<EffortLevel>('high')
+  const effortApplied = useRef<EffortLevel | null>(null)
+  const effortModelRef = useRef<string | null>(null)
+  const effortDefaultRef = useRef<EffortLevel | null>(null)
+  const displayModel = sessionMeta?.model ?? selectedModel
+  const activeModel = useMemo(
+    () => availableModels.find((model) => model.id === displayModel),
+    [availableModels, displayModel],
+  )
+  const effortOptions = useMemo(() => {
+    const modelLevels = activeModel?.supportedReasoningLevels ?? []
+    if (modelLevels.length > 0) {
+      return modelLevels
+        .filter((level) => level.effort)
+        .map((level) => effortOption(level.effort, level.description))
+    }
+
+    const fallback =
+      currentProvider === 'codex' || currentProvider === 'codex_cli'
+        ? CODEX_FALLBACK_EFFORTS
+        : BASE_EFFORTS
+    return fallback.map((level) => effortOption(level))
+  }, [activeModel, currentProvider])
+  const defaultEffort = useMemo(() => {
+    const modelDefault = activeModel?.defaultReasoningLevel
+    if (modelDefault && effortOptions.some((option) => option.value === modelDefault)) {
+      return modelDefault
+    }
+    return effortOptions.find((option) => option.value === 'medium')?.value
+      ?? effortOptions[0]?.value
+      ?? 'medium'
+  }, [activeModel, effortOptions])
 
   const handleStop = async () => {
     if (!currentSessionId) return
@@ -85,6 +138,34 @@ export function MessageInput() {
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`
   }, [text])
 
+  // Keep effort choices aligned with the selected model's catalog metadata.
+  useEffect(() => {
+    const modelChanged = effortModelRef.current !== displayModel
+    const defaultChanged = effortDefaultRef.current !== defaultEffort
+    const userHasPendingEffort = effortApplied.current !== null && effortApplied.current !== effortLevel
+
+    if (modelChanged || (defaultChanged && !userHasPendingEffort)) {
+      effortModelRef.current = displayModel ?? null
+      effortDefaultRef.current = defaultEffort
+      effortApplied.current = defaultEffort
+      setEffortLevel(defaultEffort)
+      return
+    }
+
+    const hasCurrent = effortOptions.some((option) => option.value === effortLevel)
+    if (!hasCurrent) {
+      effortDefaultRef.current = defaultEffort
+      effortApplied.current = defaultEffort
+      setEffortLevel(defaultEffort)
+      return
+    }
+
+    effortDefaultRef.current = defaultEffort
+    if (effortApplied.current === null) {
+      effortApplied.current = defaultEffort
+    }
+  }, [defaultEffort, displayModel, effortLevel, effortOptions])
+
   // Close effort dropdown on outside click
   useEffect(() => {
     if (!effortDropdownOpen) return
@@ -97,7 +178,10 @@ export function MessageInput() {
     return () => document.removeEventListener('mousedown', handler)
   }, [effortDropdownOpen])
 
-  const currentEffort = EFFORT_OPTIONS.find((o) => o.value === effortLevel)!
+  const currentEffort = effortOptions.find((o) => o.value === effortLevel)
+    ?? effortOption(effortLevel)
+  const isStrongEffort = effortLevel === 'high' || effortLevel === 'xhigh'
+  const isMediumEffort = effortLevel === 'medium'
 
   return (
     <div style={{ flexShrink: 0, padding: '8px 16px 12px' }}>
@@ -177,8 +261,8 @@ export function MessageInput() {
               padding: '0 7px',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border)',
-              background: effortLevel === 'high' ? 'var(--accent)' : effortLevel === 'medium' ? 'var(--accent-soft)' : 'transparent',
-              color: effortLevel === 'high' ? '#fff' : effortLevel === 'medium' ? 'var(--accent)' : 'var(--text-muted)',
+              background: isStrongEffort ? 'var(--accent)' : isMediumEffort ? 'var(--accent-soft)' : 'transparent',
+              color: isStrongEffort ? '#fff' : isMediumEffort ? 'var(--accent)' : 'var(--text-muted)',
               fontSize: 11,
               cursor: 'pointer',
               transition: 'background 0.15s, color 0.15s',
@@ -208,7 +292,7 @@ export function MessageInput() {
               <div style={{ padding: '6px 10px 4px', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Effort (/effort)
               </div>
-              {EFFORT_OPTIONS.map((opt) => (
+              {effortOptions.map((opt) => (
                 <button
                   key={opt.value}
                   onClick={() => { setEffortLevel(opt.value); setEffortDropdownOpen(false) }}

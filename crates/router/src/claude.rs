@@ -1382,6 +1382,8 @@ pub async fn list_models(api_key: &str) -> Result<Vec<crate::ListModel>, LlmErro
                             .get("output_tokens")
                             .and_then(|v| v.as_i64())
                             .map(|v| v as i32),
+                        default_reasoning_level: None,
+                        supported_reasoning_levels: Vec::new(),
                     })
                 })
                 .collect()

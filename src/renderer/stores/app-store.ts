@@ -110,6 +110,9 @@ export interface CliStatus {
   version: string | null
   path: string | null
   authenticated: boolean
+  auth_status: 'unknown' | 'not_applicable' | 'not_logged_in' | 'ready' | 'rate_limited' | 'failed'
+  auth_source: string
+  auth_message: string | null
 }
 
 export type UnifiedMessage =

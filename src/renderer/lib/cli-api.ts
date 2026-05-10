@@ -8,6 +8,22 @@ export interface ProviderMeta {
   display_name: string
   description: string
   install_hint: string
+  auth_source: string
+  subscription_based: boolean
+  login_hint: string | null
+}
+
+export interface CliModel {
+  name: string
+  display_name: string
+  description: string | null
+  input_token_limit: number | null
+  output_token_limit: number | null
+  default_reasoning_level?: string | null
+  supported_reasoning_levels?: {
+    effort: string
+    description: string | null
+  }[]
 }
 
 // Connect to Axum WebSocket server
@@ -22,6 +38,9 @@ export const cliApi = {
 
   checkInstalled: (provider: string) =>
     rpc.call<CliStatus>('cli.checkInstalled', { provider }),
+
+  listModels: (provider: string) =>
+    rpc.call<CliModel[]>('cli.listModels', { provider }),
 
   install: (provider: string) =>
     rpc.call<void>('cli.install', { provider }),

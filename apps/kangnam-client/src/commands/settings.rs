@@ -21,7 +21,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             theme: "system".to_string(),
-            default_provider: "codex".to_string(),
+            default_provider: "codex_cli".to_string(),
             font_size: 14,
             send_on_enter: true,
         }
@@ -30,11 +30,15 @@ impl Default for Settings {
 
 fn settings_path(_state: &AppState) -> PathBuf {
     #[cfg(target_os = "macos")]
-    let base = dirs::config_dir().unwrap_or_default().join("kangnam-client");
+    let base = dirs::config_dir()
+        .unwrap_or_default()
+        .join("kangnam-client");
     #[cfg(target_os = "windows")]
     let base = dirs::data_dir().unwrap_or_default().join("kangnam-client");
     #[cfg(target_os = "linux")]
-    let base = dirs::config_dir().unwrap_or_default().join("kangnam-client");
+    let base = dirs::config_dir()
+        .unwrap_or_default()
+        .join("kangnam-client");
     base.join("settings.json")
 }
 
@@ -43,8 +47,7 @@ fn load_settings(state: &AppState) -> Settings {
     match fs::read_to_string(&path) {
         Ok(raw) => {
             let defaults = Settings::default();
-            let mut merged: serde_json::Value =
-                serde_json::to_value(&defaults).unwrap_or_default();
+            let mut merged: serde_json::Value = serde_json::to_value(&defaults).unwrap_or_default();
             if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&raw) {
                 if let (Some(base), Some(overlay)) = (merged.as_object_mut(), parsed.as_object()) {
                     for (k, v) in overlay {

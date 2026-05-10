@@ -1060,6 +1060,8 @@ pub async fn list_models() -> Result<Vec<crate::ListModel>, LlmError> {
                 description: None,
                 input_token_limit: None,
                 output_token_limit: None,
+                default_reasoning_level: None,
+                supported_reasoning_levels: Vec::new(),
             }]);
         }
     }
@@ -1083,6 +1085,8 @@ fn parse_config_model(contents: &str) -> Vec<crate::ListModel> {
                     description: None,
                     input_token_limit: None,
                     output_token_limit: None,
+                    default_reasoning_level: None,
+                    supported_reasoning_levels: Vec::new(),
                 }];
             }
         }

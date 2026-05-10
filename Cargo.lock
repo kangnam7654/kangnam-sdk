@@ -2517,6 +2517,7 @@ dependencies = [
  "dirs",
  "kangnam-chat-agent",
  "kangnam-chat-core",
+ "kangnam-router",
  "rusqlite",
  "serde",
  "serde_json",

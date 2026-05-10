@@ -3,7 +3,7 @@
 use std::path::Path;
 use tokio::process::Command;
 
-use crate::types::{UnifiedMessage, ClaudeEnhancedEvent};
+use crate::types::{ClaudeEnhancedEvent, UnifiedMessage};
 
 /// Each CLI provider implements this trait to handle its specific JSON format
 /// and subprocess configuration.
@@ -18,6 +18,18 @@ pub trait CliAdapter: Send + Sync {
     /// For Claude Code: long-running with stdin/stdout pipes.
     /// For Codex CLI: one-shot per prompt via `codex exec`.
     fn build_command(&self, working_dir: &Path) -> Command;
+
+    /// Build a provider command with optional model/runtime controls.
+    /// Providers that do not support these controls can use the default
+    /// implementation.
+    fn build_command_with_options(
+        &self,
+        working_dir: &Path,
+        _model: Option<&str>,
+        _reasoning_effort: Option<&str>,
+    ) -> Command {
+        self.build_command(working_dir)
+    }
 
     /// Parse one line of stdout JSON into a UnifiedMessage.
     /// Returns None if the line should be skipped (e.g., empty or non-JSON).

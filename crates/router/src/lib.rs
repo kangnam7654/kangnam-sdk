@@ -214,9 +214,9 @@ pub struct LlmRequestOptions {
     /// - other providers: ignored
     pub max_turns: Option<u32>,
 
-    /// Reasoning effort. Values: `"low"`, `"medium"`, `"high"` (case-sensitive
-    /// lowercase). Only affects reasoning-capable models (gpt-5, o1, etc.);
-    /// silently ignored on non-reasoning models.
+    /// Reasoning effort. Source valid values from the provider model catalog
+    /// when possible; Codex reasoning models may expose values such as
+    /// `"low"`, `"medium"`, `"high"`, and `"xhigh"`.
     /// - codex_local: passes `-c model_reasoning_effort="<value>"`
     /// - other providers: ignored
     pub reasoning_effort: Option<String>,
@@ -633,6 +633,18 @@ pub struct ListModel {
     pub input_token_limit: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output_token_limit: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_reasoning_level: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub supported_reasoning_levels: Vec<ReasoningLevel>,
+}
+
+/// A reasoning effort level supported by a specific model.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReasoningLevel {
+    pub effort: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 /// List available models for a given provider.

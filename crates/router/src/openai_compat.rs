@@ -757,6 +757,8 @@ pub async fn list_models(base_url: &str, api_key: &str) -> Result<Vec<crate::Lis
                         description: None,
                         input_token_limit: None,
                         output_token_limit: None,
+                        default_reasoning_level: None,
+                        supported_reasoning_levels: Vec::new(),
                     })
                 })
                 .collect()

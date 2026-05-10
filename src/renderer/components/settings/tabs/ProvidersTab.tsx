@@ -56,6 +56,15 @@ export function ProvidersTab() {
           const status = statuses[meta.name]
           const isInstalling = installing === meta.name
           const installed = status?.installed ?? false
+          const authLabel = status?.auth_status === 'ready'
+            ? '로그인됨'
+            : status?.auth_status === 'not_logged_in'
+              ? '로그인 필요'
+              : status?.auth_status === 'failed'
+                ? '인증 확인 실패'
+                : meta.subscription_based
+                  ? '인증 확인 중'
+                  : null
 
           return (
             <div
@@ -75,6 +84,11 @@ export function ProvidersTab() {
                       v{status?.version ?? '?'}
                     </span>
                   )}
+                  {installed && authLabel && (
+                    <span style={{ fontSize: 11, color: status?.auth_status === 'not_logged_in' ? 'var(--warning)' : 'var(--text-muted)', fontWeight: 500, padding: '2px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.05)' }}>
+                      {authLabel}
+                    </span>
+                  )}
                 </div>
                 <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginLeft: 18, marginTop: 3 }}>{meta.description}</p>
                 {!installed && (
@@ -85,6 +99,11 @@ export function ProvidersTab() {
                 {installed && status?.path && (
                   <p style={{ fontSize: 11.5, color: 'var(--text-muted)', marginLeft: 18, marginTop: 2, fontFamily: 'monospace' }}>
                     {status.path}
+                  </p>
+                )}
+                {installed && status?.auth_status === 'not_logged_in' && meta.login_hint && (
+                  <p style={{ fontSize: 11.5, color: 'var(--warning)', marginLeft: 18, marginTop: 4, fontFamily: 'monospace' }}>
+                    {meta.login_hint}
                   </p>
                 )}
               </div>

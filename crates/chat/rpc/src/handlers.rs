@@ -40,6 +40,19 @@ pub async fn check_installed(
     serde_json::to_value(status).map_err(|e| JsonRpcError::internal(&e.to_string()))
 }
 
+pub async fn list_models(params: Option<serde_json::Value>) -> RpcResult {
+    let p: ProviderParam = parse_params(params)?;
+    let router_provider = match p.provider.as_str() {
+        "codex_cli" | "codex" => "codex_local",
+        "claude" => "claude_local",
+        other => other,
+    };
+    let models = kangnam_router::list_models(router_provider, "")
+        .await
+        .map_err(|e| JsonRpcError::internal(&e.to_string()))?;
+    serde_json::to_value(models).map_err(|e| JsonRpcError::internal(&e.to_string()))
+}
+
 pub async fn install(params: Option<serde_json::Value>, ctx: &DispatchContext<'_>) -> RpcResult {
     let p: ProviderParam = parse_params(params)?;
     let manager = ctx.cli_manager.lock().await;
@@ -179,7 +192,7 @@ pub async fn question_form_response(
         None => {
             return Err(JsonRpcError::internal(
                 "host has no pending_question_forms map (design tools not wired)",
-            ))
+            ));
         }
     };
     let tx = {
@@ -209,7 +222,7 @@ pub async fn preview_result(
         None => {
             return Err(JsonRpcError::internal(
                 "host has no pending_previews map (design tools not wired)",
-            ))
+            ));
         }
     };
     let tx = {
@@ -307,7 +320,7 @@ mod guard_dispatch_tests {
     use tokio::sync::Mutex as AsyncMutex;
 
     use crate::guard::{GuardError, MessageGuard};
-    use crate::{dispatch, DispatchContext, PendingPermissions};
+    use crate::{DispatchContext, PendingPermissions, dispatch};
     use kangnam_chat_core::json_rpc::JsonRpcRequest;
 
     struct NullSink;
@@ -481,10 +494,10 @@ mod await_resolve_tests {
     use kangnam_chat_agent::{AgentEventSink, CliManager};
     use kangnam_chat_core::json_rpc::JsonRpcRequest;
     use rusqlite::Connection;
-    use tokio::sync::{oneshot, Mutex as AsyncMutex};
+    use tokio::sync::{Mutex as AsyncMutex, oneshot};
 
     use crate::{
-        dispatch, DispatchContext, PendingPermissions, PendingPreviews, PendingQuestionForms,
+        DispatchContext, PendingPermissions, PendingPreviews, PendingQuestionForms, dispatch,
     };
 
     struct NullSink;
@@ -514,7 +527,8 @@ mod await_resolve_tests {
             "jsonrpc": "2.0", "id": 1,
             "method": "cli.questionFormResponse",
             "params": { "id": "await-q-1", "payload": { "answers": { "tone": "calm" } } }
-        })).unwrap();
+        }))
+        .unwrap();
 
         let ctx = DispatchContext {
             cli_manager: &cli_manager,
@@ -579,7 +593,8 @@ mod await_resolve_tests {
             "jsonrpc": "2.0", "id": 3,
             "method": "cli.questionFormResponse",
             "params": { "id": "anything", "payload": {} }
-        })).unwrap();
+        }))
+        .unwrap();
 
         let ctx = DispatchContext {
             cli_manager: &cli_manager,
@@ -610,7 +625,8 @@ mod await_resolve_tests {
             "jsonrpc": "2.0", "id": 4,
             "method": "cli.previewResult",
             "params": { "id": "no-such-await", "payload": {} }
-        })).unwrap();
+        }))
+        .unwrap();
 
         let ctx = DispatchContext {
             cli_manager: &cli_manager,

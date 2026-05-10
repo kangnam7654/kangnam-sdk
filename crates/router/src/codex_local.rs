@@ -1050,12 +1050,49 @@ fn parse_cache(contents: &str) -> Vec<crate::ListModel> {
                 .get("description")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
+            let default_reasoning_level = m
+                .get("default_reasoning_level")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let supported_reasoning_levels = parse_reasoning_levels(m);
             Some(crate::ListModel {
                 name,
                 display_name,
                 description,
                 input_token_limit: None,
                 output_token_limit: None,
+                default_reasoning_level,
+                supported_reasoning_levels,
+            })
+        })
+        .collect()
+}
+
+fn parse_reasoning_levels(model: &serde_json::Value) -> Vec<crate::ReasoningLevel> {
+    let Some(levels) = model
+        .get("supported_reasoning_levels")
+        .and_then(|v| v.as_array())
+    else {
+        return Vec::new();
+    };
+
+    levels
+        .iter()
+        .filter_map(|level| {
+            if let Some(effort) = level.as_str() {
+                return Some(crate::ReasoningLevel {
+                    effort: effort.to_string(),
+                    description: None,
+                });
+            }
+
+            let effort = level.get("effort").and_then(|v| v.as_str())?;
+            Some(crate::ReasoningLevel {
+                effort: effort.to_string(),
+                description: level
+                    .get("description")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
             })
         })
         .collect()
@@ -1083,6 +1120,8 @@ fn parse_config_model(contents: &str) -> Vec<crate::ListModel> {
                 description: None,
                 input_token_limit: None,
                 output_token_limit: None,
+                default_reasoning_level: None,
+                supported_reasoning_levels: Vec::new(),
             }]
         })
         .unwrap_or_default()
@@ -1168,7 +1207,17 @@ mod tests {
     async fn parse_cache_filters_hidden_models() {
         let json = r#"{
             "models": [
-                {"slug": "gpt-5.4", "display_name": "GPT-5.4", "description": "Fast model", "visibility": "list"},
+                {
+                    "slug": "gpt-5.4",
+                    "display_name": "GPT-5.4",
+                    "description": "Fast model",
+                    "visibility": "list",
+                    "default_reasoning_level": "medium",
+                    "supported_reasoning_levels": [
+                        {"effort": "low", "description": "Fast"},
+                        {"effort": "xhigh", "description": "Extra high"}
+                    ]
+                },
                 {"slug": "internal-model", "display_name": "Internal", "description": "Hidden", "visibility": "hide"}
             ]
         }"#;
@@ -1176,6 +1225,9 @@ mod tests {
         assert_eq!(models.len(), 1);
         assert_eq!(models[0].name, "gpt-5.4");
         assert_eq!(models[0].description.as_deref(), Some("Fast model"));
+        assert_eq!(models[0].default_reasoning_level.as_deref(), Some("medium"));
+        assert_eq!(models[0].supported_reasoning_levels.len(), 2);
+        assert_eq!(models[0].supported_reasoning_levels[1].effort, "xhigh");
     }
 
     #[test]

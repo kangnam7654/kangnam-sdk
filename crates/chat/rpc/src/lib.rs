@@ -9,6 +9,7 @@
 //! Methods handled:
 //! - `cli.listProviders` — known providers from the `chat-agent` registry
 //! - `cli.checkInstalled` — `claude` / `codex` install probe
+//! - `cli.listModels` — provider model list when the backend can discover it
 //! - `cli.install` — invoke provider install command
 //! - `cli.startSession` — spawn an agent CLI session
 //! - `cli.sendMessage` — write a user message to a running session
@@ -25,7 +26,7 @@ use std::sync::{Arc, Mutex as StdMutex};
 use kangnam_chat_agent::{AgentEventSink, CliManager};
 use kangnam_chat_core::json_rpc::{JsonRpcError, JsonRpcRequest, JsonRpcResponse};
 use rusqlite::Connection;
-use tokio::sync::{oneshot, Mutex as AsyncMutex};
+use tokio::sync::{Mutex as AsyncMutex, oneshot};
 
 pub mod guard;
 pub mod handlers;
@@ -84,13 +85,12 @@ pub async fn dispatch(request: JsonRpcRequest, ctx: DispatchContext<'_>) -> Json
     let result = match request.method.as_str() {
         "cli.listProviders" => handlers::list_providers().await,
         "cli.checkInstalled" => handlers::check_installed(request.params, &ctx).await,
+        "cli.listModels" => handlers::list_models(request.params).await,
         "cli.install" => handlers::install(request.params, &ctx).await,
         "cli.startSession" => handlers::start_session(request.params, &ctx).await,
         "cli.sendMessage" => handlers::send_message(request.params, &ctx).await,
         "cli.permissionResponse" => handlers::permission_response(request.params, &ctx).await,
-        "cli.questionFormResponse" => {
-            handlers::question_form_response(request.params, &ctx).await
-        }
+        "cli.questionFormResponse" => handlers::question_form_response(request.params, &ctx).await,
         "cli.previewResult" => handlers::preview_result(request.params, &ctx).await,
         "cli.stopSession" => handlers::stop_session(request.params, &ctx).await,
         _ => Err(JsonRpcError::method_not_found()),

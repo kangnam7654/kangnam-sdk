@@ -10,12 +10,18 @@ impl CliRegistry {
                 display_name: "Claude Code".to_string(),
                 description: "Anthropic's coding agent CLI".to_string(),
                 install_hint: "npm install -g @anthropic-ai/claude-code".to_string(),
+                auth_source: "local_cli_login".to_string(),
+                subscription_based: true,
+                login_hint: Some("Run `claude login` in a terminal.".to_string()),
             },
             ProviderMeta {
-                name: "codex".to_string(),
-                display_name: "Codex CLI".to_string(),
-                description: "OpenAI's coding agent CLI".to_string(),
+                name: "codex_cli".to_string(),
+                display_name: "Codex CLI (ChatGPT)".to_string(),
+                description: "OpenAI Codex CLI using local ChatGPT subscription login".to_string(),
                 install_hint: "npm install -g @openai/codex".to_string(),
+                auth_source: "local_cli_login".to_string(),
+                subscription_based: true,
+                login_hint: Some("Run `codex login` or `codex login --device-auth`.".to_string()),
             },
         ]
     }
@@ -27,4 +33,7 @@ pub struct ProviderMeta {
     pub display_name: String,
     pub description: String,
     pub install_hint: String,
+    pub auth_source: String,
+    pub subscription_based: bool,
+    pub login_hint: Option<String>,
 }

@@ -16,6 +16,11 @@
 export interface ModelOption {
   id: string
   label: string
+  defaultReasoningLevel?: string | null
+  supportedReasoningLevels?: {
+    effort: string
+    description: string | null
+  }[]
 }
 
 export const FALLBACK_MODELS: ModelOption[] = [

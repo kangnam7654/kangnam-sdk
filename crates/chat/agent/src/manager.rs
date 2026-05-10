@@ -9,13 +9,15 @@ use tokio::sync::Mutex;
 
 use crate::adapter::CliAdapter;
 use crate::sink::AgentEventSink;
-use crate::types::{CliStatus, UnifiedMessage};
+use crate::types::{CliAuthStatus, CliStatus, UnifiedMessage};
 
 struct CliSession {
     child: Child,
     provider: String,
     working_dir: PathBuf,
     session_id: String,
+    model: Option<String>,
+    reasoning_effort: Option<String>,
     /// Conversation history for non-persistent CLIs (Codex).
     /// Pairs of (user_message, assistant_response).
     history: Vec<(String, String)>,
@@ -26,6 +28,11 @@ struct CliSession {
 pub struct CliManager {
     adapters: HashMap<String, Box<dyn CliAdapter>>,
     sessions: Arc<Mutex<HashMap<String, CliSession>>>,
+}
+
+struct AuthProbe {
+    status: CliAuthStatus,
+    message: Option<String>,
 }
 
 impl CliManager {
@@ -58,11 +65,11 @@ impl CliManager {
     ) -> Result<(), String> {
         let adapter = self.get_adapter(provider)?;
         let mut cmd = if provider == "claude" {
-            let claude_adapter = crate::adapters::claude::ClaudeAdapter::new()
-                .with_model(model);
+            let claude_adapter =
+                crate::adapters::claude::ClaudeAdapter::new().with_model(model.clone());
             claude_adapter.build_command(working_dir)
         } else {
-            adapter.build_command(working_dir)
+            adapter.build_command_with_options(working_dir, model.as_deref(), None)
         };
         let mut child = cmd
             .spawn()
@@ -82,6 +89,8 @@ impl CliManager {
                     provider: provider.to_string(),
                     working_dir: working_dir.to_path_buf(),
                     session_id: session_id.to_string(),
+                    model,
+                    reasoning_effort: None,
                     history: Vec::new(),
                     current_response: Arc::new(tokio::sync::Mutex::new(String::new())),
                 },
@@ -106,10 +115,18 @@ impl CliManager {
                             if let UnifiedMessage::TurnEnd { .. } = &msg {
                                 if let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) {
                                     if v.get("type").and_then(|t| t.as_str()) == Some("result") {
-                                        if !v.get("is_error").and_then(|b| b.as_bool()).unwrap_or(false) {
-                                            if let Some(text) = v.get("result").and_then(|t| t.as_str()) {
+                                        if !v
+                                            .get("is_error")
+                                            .and_then(|b| b.as_bool())
+                                            .unwrap_or(false)
+                                        {
+                                            if let Some(text) =
+                                                v.get("result").and_then(|t| t.as_str())
+                                            {
                                                 if !text.is_empty() {
-                                                    sink.emit_message(UnifiedMessage::TextDelta { text: text.to_string() });
+                                                    sink.emit_message(UnifiedMessage::TextDelta {
+                                                        text: text.to_string(),
+                                                    });
                                                 }
                                             }
                                         }
@@ -129,8 +146,8 @@ impl CliManager {
 
                 // Enhanced events (Claude only)
                 if is_claude {
-                    let enhanced = crate::adapters::claude::ClaudeAdapter::new()
-                        .parse_enhanced(&line);
+                    let enhanced =
+                        crate::adapters::claude::ClaudeAdapter::new().parse_enhanced(&line);
                     if let Ok(Some(event)) = enhanced {
                         sink.emit_enhanced(event);
                     }
@@ -157,6 +174,11 @@ impl CliManager {
         if let Some(session) = sessions_lock.get_mut(session_id) {
             let adapter = self.get_adapter(&session.provider.clone())?;
 
+            if let Some(effort) = parse_effort_command(message) {
+                session.reasoning_effort = Some(effort);
+                return Ok(());
+            }
+
             if adapter.supports_persistent_session() {
                 if let Some(formatted) =
                     adapter.format_user_message(message, &session.session_id.clone())
@@ -177,6 +199,8 @@ impl CliManager {
                 // Non-persistent (Codex): build prompt with history context
                 let provider = session.provider.clone();
                 let working_dir = session.working_dir.clone();
+                let model = session.model.clone();
+                let reasoning_effort = session.reasoning_effort.clone();
                 let history = session.history.clone();
 
                 // Build contextual prompt from history
@@ -184,7 +208,10 @@ impl CliManager {
                 if !history.is_empty() {
                     prompt.push_str("Previous conversation:\n");
                     for (user_msg, assistant_msg) in &history {
-                        prompt.push_str(&format!("User: {}\nAssistant: {}\n\n", user_msg, assistant_msg));
+                        prompt.push_str(&format!(
+                            "User: {}\nAssistant: {}\n\n",
+                            user_msg, assistant_msg
+                        ));
                     }
                     prompt.push_str("Now respond to:\n");
                 }
@@ -195,9 +222,17 @@ impl CliManager {
                 drop(sessions_lock);
 
                 self.start_codex_exec_with_history(
-                    &provider, &working_dir, session_id, &prompt, &user_msg,
-                    current_response, sink,
-                ).await
+                    &provider,
+                    &working_dir,
+                    session_id,
+                    &prompt,
+                    &user_msg,
+                    model.as_deref(),
+                    reasoning_effort.as_deref(),
+                    current_response,
+                    sink,
+                )
+                .await
             }
         } else {
             Err(format!("Session not found: {}", session_id))
@@ -211,11 +246,13 @@ impl CliManager {
         session_id: &str,
         prompt: &str,
         user_msg: &str,
+        model: Option<&str>,
+        reasoning_effort: Option<&str>,
         current_response: Arc<tokio::sync::Mutex<String>>,
         sink: Arc<dyn AgentEventSink>,
     ) -> Result<(), String> {
         let adapter = self.get_adapter(provider)?;
-        let mut cmd = adapter.build_command(working_dir);
+        let mut cmd = adapter.build_command_with_options(working_dir, model, reasoning_effort);
         cmd.arg(prompt);
 
         let mut child = cmd
@@ -233,8 +270,7 @@ impl CliManager {
             let mut response_text = String::new();
 
             while let Ok(Some(line)) = lines.next_line().await {
-                let parsed =
-                    crate::adapters::codex::CodexAdapter::new().parse_line(&line);
+                let parsed = crate::adapters::codex::CodexAdapter::new().parse_line(&line);
                 match parsed {
                     Ok(Some(ref msg)) => {
                         // Collect text for history
@@ -280,6 +316,7 @@ impl CliManager {
     pub async fn check_installed(&self, provider: &str) -> Result<CliStatus, String> {
         let adapter = self.get_adapter(provider)?;
         let version_cmd = adapter.version_command();
+        let auth_source = auth_source_for_adapter(adapter).to_string();
 
         if version_cmd.is_empty() {
             return Ok(CliStatus {
@@ -288,16 +325,19 @@ impl CliManager {
                 version: None,
                 path: None,
                 authenticated: false,
+                auth_status: CliAuthStatus::Unknown,
+                auth_source,
+                auth_message: None,
             });
         }
 
-        let output = tokio::process::Command::new(
-                kangnam_router::cli_utils::resolve_binary(&version_cmd[0]),
-            )
-            .env("PATH", kangnam_router::cli_utils::build_path_env())
-            .args(&version_cmd[1..])
-            .output()
-            .await;
+        let output = tokio::process::Command::new(kangnam_router::cli_utils::resolve_binary(
+            &version_cmd[0],
+        ))
+        .env("PATH", kangnam_router::cli_utils::build_path_env())
+        .args(&version_cmd[1..])
+        .output()
+        .await;
 
         match output {
             Ok(out) if out.status.success() => {
@@ -310,13 +350,17 @@ impl CliManager {
                 let path = which_output
                     .ok()
                     .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
+                let auth = probe_cli_auth(adapter).await;
 
                 Ok(CliStatus {
                     provider: provider.to_string(),
                     installed: true,
                     version: Some(version),
                     path,
-                    authenticated: false,
+                    authenticated: auth.status == CliAuthStatus::Ready,
+                    auth_status: auth.status,
+                    auth_source,
+                    auth_message: auth.message,
                 })
             }
             _ => Ok(CliStatus {
@@ -325,6 +369,9 @@ impl CliManager {
                 version: None,
                 path: None,
                 authenticated: false,
+                auth_status: CliAuthStatus::Unknown,
+                auth_source,
+                auth_message: None,
             }),
         }
     }
@@ -339,14 +386,14 @@ impl CliManager {
             return Err("Empty install command".to_string());
         }
 
-        let output = tokio::process::Command::new(
-                kangnam_router::cli_utils::resolve_binary(&install_cmd[0]),
-            )
-            .env("PATH", kangnam_router::cli_utils::build_path_env())
-            .args(&install_cmd[1..])
-            .output()
-            .await
-            .map_err(|e| format!("Install failed: {}", e))?;
+        let output = tokio::process::Command::new(kangnam_router::cli_utils::resolve_binary(
+            &install_cmd[0],
+        ))
+        .env("PATH", kangnam_router::cli_utils::build_path_env())
+        .args(&install_cmd[1..])
+        .output()
+        .await
+        .map_err(|e| format!("Install failed: {}", e))?;
 
         if output.status.success() {
             Ok(())
@@ -360,5 +407,158 @@ impl CliManager {
 impl Default for CliManager {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+fn auth_source_for_adapter(adapter: &dyn CliAdapter) -> &'static str {
+    match adapter.command() {
+        "codex" | "claude" => "local_cli_login",
+        _ => "unknown",
+    }
+}
+
+fn parse_effort_command(message: &str) -> Option<String> {
+    let effort = message.trim().strip_prefix("/effort ")?.trim();
+    is_safe_reasoning_effort(effort).then(|| effort.to_string())
+}
+
+fn is_safe_reasoning_effort(effort: &str) -> bool {
+    !effort.is_empty()
+        && effort
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+async fn probe_cli_auth(adapter: &dyn CliAdapter) -> AuthProbe {
+    match adapter.command() {
+        "codex" => probe_codex_auth().await,
+        "claude" => AuthProbe {
+            status: CliAuthStatus::Unknown,
+            message: Some("Claude CLI auth probing is not implemented yet".to_string()),
+        },
+        _ => AuthProbe {
+            status: CliAuthStatus::NotApplicable,
+            message: None,
+        },
+    }
+}
+
+async fn probe_codex_auth() -> AuthProbe {
+    let output = tokio::process::Command::new(kangnam_router::cli_utils::resolve_binary("codex"))
+        .env("PATH", kangnam_router::cli_utils::build_path_env())
+        .args(["login", "status"])
+        .output()
+        .await;
+
+    match output {
+        Ok(out) => classify_codex_login_status(
+            out.status.success(),
+            &String::from_utf8_lossy(&out.stdout),
+            &String::from_utf8_lossy(&out.stderr),
+        ),
+        Err(e) => AuthProbe {
+            status: CliAuthStatus::Failed,
+            message: Some(format!("failed to run `codex login status`: {e}")),
+        },
+    }
+}
+
+fn classify_codex_login_status(success: bool, stdout: &str, stderr: &str) -> AuthProbe {
+    let combined = format!("{stdout}\n{stderr}");
+    let normalized = combined.to_lowercase();
+    let cleaned = combined
+        .lines()
+        .filter(|line| !line.to_lowercase().contains("could not update path"))
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let message = if cleaned.is_empty() {
+        None
+    } else {
+        Some(cleaned)
+    };
+
+    if normalized.contains("rate limit") || normalized.contains("rate_limited") {
+        return AuthProbe {
+            status: CliAuthStatus::RateLimited,
+            message,
+        };
+    }
+
+    if normalized.contains("not logged in")
+        || normalized.contains("not authenticated")
+        || normalized.contains("login required")
+        || normalized.contains("please login")
+    {
+        return AuthProbe {
+            status: CliAuthStatus::NotLoggedIn,
+            message,
+        };
+    }
+
+    if success && normalized.contains("logged in") {
+        return AuthProbe {
+            status: CliAuthStatus::Ready,
+            message,
+        };
+    }
+
+    AuthProbe {
+        status: if success {
+            CliAuthStatus::Unknown
+        } else {
+            CliAuthStatus::Failed
+        },
+        message,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn codex_login_status_logged_in_is_ready() {
+        let probe = classify_codex_login_status(true, "Logged in using ChatGPT\n", "");
+        assert_eq!(probe.status, CliAuthStatus::Ready);
+        assert_eq!(probe.message.as_deref(), Some("Logged in using ChatGPT"));
+    }
+
+    #[test]
+    fn codex_login_status_not_logged_in_is_not_logged_in() {
+        let probe = classify_codex_login_status(false, "Not logged in\n", "");
+        assert_eq!(probe.status, CliAuthStatus::NotLoggedIn);
+    }
+
+    #[test]
+    fn codex_login_status_filters_path_warning() {
+        let probe = classify_codex_login_status(
+            true,
+            "WARNING: proceeding, even though we could not update PATH: Operation not permitted\nLogged in using ChatGPT\n",
+            "",
+        );
+        assert_eq!(probe.status, CliAuthStatus::Ready);
+        assert_eq!(probe.message.as_deref(), Some("Logged in using ChatGPT"));
+    }
+
+    #[test]
+    fn effort_command_accepts_only_known_levels() {
+        assert_eq!(parse_effort_command("/effort low").as_deref(), Some("low"));
+        assert_eq!(
+            parse_effort_command(" /effort medium ").as_deref(),
+            Some("medium")
+        );
+        assert_eq!(parse_effort_command("/effort high").as_deref(), Some("high"));
+        assert_eq!(
+            parse_effort_command("/effort xhigh").as_deref(),
+            Some("xhigh")
+        );
+        assert_eq!(
+            parse_effort_command("/effort future-level").as_deref(),
+            Some("future-level")
+        );
+        assert_eq!(parse_effort_command("/effort bad value"), None);
+        assert_eq!(parse_effort_command("/effort bad\"value"), None);
     }
 }

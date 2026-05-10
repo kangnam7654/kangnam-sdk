@@ -1,6 +1,6 @@
+use rusqlite::Connection;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex as StdMutex};
-use rusqlite::Connection;
 
 use kangnam_chat::agent::CliManager;
 use kangnam_chat::server::broadcast::{self, BroadcastTx, EnhancedBroadcastTx};
@@ -14,7 +14,8 @@ pub struct AppState {
     pub mcp: McpBridge,
     pub broadcast_tx: BroadcastTx,
     pub enhanced_broadcast_tx: EnhancedBroadcastTx,
-    pub pending_permissions: Arc<tokio::sync::Mutex<HashMap<String, tokio::sync::oneshot::Sender<bool>>>>,
+    pub pending_permissions:
+        Arc<tokio::sync::Mutex<HashMap<String, tokio::sync::oneshot::Sender<bool>>>>,
 }
 
 impl AppState {
@@ -34,8 +35,9 @@ impl AppState {
         cli_manager.register_adapter(Box::new(
             crate::cli::adapters::claude::ClaudeAdapter::with_port(port),
         ));
+        cli_manager.register_adapter(Box::new(crate::cli::adapters::codex::CodexAdapter::new()));
         cli_manager.register_adapter(Box::new(
-            crate::cli::adapters::codex::CodexAdapter::new(),
+            crate::cli::adapters::codex::CodexAdapter::subscription(),
         ));
 
         let (broadcast_tx, _) = broadcast::create_channel();

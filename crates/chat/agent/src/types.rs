@@ -61,10 +61,7 @@ pub enum UnifiedMessage {
     AgentEnd { id: String, result: String },
 
     /// Skill invoked via slash command
-    SkillInvoked {
-        name: String,
-        args: Option<String>,
-    },
+    SkillInvoked { name: String, args: Option<String> },
 
     /// Assistant turn completed
     TurnEnd { usage: Option<TokenUsage> },
@@ -82,6 +79,17 @@ pub struct TokenUsage {
     pub output_tokens: u64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CliAuthStatus {
+    Unknown,
+    NotApplicable,
+    NotLoggedIn,
+    Ready,
+    RateLimited,
+    Failed,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CliStatus {
     pub provider: String,
@@ -89,6 +97,9 @@ pub struct CliStatus {
     pub version: Option<String>,
     pub path: Option<String>,
     pub authenticated: bool,
+    pub auth_status: CliAuthStatus,
+    pub auth_source: String,
+    pub auth_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

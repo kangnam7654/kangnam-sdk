@@ -6,6 +6,7 @@ import type { CliStatus } from '../../stores/app-store'
 const PROVIDER_ICONS: Record<string, string> = {
   claude: 'C',
   codex: 'X',
+  codex_cli: 'X',
 }
 
 export function SetupWizard() {
@@ -27,7 +28,16 @@ export function SetupWizard() {
           try {
             statusMap[meta.name] = await cliApi.checkInstalled(meta.name)
           } catch {
-            statusMap[meta.name] = { provider: meta.name, installed: false, version: null, path: null, authenticated: false }
+            statusMap[meta.name] = {
+              provider: meta.name,
+              installed: false,
+              version: null,
+              path: null,
+              authenticated: false,
+              auth_status: 'unknown',
+              auth_source: meta.auth_source,
+              auth_message: null,
+            }
           }
         }
         setStatuses(statusMap)
@@ -189,12 +199,16 @@ export function SetupWizard() {
                     <div style={{
                       display: 'inline-flex', alignItems: 'center', gap: 6,
                       padding: '5px 12px', borderRadius: 20,
-                      background: isSelected ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.05)',
+                      background: status?.auth_status === 'not_logged_in'
+                        ? 'rgba(251, 191, 36, 0.12)'
+                        : isSelected ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.05)',
                       fontSize: 12, fontWeight: 550,
-                      color: isSelected ? 'var(--success-text)' : 'var(--text-muted)',
+                      color: status?.auth_status === 'not_logged_in'
+                        ? 'var(--warning)'
+                        : isSelected ? 'var(--success-text)' : 'var(--text-muted)',
                     }}>
                       {isSelected ? '\u2713 ' : ''}
-                      v{status?.version ?? '?'}
+                      {status?.auth_status === 'not_logged_in' ? '로그인 필요' : `v${status?.version ?? '?'}`}
                     </div>
                   ) : isInstalling ? (
                     <div style={{

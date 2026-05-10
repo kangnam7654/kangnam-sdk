@@ -1269,6 +1269,8 @@ pub(crate) async fn list_models_with_base_url(
                             .get("outputTokenLimit")
                             .and_then(|v| v.as_i64())
                             .map(|v| v as i32),
+                        default_reasoning_level: None,
+                        supported_reasoning_levels: Vec::new(),
                     })
                 })
                 .collect()

@@ -29,9 +29,13 @@
 
 use std::sync::Arc;
 
-use kangnam_chat_core::{NewMessage, Storage};
+use async_trait::async_trait;
 use futures::StreamExt;
-use kangnam_router::{ChatMessage, LlmProviderDyn, LlmStreamEvent};
+use kangnam_chat_core::{NewMessage, Storage};
+use kangnam_router::{
+    ChatMessage, LlmProviderDyn, LlmStreamEvent,
+    context::{ContextWindowBudget, compact_messages_for_window},
+};
 
 use crate::sink::AgentEventSink;
 use crate::types::{TokenUsage, UnifiedMessage};
@@ -54,6 +58,7 @@ pub struct HttpSessionManager {
     /// Hosts that need per-conversation prompts should subclass via
     /// composition and pre-pend their own `system` message.
     system_prompt: String,
+    context_window_budget: Option<ContextWindowBudget>,
 }
 
 impl HttpSessionManager {
@@ -61,20 +66,34 @@ impl HttpSessionManager {
     /// `factory`. The factory is consulted once per `send_message`
     /// call so hosts can hot-swap providers (e.g. an admin LLM
     /// config UI) without bouncing the manager.
-    pub fn new(
-        storage: Arc<dyn Storage>,
-        provider_factory: Arc<dyn ProviderFactory>,
-    ) -> Self {
+    pub fn new(storage: Arc<dyn Storage>, provider_factory: Arc<dyn ProviderFactory>) -> Self {
         Self {
             storage,
             provider_factory,
             system_prompt: String::new(),
+            context_window_budget: None,
         }
     }
 
     /// Override the system prompt sent on every turn. Defaults to empty.
     pub fn with_system_prompt(mut self, prompt: impl Into<String>) -> Self {
         self.system_prompt = prompt.into();
+        self
+    }
+
+    /// Enable deterministic context compaction for HTTP-backed chat sessions.
+    ///
+    /// This path reconstructs full history from storage on every turn; when
+    /// that estimated request is too large, older turns are folded into one
+    /// summary message before the provider call.
+    pub fn with_context_window_tokens(mut self, max_context_tokens: usize) -> Self {
+        self.context_window_budget = Some(ContextWindowBudget::new(max_context_tokens));
+        self
+    }
+
+    /// Enable context compaction with explicit budget knobs.
+    pub fn with_context_window_budget(mut self, budget: ContextWindowBudget) -> Self {
+        self.context_window_budget = Some(budget);
         self
     }
 
@@ -137,7 +156,7 @@ impl HttpSessionManager {
             .await
             .map_err(|e| format!("storage error: {e}"))?;
 
-        let chat_messages: Vec<ChatMessage> = history
+        let mut chat_messages: Vec<ChatMessage> = history
             .iter()
             .filter_map(|m| match m.role.as_str() {
                 "user" => Some(ChatMessage::user(m.content.clone())),
@@ -147,6 +166,15 @@ impl HttpSessionManager {
                 _ => None,
             })
             .collect();
+        let resolved_budget = match &self.context_window_budget {
+            Some(budget) => Some(budget.clone()),
+            None => self.provider_factory.context_window_budget().await,
+        };
+        if let Some(budget) = &resolved_budget {
+            let compacted =
+                compact_messages_for_window(&self.system_prompt, &chat_messages, budget);
+            chat_messages = compacted.messages;
+        }
 
         // 3. Provider call. The factory may fail (missing API key,
         //    misconfigured model) — surface as Error event then bail.
@@ -154,7 +182,9 @@ impl HttpSessionManager {
             Ok(p) => p,
             Err(e) => {
                 let msg = format!("provider init failed: {e}");
-                sink.emit_message(UnifiedMessage::Error { message: msg.clone() });
+                sink.emit_message(UnifiedMessage::Error {
+                    message: msg.clone(),
+                });
                 return Err(msg);
             }
         };
@@ -249,8 +279,13 @@ impl HttpSessionManager {
 ///
 /// Implementors typically capture an `Arc<RwLock<Config>>` and
 /// resolve it on each call.
+#[async_trait]
 pub trait ProviderFactory: Send + Sync {
     fn create(&self) -> Result<Box<dyn LlmProviderDyn>, String>;
+
+    async fn context_window_budget(&self) -> Option<ContextWindowBudget> {
+        None
+    }
 }
 
 /// Convenience: pin a single provider config at construction time.
@@ -264,14 +299,29 @@ pub struct StaticConfig {
     pub base_url: String,
 }
 
+#[async_trait]
 impl ProviderFactory for StaticConfig {
     fn create(&self) -> Result<Box<dyn LlmProviderDyn>, String> {
         kangnam_router::create_provider(&self.provider, &self.api_key, &self.model, &self.base_url)
             .map_err(|e| e.to_string())
     }
+
+    async fn context_window_budget(&self) -> Option<ContextWindowBudget> {
+        kangnam_router::context::resolve_model_context_window_tokens(
+            &self.provider,
+            &self.api_key,
+            &self.model,
+            &self.base_url,
+        )
+        .await
+        .ok()
+        .flatten()
+        .map(ContextWindowBudget::new)
+    }
 }
 
 // Allow plain closures so tests can inline a one-liner factory.
+#[async_trait]
 impl<F> ProviderFactory for F
 where
     F: Fn() -> Result<Box<dyn LlmProviderDyn>, String> + Send + Sync,
@@ -284,6 +334,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::pin::Pin;
     use std::sync::Mutex;
 
     /// Captures every event for assertions.
@@ -315,9 +366,61 @@ mod tests {
     }
 
     fn dummy_factory() -> Arc<dyn ProviderFactory> {
-        Arc::new(|| {
-            kangnam_router::create_provider("dummy", "", "", "").map_err(|e| e.to_string())
-        })
+        Arc::new(|| kangnam_router::create_provider("dummy", "", "", "").map_err(|e| e.to_string()))
+    }
+
+    #[derive(Clone, Default)]
+    struct RecordingProvider {
+        observed: Arc<Mutex<Vec<Vec<ChatMessage>>>>,
+    }
+
+    impl RecordingProvider {
+        fn observed(&self) -> Vec<Vec<ChatMessage>> {
+            self.observed.lock().unwrap().clone()
+        }
+    }
+
+    impl LlmProviderDyn for RecordingProvider {
+        fn render_dyn(
+            &self,
+            _system_prompt: &str,
+            _user_input: &str,
+            _result_json: &serde_json::Value,
+        ) -> Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<kangnam_router::LlmResponse, kangnam_router::LlmError>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            Box::pin(async {
+                let mut response = kangnam_router::LlmResponse::default();
+                response.rendered_text = "recorded".into();
+                Ok(response)
+            })
+        }
+
+        fn chat_dyn(
+            &self,
+            _system_prompt: &str,
+            messages: &[ChatMessage],
+            _result_json: &serde_json::Value,
+        ) -> Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<kangnam_router::LlmResponse, kangnam_router::LlmError>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            self.observed.lock().unwrap().push(messages.to_vec());
+            Box::pin(async {
+                let mut response = kangnam_router::LlmResponse::default();
+                response.rendered_text = "recorded".into();
+                Ok(response)
+            })
+        }
     }
 
     #[tokio::test]
@@ -326,10 +429,14 @@ mod tests {
         let mgr = HttpSessionManager::new(storage.clone(), dummy_factory());
         let sink = VecSink::new();
 
-        mgr.start_session("conv-1", "claude", sink.clone()).await.unwrap();
+        mgr.start_session("conv-1", "claude", sink.clone())
+            .await
+            .unwrap();
 
         let events = sink.drain();
-        assert!(matches!(events.as_slice(), [UnifiedMessage::SessionInit { session_id }] if session_id == "conv-1"));
+        assert!(
+            matches!(events.as_slice(), [UnifiedMessage::SessionInit { session_id }] if session_id == "conv-1")
+        );
         assert!(storage.conversation_exists("conv-1").await.unwrap());
     }
 
@@ -339,15 +446,26 @@ mod tests {
         let mgr = HttpSessionManager::new(storage.clone(), dummy_factory());
         let sink = VecSink::new();
 
-        mgr.start_session("conv-1", "dummy", sink.clone()).await.unwrap();
+        mgr.start_session("conv-1", "dummy", sink.clone())
+            .await
+            .unwrap();
         sink.drain(); // discard SessionInit
-        mgr.send_message("conv-1", "hello", sink.clone()).await.unwrap();
+        mgr.send_message("conv-1", "hello", sink.clone())
+            .await
+            .unwrap();
 
         // dummy provider echoes the input; we don't assert exact
         // text (provider-defined) but we DO assert structure.
         let events = sink.drain();
-        assert!(events.iter().any(|e| matches!(e, UnifiedMessage::TextDelta { .. })));
-        assert!(matches!(events.last(), Some(UnifiedMessage::TurnEnd { .. })));
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, UnifiedMessage::TextDelta { .. }))
+        );
+        assert!(matches!(
+            events.last(),
+            Some(UnifiedMessage::TurnEnd { .. })
+        ));
 
         let messages = storage.get_messages("conv-1").await.unwrap();
         assert_eq!(messages.len(), 2);
@@ -363,9 +481,15 @@ mod tests {
         let mgr = HttpSessionManager::new(storage.clone(), dummy_factory());
         let sink = VecSink::new();
 
-        mgr.start_session("conv-1", "dummy", sink.clone()).await.unwrap();
-        mgr.send_message("conv-1", "first", sink.clone()).await.unwrap_or_default();
-        mgr.send_message("conv-1", "second", sink.clone()).await.unwrap_or_default();
+        mgr.start_session("conv-1", "dummy", sink.clone())
+            .await
+            .unwrap();
+        mgr.send_message("conv-1", "first", sink.clone())
+            .await
+            .unwrap_or_default();
+        mgr.send_message("conv-1", "second", sink.clone())
+            .await
+            .unwrap_or_default();
 
         let messages = storage.get_messages("conv-1").await.unwrap();
         // 2 user + 2 assistant
@@ -375,13 +499,60 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn context_window_compacts_history_before_http_provider_call() {
+        let storage = fresh_storage().await;
+        storage.ensure_conversation("conv-1", "test").await.unwrap();
+        storage
+            .add_message("conv-1", NewMessage::user(&"old user ".repeat(200)))
+            .await
+            .unwrap();
+        storage
+            .add_message(
+                "conv-1",
+                NewMessage::assistant(&"old assistant ".repeat(200)),
+            )
+            .await
+            .unwrap();
+
+        let provider = RecordingProvider::default();
+        let observer = provider.clone();
+        let factory: Arc<dyn ProviderFactory> = Arc::new(move || {
+            let boxed: Box<dyn LlmProviderDyn> = Box::new(provider.clone());
+            Ok(boxed)
+        });
+        let mgr = HttpSessionManager::new(storage.clone(), factory).with_context_window_budget(
+            ContextWindowBudget {
+                max_context_tokens: 180,
+                reserve_output_tokens: 20,
+                min_recent_messages: 1,
+                max_summary_tokens: 40,
+            },
+        );
+        let sink = VecSink::new();
+
+        mgr.send_message("conv-1", "latest question", sink)
+            .await
+            .unwrap();
+
+        let observed = observer.observed();
+        assert_eq!(observed.len(), 1);
+        assert_eq!(observed[0].len(), 2);
+        assert!(observed[0][0].text_content().contains("compressed"));
+        assert_eq!(observed[0][1].text_content(), "latest question");
+    }
+
+    #[tokio::test]
     async fn auto_titles_from_first_user_message() {
         let storage = fresh_storage().await;
         let mgr = HttpSessionManager::new(storage.clone(), dummy_factory());
         let sink = VecSink::new();
 
-        mgr.start_session("conv-1", "dummy", sink.clone()).await.unwrap();
-        mgr.send_message("conv-1", "tell me about saju", sink.clone()).await.unwrap_or_default();
+        mgr.start_session("conv-1", "dummy", sink.clone())
+            .await
+            .unwrap();
+        mgr.send_message("conv-1", "tell me about saju", sink.clone())
+            .await
+            .unwrap_or_default();
 
         let conv = storage.get_conversation("conv-1").await.unwrap().unwrap();
         assert_eq!(conv.title, "tell me about saju");
@@ -390,13 +561,16 @@ mod tests {
     #[tokio::test]
     async fn provider_init_failure_emits_error() {
         let storage = fresh_storage().await;
-        let bad_factory: Arc<dyn ProviderFactory> = Arc::new(
-            || -> Result<Box<dyn LlmProviderDyn>, String> { Err("api key missing".into()) },
-        );
+        let bad_factory: Arc<dyn ProviderFactory> =
+            Arc::new(|| -> Result<Box<dyn LlmProviderDyn>, String> {
+                Err("api key missing".into())
+            });
         let mgr = HttpSessionManager::new(storage.clone(), bad_factory);
         let sink = VecSink::new();
 
-        mgr.start_session("conv-1", "dummy", sink.clone()).await.unwrap();
+        mgr.start_session("conv-1", "dummy", sink.clone())
+            .await
+            .unwrap();
         sink.drain();
         let result = mgr.send_message("conv-1", "hi", sink.clone()).await;
 

@@ -1,0 +1,27 @@
+[package]
+name = "ai-consult"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Korean AI consult agent powered by kangnam-harness tools, saju-engine, tarot-engine, and kangnam-router."
+
+[lints.rust]
+unsafe_code = "deny"
+
+[dependencies]
+async-trait = { workspace = true }
+futures = { workspace = true }
+kangnam-harness-llm-bridge = { workspace = true }
+kangnam-harness-runtime = { workspace = true }
+kangnam-router = { workspace = true }
+saju-engine = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tarot-engine = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+kangnam-harness-llm-bridge = { workspace = true, features = ["test-util"] }
+tokio = { workspace = true, features = ["macros", "rt"] }

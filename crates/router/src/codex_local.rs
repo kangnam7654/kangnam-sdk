@@ -42,6 +42,10 @@ impl CodexLocalProvider {
 }
 
 impl LlmProviderDyn for CodexLocalProvider {
+    fn context_window_tokens(&self) -> Option<usize> {
+        model_context_window_tokens(&self.model)
+    }
+
     fn render_dyn(
         &self,
         system_prompt: &str,
@@ -1059,13 +1063,42 @@ fn parse_cache(contents: &str) -> Vec<crate::ListModel> {
                 name,
                 display_name,
                 description,
-                input_token_limit: None,
-                output_token_limit: None,
+                input_token_limit: parse_i32_field(
+                    m,
+                    &[
+                        "context_window",
+                        "input_token_limit",
+                        "inputTokenLimit",
+                        "max_input_tokens",
+                    ],
+                ),
+                output_token_limit: parse_i32_field(
+                    m,
+                    &[
+                        "output_token_limit",
+                        "outputTokenLimit",
+                        "max_output_tokens",
+                    ],
+                ),
                 default_reasoning_level,
                 supported_reasoning_levels,
             })
         })
         .collect()
+}
+
+fn parse_i32_field(model: &serde_json::Value, keys: &[&str]) -> Option<i32> {
+    keys.iter()
+        .find_map(|key| model.get(*key).and_then(|v| v.as_i64()))
+        .and_then(|n| i32::try_from(n).ok())
+}
+
+fn model_context_window_tokens(model: &str) -> Option<usize> {
+    let home = std::env::var("HOME").ok().map(std::path::PathBuf::from)?;
+    let cache_path = home.join(".codex").join("models_cache.json");
+    let contents = std::fs::read_to_string(cache_path).ok()?;
+    let models = parse_cache(&contents);
+    crate::context::find_model_context_window_tokens(&models, model)
 }
 
 fn parse_reasoning_levels(model: &serde_json::Value) -> Vec<crate::ReasoningLevel> {
@@ -1211,6 +1244,8 @@ mod tests {
                     "slug": "gpt-5.4",
                     "display_name": "GPT-5.4",
                     "description": "Fast model",
+                    "context_window": 272000,
+                    "output_token_limit": 8192,
                     "visibility": "list",
                     "default_reasoning_level": "medium",
                     "supported_reasoning_levels": [
@@ -1225,6 +1260,8 @@ mod tests {
         assert_eq!(models.len(), 1);
         assert_eq!(models[0].name, "gpt-5.4");
         assert_eq!(models[0].description.as_deref(), Some("Fast model"));
+        assert_eq!(models[0].input_token_limit, Some(272000));
+        assert_eq!(models[0].output_token_limit, Some(8192));
         assert_eq!(models[0].default_reasoning_level.as_deref(), Some("medium"));
         assert_eq!(models[0].supported_reasoning_levels.len(), 2);
         assert_eq!(models[0].supported_reasoning_levels[1].effort, "xhigh");

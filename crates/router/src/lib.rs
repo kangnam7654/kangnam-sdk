@@ -47,6 +47,7 @@ pub mod claude_local;
 pub mod cli_utils;
 pub mod codex;
 pub mod codex_local;
+pub mod context;
 pub mod copilot;
 pub mod dummy;
 pub mod gemini;
@@ -140,10 +141,7 @@ impl ChatMessage {
     /// Each [`ToolCall`] becomes a [`ChatContent::ToolUse`] block. The
     /// `text`, when non-empty, is prepended as a [`ChatContent::Text`]
     /// block.
-    pub fn assistant_with_tool_calls(
-        text: impl Into<String>,
-        calls: Vec<ToolCall>,
-    ) -> Self {
+    pub fn assistant_with_tool_calls(text: impl Into<String>, calls: Vec<ToolCall>) -> Self {
         let text = text.into();
         let mut content = Vec::with_capacity(calls.len() + 1);
         if !text.is_empty() {
@@ -695,6 +693,15 @@ pub async fn list_models_with_base_url(
 ///
 /// The `_with_options_dyn` variants accept [`LlmRequestOptions`].
 pub trait LlmProviderDyn: Send + Sync {
+    /// Best-effort context window for the configured model.
+    ///
+    /// Providers that have local model metadata can return this synchronously.
+    /// Hosts with API-backed model catalogs should prefer
+    /// [`context::resolve_model_context_window_tokens`].
+    fn context_window_tokens(&self) -> Option<usize> {
+        None
+    }
+
     fn render_dyn(
         &self,
         system_prompt: &str,

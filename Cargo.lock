@@ -65,6 +65,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "ai-consult"
+version = "0.3.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "kangnam-harness-llm-bridge",
+ "kangnam-harness-runtime",
+ "kangnam-router",
+ "saju-engine",
+ "serde",
+ "serde_json",
+ "tarot-engine",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
 name = "alloc-no-stdlib"
 version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"

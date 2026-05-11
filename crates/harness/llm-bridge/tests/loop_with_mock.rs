@@ -23,7 +23,7 @@ use kangnam_harness_runtime::{
     AgentTool, DefaultCapabilities, FsCallbacks, ImageCallbacks, InteractionBridge, ToolCtx,
     ToolError, ToolResult, WebCallbacks,
 };
-use kangnam_router::{ChatContent, ToolCall};
+use kangnam_router::{ChatContent, ChatMessage, ToolCall, context::ContextWindowBudget};
 
 // ── stub capabilities ───────────────────────────────────────────────
 
@@ -140,6 +140,56 @@ async fn terminal_text_response_returns_immediately() {
     assert!(run.tool_invocations.is_empty());
     // History: user input + assistant terminal text.
     assert_eq!(run.messages.len(), 2);
+}
+
+#[tokio::test]
+async fn run_messages_uses_existing_history() {
+    let mock = MockLlmProvider::new(vec![Step::text("latest answer")]);
+    let observer = mock.clone();
+    let agent = LlmAgent::new(Box::new(mock), make_ctx());
+
+    let history = vec![
+        ChatMessage::user("첫 질문"),
+        ChatMessage::assistant("첫 답변"),
+        ChatMessage::user("후속 질문"),
+    ];
+    let run = agent.run_messages(history.clone()).await.unwrap();
+
+    assert_eq!(run.iterations, 1);
+    assert_eq!(run.final_text, "latest answer");
+    assert_eq!(run.messages.len(), 4);
+    assert_eq!(run.messages[0].text_content(), "첫 질문");
+    assert_eq!(run.messages[2].text_content(), "후속 질문");
+    assert_eq!(run.messages[3].text_content(), "latest answer");
+
+    let observed = observer.observed();
+    assert_eq!(observed.len(), 1);
+    assert_eq!(observed[0].messages.len(), 3);
+    assert_eq!(observed[0].messages[1].role, "assistant");
+}
+
+#[tokio::test]
+async fn run_messages_rejects_empty_input() {
+    let mock = MockLlmProvider::new(vec![Step::text("unused")]);
+    let agent = LlmAgent::new(Box::new(mock), make_ctx());
+
+    let err = agent.run_messages(vec![]).await.unwrap_err();
+    assert!(matches!(err, BridgeError::InvalidMessages(_)));
+}
+
+#[tokio::test]
+async fn run_messages_rejects_history_not_ending_in_user() {
+    let mock = MockLlmProvider::new(vec![Step::text("unused")]);
+    let agent = LlmAgent::new(Box::new(mock), make_ctx());
+
+    let err = agent
+        .run_messages(vec![
+            ChatMessage::user("질문"),
+            ChatMessage::assistant("마지막 답변"),
+        ])
+        .await
+        .unwrap_err();
+    assert!(matches!(err, BridgeError::InvalidMessages(_)));
 }
 
 #[tokio::test]
@@ -343,4 +393,79 @@ async fn second_request_history_reemits_assistant_tool_calls() {
         found_tool_use,
         "second request's assistant turn must carry the ToolUse block"
     );
+}
+
+#[tokio::test]
+async fn context_window_compaction_summarizes_old_history_before_provider_call() {
+    let mock = MockLlmProvider::new(vec![Step::text("latest answer")]);
+    let observer = mock.clone();
+    let agent =
+        LlmAgent::new(Box::new(mock), make_ctx()).with_context_window_budget(ContextWindowBudget {
+            max_context_tokens: 180,
+            reserve_output_tokens: 20,
+            min_recent_messages: 1,
+            max_summary_tokens: 40,
+        });
+
+    let history = vec![
+        ChatMessage::user("old user ".repeat(200)),
+        ChatMessage::assistant("old assistant ".repeat(200)),
+        ChatMessage::user("latest question"),
+    ];
+    let run = agent.run_messages(history).await.unwrap();
+
+    assert_eq!(run.final_text, "latest answer");
+    let observed = observer.observed();
+    assert_eq!(observed.len(), 1);
+    assert_eq!(observed[0].messages.len(), 2);
+    assert!(
+        observed[0].messages[0]
+            .text_content()
+            .contains("compressed")
+    );
+    assert_eq!(observed[0].messages[1].text_content(), "latest question");
+}
+
+#[tokio::test]
+async fn context_window_compaction_keeps_tool_pair_on_followup_call() {
+    let mock = MockLlmProvider::new(vec![
+        Step::tool_call("call_99", "get_weather", json!({"city": "seoul"})),
+        Step::text("done"),
+    ]);
+    let observer = mock.clone();
+    let log = Arc::new(Mutex::new(Vec::new()));
+    let agent = LlmAgent::new(Box::new(mock), make_ctx())
+        .with_tool(
+            GetWeather {
+                log: Arc::clone(&log),
+            },
+            "Weather",
+        )
+        .with_context_window_budget(ContextWindowBudget {
+            max_context_tokens: 140,
+            reserve_output_tokens: 20,
+            min_recent_messages: 1,
+            max_summary_tokens: 32,
+        });
+
+    let history = vec![
+        ChatMessage::user("old context ".repeat(200)),
+        ChatMessage::assistant("old answer ".repeat(200)),
+        ChatMessage::user("weather now"),
+    ];
+    let _ = agent.run_messages(history).await.unwrap();
+
+    let observed = observer.observed();
+    assert_eq!(observed.len(), 2);
+    let second = &observed[1].messages;
+    assert!(second.iter().any(|message| {
+        message
+            .content
+            .iter()
+            .any(|content| matches!(content, ChatContent::ToolUse { id, .. } if id == "call_99"))
+    }));
+    assert!(second.iter().any(|message| message
+        .content
+        .iter()
+        .any(|content| matches!(content, ChatContent::ToolResult { tool_use_id, .. } if tool_use_id == "call_99"))));
 }

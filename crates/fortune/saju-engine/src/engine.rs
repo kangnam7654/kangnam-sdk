@@ -1,12 +1,33 @@
 use crate::{
     self as saju, branches, daeun, daily, gongmang, interpretation, interpreter, lucky, monthly,
-    shinsal, ten_gods,
-    types::*,
+    shinsal, ten_gods, types::*,
 };
 use chrono::{Datelike, NaiveDate};
 use serde_json::{Value, json};
 
 pub struct SajuEngine;
+
+/// 엔진 버전. 캐시 무효화 기준으로 사용된다.
+pub const SAJU_ENGINE_VERSION: &str = "saju-v1.0";
+
+/// Public reading type keys supported by the saju engine.
+pub const SAJU_READING_TYPES: [&str; 10] = [
+    "daily",
+    "daily_detail",
+    "saju",
+    "saju_full",
+    "weekly",
+    "monthly",
+    "compatibility",
+    "compatibility_detail",
+    "monthly_fortune",
+    "daeun",
+];
+
+/// Returns whether `reading_type` is a supported saju reading type key.
+pub fn is_valid_reading_type(reading_type: &str) -> bool {
+    SAJU_READING_TYPES.contains(&reading_type)
+}
 
 /// 종합 해석 tier — `saju` 는 simple, `saju_full` 은 detail.
 #[derive(Clone, Copy)]
@@ -17,7 +38,7 @@ enum InterpTier {
 
 impl SajuEngine {
     pub fn generate(&self, reading_type: &str, input: &Value) -> (Value, String) {
-        let version = "saju-v1.0".to_string();
+        let version = SAJU_ENGINE_VERSION.to_string();
 
         match reading_type {
             "daily" => self.generate_daily(input, &version),

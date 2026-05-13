@@ -35,6 +35,7 @@
 
 #![deny(unsafe_code)]
 
+pub mod api;
 pub mod branches;
 pub mod daeun;
 pub mod daily;
@@ -55,6 +56,11 @@ pub mod types;
 // Re-export the most commonly used items at the crate root to match the
 // previous `use crate::services::fortune_engine::saju::{calculate_four_pillars, types::*}`
 // ergonomics that backend consumers relied on.
-pub use engine::SajuEngine;
+pub use api::{
+    BirthInput, ParsedBirth, ParsedBirthTime, SAJU_DAILY_CATEGORIES, SajuEngineError,
+    SajuEngineRequest, SajuEngineResponse, generate_daily_saju, generate_saju_compatibility,
+    generate_saju_profile, generate_saju_reading, parse_birth_input, parse_birth_time,
+};
+pub use engine::{SAJU_ENGINE_VERSION, SAJU_READING_TYPES, SajuEngine, is_valid_reading_type};
 pub use pillars::{calculate_four_pillars, calculate_four_pillars_precise};
 pub use types::{Branch, Element, ElementBalance, FourPillars, Pillar, Polarity, Stem, TenGod};

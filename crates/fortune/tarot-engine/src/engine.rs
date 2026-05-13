@@ -10,6 +10,20 @@ pub struct TarotEngine;
 /// 엔진 버전. 캐시 무효화 기준으로 사용된다.
 pub const TAROT_ENGINE_VERSION: &str = "tarot-v2.1";
 
+/// Public reading type keys supported by the tarot engine.
+pub const TAROT_READING_TYPES: [&str; 5] = [
+    "tarot_daily",
+    "tarot_one",
+    "tarot_one_preview",
+    "tarot_three",
+    "tarot_celtic",
+];
+
+/// Returns whether `reading_type` is a supported tarot reading type key.
+pub fn is_valid_reading_type(reading_type: &str) -> bool {
+    TAROT_READING_TYPES.contains(&reading_type)
+}
+
 impl TarotEngine {
     /// Generate a tarot reading for the given reading_type and input.
     ///
@@ -85,7 +99,7 @@ impl TarotEngine {
 
         // 프리뷰: 선택 위치의 카드 1장만 요약 정보로 반환
         if reading_type == "tarot_one_preview" {
-            let all_cards = draw::draw_cards_n(22, &seed_input);
+            let all_cards = draw::draw_cards_n(draw::DRAW_POOL_SIZE as usize, &seed_input);
             let pick_idx = selected_position.min(all_cards.len().saturating_sub(1));
             let drawn = &all_cards[pick_idx];
             let card = cards::get_card(drawn.card_id);
@@ -126,7 +140,7 @@ impl TarotEngine {
         // tarot_one / tarot_daily에서 selected_position 적용 (tarot_daily는 0 고정으로 쓰는 걸 권장하지만 옵션은 허용)
         let drawn_cards =
             if matches!(reading_type, "tarot_one" | "tarot_daily") && selected_position > 0 {
-                let all = draw::draw_cards_n(22, &seed_input);
+                let all = draw::draw_cards_n(draw::DRAW_POOL_SIZE as usize, &seed_input);
                 let pick_idx = selected_position.min(all.len().saturating_sub(1));
                 vec![all[pick_idx].clone()]
             } else {
@@ -148,7 +162,9 @@ impl TarotEngine {
                 .unwrap_or_default();
 
             let is_valid = selected_positions.len() == spread_type.card_count()
-                && selected_positions.iter().all(|&p| p < 22)
+                && selected_positions
+                    .iter()
+                    .all(|&p| p < draw::DRAW_POOL_SIZE as usize)
                 && {
                     let mut sorted = selected_positions.clone();
                     sorted.sort();
@@ -157,7 +173,7 @@ impl TarotEngine {
                 };
 
             if is_valid {
-                let all = draw::draw_cards_n(22, &seed_input);
+                let all = draw::draw_cards_n(draw::DRAW_POOL_SIZE as usize, &seed_input);
                 let position_names = spread_type.position_names();
                 selected_positions
                     .iter()
@@ -282,6 +298,31 @@ mod tests {
         assert!(card.get("mixed_interpretation").is_none());
         assert!(card.get("basic_interpretation").is_none());
         assert!(card.get("interpretation").is_some());
+    }
+
+    #[test]
+    fn reading_type_api_matches_supported_spreads() {
+        assert_eq!(
+            TAROT_READING_TYPES,
+            [
+                "tarot_daily",
+                "tarot_one",
+                "tarot_one_preview",
+                "tarot_three",
+                "tarot_celtic",
+            ]
+        );
+
+        for reading_type in TAROT_READING_TYPES {
+            assert!(is_valid_reading_type(reading_type));
+            assert!(
+                SpreadType::from_reading_type(reading_type).is_some(),
+                "{reading_type} must map to a spread"
+            );
+        }
+
+        assert!(!is_valid_reading_type("tarot_saju_fusion"));
+        assert!(!is_valid_reading_type(""));
     }
 
     #[test]

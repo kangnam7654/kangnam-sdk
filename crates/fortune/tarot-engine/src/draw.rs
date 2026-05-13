@@ -7,7 +7,7 @@ use super::{DrawnCard, SpreadType};
 
 /// 드로우 카드 풀: Major Arcana 22장(card_id 0~21)만 사용.
 /// 이미지 에셋이 Major Arcana만 제공되므로 Minor Arcana는 드로우하지 않는다.
-const DRAW_POOL_SIZE: u8 = 22;
+pub const DRAW_POOL_SIZE: u8 = 22;
 
 /// N장 드로우 (직접 고르기에서 22장 셔플용)
 pub fn draw_cards_n(n: usize, seed_input: &str) -> Vec<DrawnCard> {
@@ -142,6 +142,11 @@ mod tests {
                 assert!(card.card_id < DRAW_POOL_SIZE);
             }
         }
+    }
+
+    #[test]
+    fn draw_pool_size_is_major_arcana_count() {
+        assert_eq!(DRAW_POOL_SIZE, 22);
     }
 
     #[test]

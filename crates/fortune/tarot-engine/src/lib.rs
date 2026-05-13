@@ -14,11 +14,15 @@ pub mod cards;
 pub mod category_meanings;
 pub mod draw;
 pub mod engine;
+pub mod interpretation_enrichment;
 pub mod interpreter;
 pub mod major_arcana_tests;
 pub mod types;
 
 pub use engine::{TAROT_ENGINE_VERSION, TarotEngine};
+pub use interpretation_enrichment::{
+    TAROT_INTERPRETATION_VERSION, enrich_tarot_result, is_current_tarot_version,
+};
 pub use types::{
     ArcanaType, DrawnCard, Ohang, SpreadType, Suit, TarotCard, TarotElement, TarotReading,
 };

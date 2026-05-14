@@ -46,6 +46,7 @@ pub mod interpretation;
 pub mod interpreter;
 pub mod lucky;
 pub mod monthly;
+pub mod natal_categories;
 pub mod pillars;
 pub mod shinsal;
 pub mod solar_terms;

@@ -1,6 +1,6 @@
 use crate::{
     self as saju, branches, daeun, daily, gongmang, interpretation, interpreter, lucky, monthly,
-    shinsal, ten_gods, types::*,
+    natal_categories, shinsal, ten_gods, types::*,
 };
 use chrono::{Datelike, NaiveDate};
 use serde_json::{Value, json};
@@ -8,14 +8,23 @@ use serde_json::{Value, json};
 pub struct SajuEngine;
 
 /// 엔진 버전. 캐시 무효화 기준으로 사용된다.
-pub const SAJU_ENGINE_VERSION: &str = "saju-v1.2";
+pub const SAJU_ENGINE_VERSION: &str = "saju-v1.3";
 
 /// Public reading type keys supported by the saju engine.
-pub const SAJU_READING_TYPES: [&str; 10] = [
+pub const SAJU_READING_TYPES: [&str; 19] = [
     "daily",
     "daily_detail",
     "saju",
     "saju_full",
+    "saju_wealth",
+    "saju_love",
+    "saju_marriage",
+    "saju_career",
+    "saju_health",
+    "saju_study",
+    "saju_children",
+    "saju_travel",
+    "saju_relations",
     "weekly",
     "monthly",
     "compatibility",
@@ -45,6 +54,10 @@ impl SajuEngine {
             "daily_detail" => self.generate_daily_detail(input, &version),
             "saju" => self.generate_saju(input, &version, InterpTier::Simple),
             "saju_full" => self.generate_saju(input, &version, InterpTier::Detail),
+            "saju_wealth" | "saju_love" | "saju_marriage" | "saju_career" | "saju_health"
+            | "saju_study" | "saju_children" | "saju_travel" | "saju_relations" => {
+                self.generate_natal_category(reading_type, input, &version)
+            }
             "weekly" => self.generate_weekly(input, &version),
             "monthly" => self.generate_monthly(input, &version),
             "compatibility" => self.generate_compatibility(input, &version),
@@ -374,6 +387,29 @@ impl SajuEngine {
         });
 
         (result, version.to_string())
+    }
+
+    fn generate_natal_category(
+        &self,
+        reading_type: &str,
+        input: &Value,
+        version: &str,
+    ) -> (Value, String) {
+        let (saju_result, saju_version) = self.generate_saju(input, version, InterpTier::Simple);
+        if saju_result.get("error").is_some() {
+            return (saju_result, saju_version);
+        }
+
+        let Some(result) = natal_categories::compose(reading_type, &saju_result) else {
+            return self.generate_fallback(reading_type, input, version);
+        };
+        let category_version = result
+            .get("engine_version")
+            .and_then(|v| v.as_str())
+            .unwrap_or(version)
+            .to_string();
+
+        (result, category_version)
     }
 
     fn generate_weekly(&self, input: &Value, version: &str) -> (Value, String) {
@@ -1497,6 +1533,26 @@ mod content_depth_tests {
             lead.get("question")
                 .and_then(|v| v.as_str())
                 .is_some_and(|v| v.contains("무엇부터 조정"))
+        );
+    }
+
+    #[test]
+    fn natal_category_reading_is_generated_by_saju_engine() {
+        let (result, version) = SajuEngine.generate("saju_wealth", &saju_input_with_time());
+
+        assert_eq!(version, "saju-wealth-v0.1.0");
+        assert!(
+            result
+                .get("headline")
+                .and_then(|v| v.as_str())
+                .is_some_and(|v| !v.is_empty())
+        );
+        assert_eq!(
+            result
+                .get("sections")
+                .and_then(|v| v.as_array())
+                .map(Vec::len),
+            Some(4)
         );
     }
 

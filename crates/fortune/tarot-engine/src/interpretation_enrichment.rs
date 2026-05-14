@@ -2,7 +2,7 @@ use serde_json::{Value, json};
 
 use crate::category_meanings::major_category_meaning;
 
-pub const TAROT_INTERPRETATION_VERSION: &str = "tarot-v2.2";
+pub const TAROT_INTERPRETATION_VERSION: &str = "tarot-v2.3";
 
 #[derive(Clone, Copy)]
 struct CardGuide {
@@ -259,12 +259,16 @@ pub fn enrich_tarot_result(result: &mut Value, category: Option<&str>) -> String
     }
 
     let summary = build_overall_summary(result, category);
+    let lead = build_result_lead(result);
     if let Some(obj) = result.as_object_mut() {
         obj.insert("engine_version".into(), json!(TAROT_INTERPRETATION_VERSION));
         obj.insert("category".into(), json!(category.key));
         obj.insert("category_label".into(), json!(category.label));
         obj.insert("category_focus".into(), json!(category.focus));
         obj.insert("overall_summary".into(), json!(summary));
+        if let Some(lead) = lead {
+            obj.insert("lead".into(), lead);
+        }
         obj.insert(
             "interpretation_framework".into(),
             json!({
@@ -313,6 +317,7 @@ fn enrich_card(card: &mut Value, category: CategoryGuide) {
     };
     let category_meaning =
         major_category_meaning(card_id as u8, category.key, is_reversed).unwrap_or(core);
+    let lead = card_lead(category, guide, category_meaning);
 
     let interpretation = format!(
         "[{}] {} ({}) — {}\n{} {} {}\n질문: {} {}",
@@ -346,6 +351,7 @@ fn enrich_card(card: &mut Value, category: CategoryGuide) {
     obj.insert("meaning".into(), json!(category_meaning));
     obj.insert("source_core_meaning".into(), json!(core));
     obj.insert("interpretation".into(), json!(interpretation));
+    obj.insert("lead".into(), lead);
     obj.insert("preview_text".into(), json!(preview_text));
 
     let mut keywords = obj
@@ -363,6 +369,57 @@ fn enrich_card(card: &mut Value, category: CategoryGuide) {
         }
     }
     obj.insert("keywords".into(), json!(keywords));
+}
+
+fn card_lead(category: CategoryGuide, guide: &CardGuide, category_meaning: &str) -> Value {
+    let sentences = split_sentences(category_meaning);
+    let signal = sentences
+        .first()
+        .copied()
+        .unwrap_or(category_meaning)
+        .to_string();
+    let risk = lead_risk_sentence(&sentences).to_string();
+    let action = lead_action_sentence(&sentences).to_string();
+    let question = format!("{} {}", category.question_axis, guide.reflection);
+
+    json!({
+        "signal": signal,
+        "risk": risk,
+        "action": action,
+        "question": question,
+    })
+}
+
+fn build_result_lead(result: &Value) -> Option<Value> {
+    result
+        .get("cards")
+        .and_then(|v| v.as_array())
+        .and_then(|cards| cards.first())
+        .and_then(|card| card.get("lead"))
+        .cloned()
+}
+
+fn split_sentences(text: &str) -> Vec<&str> {
+    text.split_terminator('.')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
+fn lead_risk_sentence<'a>(sentences: &'a [&'a str]) -> &'a str {
+    match sentences.len() {
+        0 => "",
+        1 => sentences[0],
+        _ => sentences[1],
+    }
+}
+
+fn lead_action_sentence<'a>(sentences: &'a [&'a str]) -> &'a str {
+    match sentences.len() {
+        0 => "",
+        1 => sentences[0],
+        _ => sentences[sentences.len() - 1],
+    }
 }
 
 fn category_guide(category: Option<&str>) -> CategoryGuide {
@@ -548,6 +605,23 @@ mod tests {
         assert_eq!(result["engine_version"], TAROT_INTERPRETATION_VERSION);
         assert_eq!(result["category"], "love");
         assert_eq!(result["category_label"], "연애");
+        assert_eq!(
+            result["lead"]["signal"],
+            "관계에서 안정감을 제공할 수 있는 위치에 있습니다"
+        );
+        assert!(result["lead"]["risk"].as_str().unwrap().contains("신뢰"));
+        assert!(
+            result["lead"]["action"]
+                .as_str()
+                .unwrap()
+                .contains("흔들림 없는 태도")
+        );
+        assert!(
+            result["lead"]["question"]
+                .as_str()
+                .unwrap()
+                .contains("기준")
+        );
 
         let card = &result["cards"][0];
         assert!(
@@ -557,6 +631,7 @@ mod tests {
                 .contains("관계에서 안정감"),
             "category-specific major arcana meaning must be preserved"
         );
+        assert_eq!(card["lead"], result["lead"]);
         let interpretation = card["interpretation"].as_str().unwrap();
         assert!(interpretation.contains("황제"));
         assert!(interpretation.contains("관계"));

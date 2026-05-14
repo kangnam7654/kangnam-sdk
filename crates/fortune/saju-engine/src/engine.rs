@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 pub struct SajuEngine;
 
 /// 엔진 버전. 캐시 무효화 기준으로 사용된다.
-pub const SAJU_ENGINE_VERSION: &str = "saju-v1.1";
+pub const SAJU_ENGINE_VERSION: &str = "saju-v1.2";
 
 /// Public reading type keys supported by the saju engine.
 pub const SAJU_READING_TYPES: [&str; 10] = [
@@ -102,6 +102,35 @@ fn daily_detail_lead(detail: &daily::DailyDetailFortune) -> Value {
         "question": format!(
             "{} 오늘 이 문장을 실제 행동으로 만들려면 무엇을 먼저 해야 하나요?",
             detail.persona_today.mantra.as_str()
+        ),
+    })
+}
+
+fn saju_lead(
+    comp: &interpretation::Interpretation,
+    balance_text: &str,
+    lucky: &lucky::LuckyItems,
+    day_master: Stem,
+    tier: InterpTier,
+) -> Value {
+    let action = match tier {
+        InterpTier::Simple => lucky.interpretation.as_str(),
+        InterpTier::Detail => comp
+            .sections
+            .iter()
+            .find(|section| section.key == "remedies")
+            .expect("detail interpretation must include remedies section")
+            .body
+            .as_str(),
+    };
+
+    json!({
+        "signal": comp.headline.as_str(),
+        "risk": balance_text,
+        "action": action,
+        "question": format!(
+            "내 {} 기질이 반복해서 선택하는 방식은 무엇이며, 오늘 무엇부터 조정해야 하나요?",
+            day_master.element().korean()
         ),
     })
 }
@@ -311,6 +340,7 @@ impl SajuEngine {
             InterpTier::Detail => interpretation::compose_detail(&fp, &balance, &gods),
         };
         let interpretation_value = interpretation::to_json(&comp);
+        let lead = saju_lead(&comp, &balance_text, &lk, day_master, tier);
 
         let result = json!({
             "four_pillars": four_pillars,
@@ -340,6 +370,7 @@ impl SajuEngine {
             "shinsal": ss.iter().map(shinsal_to_json).collect::<Vec<_>>(),
             "lucky": lucky_to_json(&lk),
             "interpretation": interpretation_value,
+            "lead": lead,
         });
 
         (result, version.to_string())
@@ -1410,6 +1441,62 @@ mod content_depth_tests {
             lead.get("question")
                 .and_then(|v| v.as_str())
                 .is_some_and(|v| v.contains("실제 행동"))
+        );
+    }
+
+    #[test]
+    fn saju_response_includes_structured_lead_from_engine_fields() {
+        let (result, version) = SajuEngine.generate("saju", &saju_input_with_time());
+
+        assert_eq!(version, SAJU_ENGINE_VERSION);
+        let lead = result.get("lead").expect("saju.lead 필드 필수");
+        let interpretation = result
+            .get("interpretation")
+            .expect("saju.interpretation 필드 필수");
+        let balance = result
+            .get("element_balance")
+            .expect("saju.element_balance 필드 필수");
+        let lucky = result.get("lucky").expect("saju.lucky 필드 필수");
+
+        assert_eq!(lead.get("signal"), interpretation.get("headline"));
+        assert_eq!(lead.get("risk"), balance.get("analysis"));
+        assert_eq!(lead.get("action"), lucky.get("interpretation"));
+        assert!(
+            lead.get("question")
+                .and_then(|v| v.as_str())
+                .is_some_and(|v| v.contains("반복해서 선택"))
+        );
+    }
+
+    #[test]
+    fn saju_full_response_includes_structured_lead_from_remedies() {
+        let (result, version) = SajuEngine.generate("saju_full", &saju_input_with_time());
+
+        assert_eq!(version, SAJU_ENGINE_VERSION);
+        let lead = result.get("lead").expect("saju_full.lead 필드 필수");
+        let interpretation = result
+            .get("interpretation")
+            .expect("saju_full.interpretation 필드 필수");
+        let remedies = interpretation
+            .get("sections")
+            .and_then(|v| v.as_array())
+            .and_then(|sections| {
+                sections
+                    .iter()
+                    .find(|section| section.get("key").and_then(|v| v.as_str()) == Some("remedies"))
+            })
+            .expect("saju_full.interpretation.sections remedies 필수");
+        let balance = result
+            .get("element_balance")
+            .expect("saju_full.element_balance 필드 필수");
+
+        assert_eq!(lead.get("signal"), interpretation.get("headline"));
+        assert_eq!(lead.get("risk"), balance.get("analysis"));
+        assert_eq!(lead.get("action"), remedies.get("body"));
+        assert!(
+            lead.get("question")
+                .and_then(|v| v.as_str())
+                .is_some_and(|v| v.contains("무엇부터 조정"))
         );
     }
 

@@ -1,6 +1,8 @@
 use serde_json::{Value, json};
 
-pub const TAROT_INTERPRETATION_VERSION: &str = "tarot-v2.1";
+use crate::category_meanings::major_category_meaning;
+
+pub const TAROT_INTERPRETATION_VERSION: &str = "tarot-v2.2";
 
 #[derive(Clone, Copy)]
 struct CardGuide {
@@ -309,6 +311,8 @@ fn enrich_card(card: &mut Value, category: CategoryGuide) {
     } else {
         guide.upright
     };
+    let category_meaning =
+        major_category_meaning(card_id as u8, category.key, is_reversed).unwrap_or(core);
 
     let interpretation = format!(
         "[{}] {} ({}) — {}\n{} {} {}\n질문: {} {}",
@@ -317,7 +321,7 @@ fn enrich_card(card: &mut Value, category: CategoryGuide) {
         orientation,
         guide.archetype,
         position_context(&position_label, category),
-        core,
+        category_meaning,
         category_lens(category, guide, is_reversed),
         category.question_axis,
         guide.reflection,
@@ -339,7 +343,8 @@ fn enrich_card(card: &mut Value, category: CategoryGuide) {
     obj.insert("source_keywords".into(), json!(guide.keywords));
     obj.insert("category".into(), json!(category.key));
     obj.insert("category_label".into(), json!(category.label));
-    obj.insert("meaning".into(), json!(core));
+    obj.insert("meaning".into(), json!(category_meaning));
+    obj.insert("source_core_meaning".into(), json!(core));
     obj.insert("interpretation".into(), json!(interpretation));
     obj.insert("preview_text".into(), json!(preview_text));
 
@@ -545,6 +550,13 @@ mod tests {
         assert_eq!(result["category_label"], "연애");
 
         let card = &result["cards"][0];
+        assert!(
+            card["meaning"]
+                .as_str()
+                .unwrap()
+                .contains("관계에서 안정감"),
+            "category-specific major arcana meaning must be preserved"
+        );
         let interpretation = card["interpretation"].as_str().unwrap();
         assert!(interpretation.contains("황제"));
         assert!(interpretation.contains("관계"));
@@ -564,6 +576,29 @@ mod tests {
                 "{banned} must not appear in tarot text"
             );
         }
+    }
+
+    #[test]
+    fn same_card_changes_meaning_by_category() {
+        let mut love = json!({
+            "spread_type": "tarot_daily",
+            "spread_name": "오늘의 타로",
+            "cards": [sample_card(4, "황제", false, 0)],
+        });
+        let mut career = love.clone();
+
+        enrich_tarot_result(&mut love, Some("love"));
+        enrich_tarot_result(&mut career, Some("career"));
+
+        let love_meaning = love["cards"][0]["meaning"].as_str().unwrap();
+        let career_meaning = career["cards"][0]["meaning"].as_str().unwrap();
+        assert_ne!(love_meaning, career_meaning);
+        assert!(love_meaning.contains("관계"));
+        assert!(career_meaning.contains("업무"));
+        assert_ne!(
+            love["cards"][0]["interpretation"],
+            career["cards"][0]["interpretation"]
+        );
     }
 
     #[test]

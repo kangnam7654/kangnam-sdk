@@ -8,7 +8,7 @@ use crate::types::{SpreadType, TarotReading};
 pub struct TarotEngine;
 
 /// 엔진 버전. 캐시 무효화 기준으로 사용된다.
-pub const TAROT_ENGINE_VERSION: &str = "tarot-v2.1";
+pub const TAROT_ENGINE_VERSION: &str = "tarot-v2.2";
 
 /// Public reading type keys supported by the tarot engine.
 pub const TAROT_READING_TYPES: [&str; 5] = [
@@ -515,7 +515,7 @@ mod tests {
 
     #[test]
     fn test_engine_version_bumped() {
-        assert_eq!(TAROT_ENGINE_VERSION, "tarot-v2.1");
+        assert_eq!(TAROT_ENGINE_VERSION, "tarot-v2.2");
     }
 
     #[test]

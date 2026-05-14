@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 pub struct SajuEngine;
 
 /// 엔진 버전. 캐시 무효화 기준으로 사용된다.
-pub const SAJU_ENGINE_VERSION: &str = "saju-v1.0";
+pub const SAJU_ENGINE_VERSION: &str = "saju-v1.1";
 
 /// Public reading type keys supported by the saju engine.
 pub const SAJU_READING_TYPES: [&str; 10] = [
@@ -77,6 +77,35 @@ fn parse_birth_hour(input: &str) -> Option<(u32, u32)> {
     Some((hour, minute))
 }
 
+fn daily_lead(fortune: &daily::DailyFortune) -> Value {
+    json!({
+        "signal": format!(
+            "{} 일간에게 오늘 {} 일주는 '{}' 흐름으로 작용합니다.",
+            fortune.day_master.korean(),
+            fortune.today_pillar,
+            fortune.relation.korean()
+        ),
+        "risk": fortune.caution.as_str(),
+        "action": fortune.advice.as_str(),
+        "question": format!(
+            "오늘 내 {} 기질을 살리려면 무엇을 먼저 조정해야 하나요?",
+            fortune.day_master.element().korean()
+        ),
+    })
+}
+
+fn daily_detail_lead(detail: &daily::DailyDetailFortune) -> Value {
+    json!({
+        "signal": detail.persona_today.strength.as_str(),
+        "risk": detail.persona_today.caution.as_str(),
+        "action": detail.persona_today.action.as_str(),
+        "question": format!(
+            "{} 오늘 이 문장을 실제 행동으로 만들려면 무엇을 먼저 해야 하나요?",
+            detail.persona_today.mantra.as_str()
+        ),
+    })
+}
+
 impl SajuEngine {
     /// birth_date ("YYYY-MM-DD"), birth_time ("HH:MM" or "HH") 파싱
     /// 반환: (year, month, day, hour, minute, has_birth_time)
@@ -124,6 +153,7 @@ impl SajuEngine {
 
         let user_pillars = saju::calculate_four_pillars_precise(year, month, day, hour, minute);
         let fortune = daily::calculate_daily(&user_pillars);
+        let lead = daily_lead(&fortune);
 
         let result = json!({
             "date": fortune.date,
@@ -138,6 +168,7 @@ impl SajuEngine {
             },
             "advice": fortune.advice,
             "caution": fortune.caution,
+            "lead": lead,
         });
 
         (result, version.to_string())
@@ -159,6 +190,7 @@ impl SajuEngine {
 
         let user_pillars = saju::calculate_four_pillars_precise(year, month, day, hour, minute);
         let detail = daily::calculate_daily_detail(&user_pillars, has_birth_time);
+        let lead = daily_detail_lead(&detail);
 
         // v0.0.3 — 일간 + 가장 부족 오행 두 갈래 행운 아이템 (web /today 무료 노출용).
         let lk = lucky::analyze(&user_pillars, has_birth_time);
@@ -190,6 +222,7 @@ impl SajuEngine {
             },
             "advice": detail.base.advice,
             "caution": detail.base.caution,
+            "lead": lead,
             "category_details": {
                 "love": { "score": detail.category_details.love.score, "advice": detail.category_details.love.advice },
                 "career": { "score": detail.category_details.career.score, "advice": detail.category_details.career.advice },
@@ -1339,6 +1372,45 @@ mod content_depth_tests {
         let new_lucky = result.get("lucky").expect("신규 lucky 필드");
         assert!(new_lucky.get("primary").is_some());
         assert!(new_lucky.get("supplementary").is_some());
+    }
+
+    #[test]
+    fn daily_response_includes_structured_lead() {
+        let (result, version) = SajuEngine.generate("daily", &saju_input_with_time());
+
+        assert_eq!(version, SAJU_ENGINE_VERSION);
+        let lead = result.get("lead").expect("daily.lead 필드 필수");
+        assert!(
+            lead.get("signal")
+                .and_then(|v| v.as_str())
+                .is_some_and(|v| v.contains("일간"))
+        );
+        assert_eq!(lead.get("risk"), result.get("caution"));
+        assert_eq!(lead.get("action"), result.get("advice"));
+        assert!(
+            lead.get("question")
+                .and_then(|v| v.as_str())
+                .is_some_and(|v| v.contains("무엇을 먼저 조정"))
+        );
+    }
+
+    #[test]
+    fn daily_detail_response_includes_structured_lead_from_persona_today() {
+        let (result, version) = SajuEngine.generate("daily_detail", &saju_input_with_time());
+
+        assert_eq!(version, SAJU_ENGINE_VERSION);
+        let lead = result.get("lead").expect("daily_detail.lead 필드 필수");
+        let persona = result
+            .get("persona_today")
+            .expect("daily_detail.persona_today 필드 필수");
+        assert_eq!(lead.get("signal"), persona.get("strength"));
+        assert_eq!(lead.get("risk"), persona.get("caution"));
+        assert_eq!(lead.get("action"), persona.get("action"));
+        assert!(
+            lead.get("question")
+                .and_then(|v| v.as_str())
+                .is_some_and(|v| v.contains("실제 행동"))
+        );
     }
 
     #[test]

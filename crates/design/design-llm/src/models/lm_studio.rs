@@ -1,6 +1,6 @@
 //! LM Studio (and any OpenAI-compatible server) model listing.
 
-use super::{http, ModelListError};
+use super::{ModelListError, http};
 
 /// Fetch the model list from an OpenAI-compatible `/v1/models` endpoint.
 pub(super) async fn fetch_models(endpoint: &str) -> Result<Vec<String>, ModelListError> {

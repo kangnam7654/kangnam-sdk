@@ -331,28 +331,44 @@ mod tests {
     struct FakeFs;
     #[async_trait]
     impl FsCallbacks for FakeFs {
-        async fn read(&self, _: &Path) -> Result<Vec<u8>, ToolError> { Ok(b"hi".to_vec()) }
-        async fn write(&self, _: &Path, _: &[u8]) -> Result<(), ToolError> { Ok(()) }
-        async fn str_replace(&self, _: &Path, _: &str, _: &str) -> Result<(), ToolError> { Ok(()) }
+        async fn read(&self, _: &Path) -> Result<Vec<u8>, ToolError> {
+            Ok(b"hi".to_vec())
+        }
+        async fn write(&self, _: &Path, _: &[u8]) -> Result<(), ToolError> {
+            Ok(())
+        }
+        async fn str_replace(&self, _: &Path, _: &str, _: &str) -> Result<(), ToolError> {
+            Ok(())
+        }
     }
     struct FakeWeb;
     #[async_trait]
     impl WebCallbacks for FakeWeb {
-        async fn fetch(&self, _: &str) -> Result<Vec<u8>, ToolError> { Ok(vec![]) }
+        async fn fetch(&self, _: &str) -> Result<Vec<u8>, ToolError> {
+            Ok(vec![])
+        }
     }
     struct FakeImg;
     #[async_trait]
     impl ImageCallbacks for FakeImg {
-        async fn generate(&self, _: &str, p: &Path) -> Result<PathBuf, ToolError> { Ok(p.to_path_buf()) }
+        async fn generate(&self, _: &str, p: &Path) -> Result<PathBuf, ToolError> {
+            Ok(p.to_path_buf())
+        }
     }
     struct FakeBridge;
     #[async_trait]
     impl InteractionBridge for FakeBridge {
-        async fn register_question_form(&self, _: &Value) -> Result<(String, oneshot::Receiver<Value>), ToolError> {
+        async fn register_question_form(
+            &self,
+            _: &Value,
+        ) -> Result<(String, oneshot::Receiver<Value>), ToolError> {
             let (_tx, rx) = oneshot::channel();
             Ok(("await-1".into(), rx))
         }
-        async fn register_preview(&self, _: &Value) -> Result<(String, oneshot::Receiver<Value>), ToolError> {
+        async fn register_preview(
+            &self,
+            _: &Value,
+        ) -> Result<(String, oneshot::Receiver<Value>), ToolError> {
             let (_tx, rx) = oneshot::channel();
             Ok(("await-2".into(), rx))
         }
@@ -374,8 +390,12 @@ mod tests {
     struct EchoTool;
     #[async_trait]
     impl AgentTool for EchoTool {
-        fn name(&self) -> &str { "echo" }
-        fn parameters(&self) -> Value { serde_json::json!({"type": "object"}) }
+        fn name(&self) -> &str {
+            "echo"
+        }
+        fn parameters(&self) -> Value {
+            serde_json::json!({"type": "object"})
+        }
         async fn execute(&self, params: Value, _: &ToolCtx) -> ToolResult {
             ToolResult::Success { content: params }
         }
@@ -395,9 +415,15 @@ mod tests {
     async fn register_await_dispatches_named_kinds() {
         let bridge = FakeBridge;
         let payload = serde_json::json!({});
-        let (id, _rx) = bridge.register_await(AwaitKind::QuestionForm, &payload).await.unwrap();
+        let (id, _rx) = bridge
+            .register_await(AwaitKind::QuestionForm, &payload)
+            .await
+            .unwrap();
         assert_eq!(id, "await-1");
-        let (id, _rx) = bridge.register_await(AwaitKind::Preview, &payload).await.unwrap();
+        let (id, _rx) = bridge
+            .register_await(AwaitKind::Preview, &payload)
+            .await
+            .unwrap();
         assert_eq!(id, "await-2");
     }
 

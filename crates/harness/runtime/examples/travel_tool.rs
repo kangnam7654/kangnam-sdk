@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use kangnam_harness_runtime::{
     AgentTool, AwaitKind, InteractionBridge, ToolCtx, ToolError, ToolResult,
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::sync::oneshot;
 
 // ── 1. Domain capability traits ──────────────────────────────────────────
@@ -81,7 +81,11 @@ impl AgentTool<TravelCapabilities> for AccommodationSearchTool {
     async fn execute(&self, params: Value, ctx: &ToolCtx<TravelCapabilities>) -> ToolResult {
         let city = match params.get("city").and_then(|v| v.as_str()) {
             Some(s) => s.to_string(),
-            None => return ToolResult::Failed { error: "missing `city`".into() },
+            None => {
+                return ToolResult::Failed {
+                    error: "missing `city`".into(),
+                };
+            }
         };
         let budget_band = params
             .get("budget_band")
@@ -96,7 +100,11 @@ impl AgentTool<TravelCapabilities> for AccommodationSearchTool {
             .await
         {
             Ok(opts) => opts,
-            Err(e) => return ToolResult::Failed { error: format!("accommodation search: {e}") },
+            Err(e) => {
+                return ToolResult::Failed {
+                    error: format!("accommodation search: {e}"),
+                };
+            }
         };
 
         ToolResult::Success {
@@ -143,7 +151,9 @@ impl AgentTool<TravelCapabilities> for PickAccommodationTool {
                 payload: params,
                 receiver,
             },
-            Err(e) => ToolResult::Failed { error: format!("interaction: {e}") },
+            Err(e) => ToolResult::Failed {
+                error: format!("interaction: {e}"),
+            },
         }
     }
 }

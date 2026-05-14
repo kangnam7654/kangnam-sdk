@@ -38,7 +38,10 @@ pub(crate) fn find_layout_placeholder(
             .ok_or_else(|| xml_err("<p:ph> not closed"))?;
         let tag = &s[start..end];
         let attrs = parse_attrs(tag);
-        let idx_attr = attrs.iter().find(|(k, _)| k == "idx").map(|(_, v)| v.clone());
+        let idx_attr = attrs
+            .iter()
+            .find(|(k, _)| k == "idx")
+            .map(|(_, v)| v.clone());
         let ph_type = attrs
             .iter()
             .find(|(k, _)| k == "type")
@@ -71,8 +74,7 @@ pub(crate) fn find_layout_placeholder_xfrm(
     for (start, end) in sps {
         let block = &s[start..end];
         let ph_matches = if placeholder_idx == 0 {
-            block.contains(&target_idx_attr)
-                || (block.contains("<p:ph") && !block.contains("idx="))
+            block.contains(&target_idx_attr) || (block.contains("<p:ph") && !block.contains("idx="))
         } else {
             block.contains(&target_idx_attr)
         };
@@ -208,8 +210,7 @@ pub(crate) fn upsert_slide_text_sp(
     for (sp_start, sp_end) in sps {
         let block = &s[sp_start..sp_end];
         let ph_matches = if ph.idx == 0 {
-            block.contains(&target_idx_attr)
-                || (block.contains("<p:ph") && !block.contains("idx="))
+            block.contains(&target_idx_attr) || (block.contains("<p:ph") && !block.contains("idx="))
         } else {
             block.contains(&target_idx_attr)
         };
@@ -220,15 +221,12 @@ pub(crate) fn upsert_slide_text_sp(
                     ph.idx
                 ))
             })?;
-            let tx_end_rel = block
-                .find("</p:txBody>")
-                .ok_or_else(|| {
-                    xml_err(format!(
-                        "</p:txBody> missing in <p:sp> for placeholder idx={}",
-                        ph.idx
-                    ))
-                })?
-                + "</p:txBody>".len();
+            let tx_end_rel = block.find("</p:txBody>").ok_or_else(|| {
+                xml_err(format!(
+                    "</p:txBody> missing in <p:sp> for placeholder idx={}",
+                    ph.idx
+                ))
+            })? + "</p:txBody>".len();
             let new_tx_body = build_minimal_tx_body(text);
             let mut out = String::with_capacity(s.len() + new_tx_body.len());
             out.push_str(&s[..sp_start + tx_start_rel]);

@@ -16,12 +16,11 @@ use futures::stream::{BoxStream, StreamExt};
 use tera::{Context, Tera};
 use thiserror::Error;
 
-use kangnam_design_llm::{AiAttachment, AiChunk, AiClient, AiError};
 use kangnam_design_doc_site::SiteDoc;
+use kangnam_design_llm::{AiAttachment, AiChunk, AiClient, AiError};
 
 const TEMPLATE_NAME: &str = "site-system-prompt";
-const TEMPLATE_SOURCE: &str =
-    include_str!("../templates/site-system-prompt.tera");
+const TEMPLATE_SOURCE: &str = include_str!("../templates/site-system-prompt.tera");
 
 /// Events yielded by [`SiteGenerator::generate`] during a single
 /// generation turn.
@@ -33,10 +32,7 @@ pub enum SiteGenerationEvent {
     /// Terminal success event. Carries the rendered HTML (ready to feed
     /// into the preview iframe) and the `SiteDoc` JSON (persisted into
     /// `versions.site_doc_json`).
-    Complete {
-        html: String,
-        site_doc_json: String,
-    },
+    Complete { html: String, site_doc_json: String },
 }
 
 #[derive(Debug, Error)]
@@ -139,13 +135,10 @@ impl SiteGenerator {
 /// trust uniqueness.
 fn parse_site(raw: &str) -> Result<(SiteDoc, String), String> {
     let cleaned = strip_code_fence(raw.trim());
-    let mut site: SiteDoc = serde_json::from_str(cleaned)
-        .map_err(|e| format!("{e} :: {}", truncate(cleaned, 200)))?;
+    let mut site: SiteDoc =
+        serde_json::from_str(cleaned).map_err(|e| format!("{e} :: {}", truncate(cleaned, 200)))?;
     if site.sections.is_empty() {
-        return Err(format!(
-            "sections[] is empty :: {}",
-            truncate(cleaned, 200)
-        ));
+        return Err(format!("sections[] is empty :: {}", truncate(cleaned, 200)));
     }
     // Server-generated id so distinct generations can't collide on the
     // same string; section ids remain as authored.
@@ -158,9 +151,7 @@ fn parse_site(raw: &str) -> Result<(SiteDoc, String), String> {
 
 fn strip_code_fence(s: &str) -> &str {
     let s = s.trim();
-    let stripped = s
-        .strip_prefix("```json")
-        .or_else(|| s.strip_prefix("```"));
+    let stripped = s.strip_prefix("```json").or_else(|| s.strip_prefix("```"));
     let s = stripped.unwrap_or(s);
     let s = s.trim_start_matches('\n').trim();
     s.strip_suffix("```").map(str::trim).unwrap_or(s)
@@ -225,11 +216,7 @@ mod tests {
     async fn build_prompt_includes_references_block_when_attachments_present() {
         let ai = Arc::new(FakeAiClient::new(Vec::<String>::new()));
         let svc = SiteGenerator::new(ai).unwrap();
-        let atts = vec![AiAttachment::image(
-            "/tmp/ref.png",
-            "image/png",
-            "ref.png",
-        )];
+        let atts = vec![AiAttachment::image("/tmp/ref.png", "image/png", "ref.png")];
         let prompt = svc.build_prompt("랜딩", &atts).unwrap();
         assert!(prompt.contains("레퍼런스의 톤"));
     }
@@ -254,7 +241,10 @@ mod tests {
 
         assert_eq!(deltas.len(), 1);
         let complete = complete.expect("must complete");
-        let SiteGenerationEvent::Complete { html, site_doc_json } = complete
+        let SiteGenerationEvent::Complete {
+            html,
+            site_doc_json,
+        } = complete
         else {
             unreachable!()
         };

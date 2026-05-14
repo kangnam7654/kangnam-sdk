@@ -184,7 +184,9 @@ fn parse_line(line: &str, accumulated: &mut String) -> Result<Option<AiChunk>, A
                     .get("error")
                     .and_then(|v| v.as_str())
                     .unwrap_or("(no detail)");
-                Err(AiError::Process(format!("gemini status={status}: {detail}")))
+                Err(AiError::Process(format!(
+                    "gemini status={status}: {detail}"
+                )))
             }
         }
         _ => Ok(None),
@@ -253,7 +255,10 @@ EOF"#,
         let bin = dir.path().join("gemini-mock.sh");
         let client = GeminiCliClient::new(bin);
 
-        let chunks: Vec<_> = client.complete("ignored".into(), vec![]).collect::<Vec<_>>().await;
+        let chunks: Vec<_> = client
+            .complete("ignored".into(), vec![])
+            .collect::<Vec<_>>()
+            .await;
         let last = chunks.last().expect("at least one item");
         assert!(matches!(last, Err(AiError::Process(msg)) if msg.contains("quota exhausted")));
     }
@@ -261,7 +266,10 @@ EOF"#,
     #[tokio::test]
     async fn surfaces_error_when_binary_missing() {
         let client = GeminiCliClient::new("/nonexistent/path/to/gemini-xyz");
-        let chunks: Vec<_> = client.complete("ignored".into(), vec![]).collect::<Vec<_>>().await;
+        let chunks: Vec<_> = client
+            .complete("ignored".into(), vec![])
+            .collect::<Vec<_>>()
+            .await;
         assert_eq!(chunks.len(), 1);
         assert!(matches!(chunks[0], Err(AiError::Process(_))));
     }
@@ -311,7 +319,10 @@ EOF"#,
         let bin = dir.path().join("gemini-mock.sh");
         let client = GeminiCliClient::new(bin);
 
-        let chunks: Vec<_> = client.complete("ignored".into(), vec![]).collect::<Vec<_>>().await;
+        let chunks: Vec<_> = client
+            .complete("ignored".into(), vec![])
+            .collect::<Vec<_>>()
+            .await;
         let last = chunks.last().expect("at least one");
         assert!(matches!(last, Err(AiError::Protocol(_))));
     }

@@ -208,8 +208,8 @@ pub struct HealthResponse {
 
 crate::locked_true!(
     /// `ok: true` literal on `/api/health` — see [`crate::locked_true`].
-    pub struct HealthOk
-    ; field_name = "ok"
+    pub struct HealthOk;
+    field_name = "ok"
 );
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -385,10 +385,7 @@ mod tests {
             version: Some("1.0.0".into()),
         };
         let s = serde_json::to_string(&r).unwrap();
-        assert_eq!(
-            s,
-            r#"{"ok":true,"service":"daemon","version":"1.0.0"}"#
-        );
+        assert_eq!(s, r#"{"ok":true,"service":"daemon","version":"1.0.0"}"#);
         // ok=false rejected.
         let bad = r#"{"ok":false,"service":"daemon"}"#;
         let err = serde_json::from_str::<HealthResponse>(bad).unwrap_err();

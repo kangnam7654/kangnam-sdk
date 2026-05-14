@@ -77,7 +77,9 @@ pub(crate) fn upsert_embedded_font(
             .find("<p:defaultTextStyle")
             .or_else(|| s.rfind("</p:presentation>"))
             .ok_or_else(|| {
-                xml_err("presentation.xml: neither <p:defaultTextStyle> nor </p:presentation> found")
+                xml_err(
+                    "presentation.xml: neither <p:defaultTextStyle> nor </p:presentation> found",
+                )
             })?;
         let block = format!(
             "<p:embeddedFontLst><p:embeddedFont>{}{}</p:embeddedFont></p:embeddedFontLst>",

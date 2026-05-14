@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use kangnam_design_catalog_core as catalog;
 
-use crate::parser::{parse_design_md, NineSections, ParseError};
-use crate::tokens::{extract_color_tokens, ColorToken};
+use crate::parser::{NineSections, ParseError, parse_design_md};
+use crate::tokens::{ColorToken, extract_color_tokens};
 
 /// One loaded design system.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -133,9 +133,21 @@ mod tests {
             return;
         }
         let ids = list_system_ids(&root).unwrap();
-        assert!(ids.len() >= 130, "expected at least 130 vendored systems, got {}", ids.len());
+        assert!(
+            ids.len() >= 130,
+            "expected at least 130 vendored systems, got {}",
+            ids.len()
+        );
         // A few canonical entries we know are vendored.
-        for id in ["cursor", "linear-app", "stripe", "vercel", "agentic", "shadcn", "discord"] {
+        for id in [
+            "cursor",
+            "linear-app",
+            "stripe",
+            "vercel",
+            "agentic",
+            "shadcn",
+            "discord",
+        ] {
             assert!(
                 ids.iter().any(|i| i == id),
                 "expected `{id}` in vendored catalog"

@@ -10,19 +10,23 @@ pub const BUILTIN_DIRECTIONS: &[Direction] = &[
     Direction {
         id: "editorial-monocle",
         label: "Editorial — Monocle / FT magazine",
-        mood:
-            "Print-magazine feel. Generous whitespace, large serif headlines, restrained palette of off-white paper + ink + a single warm accent. Confident, quietly intelligent.",
-        references: &["Monocle", "The Financial Times Weekend", "NYT Magazine", "It's Nice That"],
+        mood: "Print-magazine feel. Generous whitespace, large serif headlines, restrained palette of off-white paper + ink + a single warm accent. Confident, quietly intelligent.",
+        references: &[
+            "Monocle",
+            "The Financial Times Weekend",
+            "NYT Magazine",
+            "It's Nice That",
+        ],
         display_font: "'Iowan Old Style', 'Charter', Georgia, serif",
         body_font: "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
         mono_font: None,
         palette: PaletteStatic {
-            bg:      "oklch(97% 0.012 80)",
+            bg: "oklch(97% 0.012 80)",
             surface: "oklch(99% 0.005 80)",
-            fg:      "oklch(20% 0.02 60)",
-            muted:   "oklch(48% 0.015 60)",
-            border:  "oklch(89% 0.012 80)",
-            accent:  "oklch(58% 0.16 35)",
+            fg: "oklch(20% 0.02 60)",
+            muted: "oklch(48% 0.015 60)",
+            border: "oklch(89% 0.012 80)",
+            accent: "oklch(58% 0.16 35)",
         },
         posture: &[
             "serif display, sans body, mono for metadata only",
@@ -34,21 +38,18 @@ pub const BUILTIN_DIRECTIONS: &[Direction] = &[
     Direction {
         id: "modern-minimal",
         label: "Modern minimal — Linear / Vercel",
-        mood:
-            "Quiet, precise, software-native. System fonts, near-greyscale palette, a single saturated accent. The chrome disappears so content is the only thing that registers.",
+        mood: "Quiet, precise, software-native. System fonts, near-greyscale palette, a single saturated accent. The chrome disappears so content is the only thing that registers.",
         references: &["Linear", "Vercel", "Notion 2024", "Stripe docs"],
-        display_font:
-            "-apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif",
-        body_font:
-            "-apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif",
+        display_font: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif",
+        body_font: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif",
         mono_font: None,
         palette: PaletteStatic {
-            bg:      "oklch(99% 0.002 240)",
+            bg: "oklch(99% 0.002 240)",
             surface: "oklch(100% 0 0)",
-            fg:      "oklch(18% 0.012 250)",
-            muted:   "oklch(54% 0.012 250)",
-            border:  "oklch(92% 0.005 250)",
-            accent:  "oklch(58% 0.18 255)",
+            fg: "oklch(18% 0.012 250)",
+            muted: "oklch(54% 0.012 250)",
+            border: "oklch(92% 0.005 250)",
+            accent: "oklch(58% 0.18 255)",
         },
         posture: &[
             "tight letter-spacing on display sizes (-0.02em)",
@@ -61,21 +62,18 @@ pub const BUILTIN_DIRECTIONS: &[Direction] = &[
     Direction {
         id: "warm-soft",
         label: "Warm & soft — Stripe pre-2020 / Headspace",
-        mood:
-            "Cream backgrounds, soft accent, gentle radii. Reads like a thoughtful product magazine — friendly without being cute. Good for fintech, wellness, indie SaaS.",
+        mood: "Cream backgrounds, soft accent, gentle radii. Reads like a thoughtful product magazine — friendly without being cute. Good for fintech, wellness, indie SaaS.",
         references: &["Stripe pre-2020", "Headspace", "Substack", "Mercury"],
-        display_font:
-            "'Tiempos Headline', 'Newsreader', 'Iowan Old Style', Georgia, serif",
-        body_font:
-            "'Söhne', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+        display_font: "'Tiempos Headline', 'Newsreader', 'Iowan Old Style', Georgia, serif",
+        body_font: "'Söhne', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
         mono_font: None,
         palette: PaletteStatic {
-            bg:      "oklch(97% 0.018 70)",
+            bg: "oklch(97% 0.018 70)",
             surface: "oklch(99% 0.008 70)",
-            fg:      "oklch(22% 0.02 50)",
-            muted:   "oklch(50% 0.018 50)",
-            border:  "oklch(90% 0.014 70)",
-            accent:  "oklch(64% 0.13 28)",
+            fg: "oklch(22% 0.02 50)",
+            muted: "oklch(50% 0.018 50)",
+            border: "oklch(90% 0.014 70)",
+            accent: "oklch(64% 0.13 28)",
         },
         posture: &[
             "serif display, soft sans body",
@@ -88,21 +86,18 @@ pub const BUILTIN_DIRECTIONS: &[Direction] = &[
     Direction {
         id: "tech-utility",
         label: "Tech / utility — Datadog / GitHub",
-        mood:
-            "Data-dense, monospace-friendly, dark or light + grid. Made for engineers and operators who want information per square inch, not vibes.",
+        mood: "Data-dense, monospace-friendly, dark or light + grid. Made for engineers and operators who want information per square inch, not vibes.",
         references: &["Datadog", "GitHub", "Cloudflare dashboard", "Sentry"],
-        display_font:
-            "-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif",
-        body_font:
-            "-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif",
+        display_font: "-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif",
+        body_font: "-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif",
         mono_font: Some("'JetBrains Mono', 'IBM Plex Mono', ui-monospace, Menlo, monospace"),
         palette: PaletteStatic {
-            bg:      "oklch(98% 0.005 250)",
+            bg: "oklch(98% 0.005 250)",
             surface: "oklch(100% 0 0)",
-            fg:      "oklch(22% 0.02 240)",
-            muted:   "oklch(50% 0.018 240)",
-            border:  "oklch(90% 0.008 240)",
-            accent:  "oklch(58% 0.16 145)",
+            fg: "oklch(22% 0.02 240)",
+            muted: "oklch(50% 0.018 240)",
+            border: "oklch(90% 0.008 240)",
+            accent: "oklch(58% 0.16 145)",
         },
         posture: &[
             "sans display + sans body (one family) is OK here — utility trumps editorial",
@@ -115,19 +110,18 @@ pub const BUILTIN_DIRECTIONS: &[Direction] = &[
     Direction {
         id: "brutalist-experimental",
         label: "Brutalist / experimental — Are.na / Yale",
-        mood:
-            "Loud type. Visible grid. System sans + a single oversized serif. Deliberate ugliness as confidence. Great for art, indie, agency, manifesto pages.",
+        mood: "Loud type. Visible grid. System sans + a single oversized serif. Deliberate ugliness as confidence. Great for art, indie, agency, manifesto pages.",
         references: &["Are.na", "Yale Center for British Art", "mschf", "Read.cv"],
         display_font: "'Times New Roman', 'Iowan Old Style', Georgia, serif",
         body_font: "ui-monospace, 'IBM Plex Mono', 'JetBrains Mono', Menlo, monospace",
         mono_font: None,
         palette: PaletteStatic {
-            bg:      "oklch(96% 0.004 100)",
+            bg: "oklch(96% 0.004 100)",
             surface: "oklch(100% 0 0)",
-            fg:      "oklch(15% 0.02 100)",
-            muted:   "oklch(40% 0.02 100)",
-            border:  "oklch(15% 0.02 100)",
-            accent:  "oklch(60% 0.22 25)",
+            fg: "oklch(15% 0.02 100)",
+            muted: "oklch(40% 0.02 100)",
+            border: "oklch(15% 0.02 100)",
+            accent: "oklch(60% 0.22 25)",
         },
         posture: &[
             "display = serif at extreme sizes (clamp(80px, 12vw, 200px))",

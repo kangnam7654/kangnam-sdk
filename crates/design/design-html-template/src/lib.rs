@@ -86,7 +86,11 @@ mod tests {
     #[test]
     fn each_template_has_doctype_and_root_tokens() {
         for t in TEMPLATES {
-            assert!(t.body.starts_with("<!doctype html>"), "{} missing doctype", t.id);
+            assert!(
+                t.body.starts_with("<!doctype html>"),
+                "{} missing doctype",
+                t.id
+            );
             assert!(t.body.contains("--accent"), "{} missing accent slot", t.id);
             assert!(!t.body.is_empty(), "{} body is empty", t.id);
         }
@@ -108,7 +112,10 @@ mod tests {
 
     #[test]
     fn template_by_id_known_and_unknown() {
-        assert_eq!(template_by_id("deck-framework").unwrap().id, "deck-framework");
+        assert_eq!(
+            template_by_id("deck-framework").unwrap().id,
+            "deck-framework"
+        );
         assert_eq!(template_by_id("kami-deck").unwrap().id, "kami-deck");
         assert!(template_by_id("not-a-template").is_none());
     }
@@ -117,7 +124,10 @@ mod tests {
     fn deck_framework_has_chrome_elements() {
         assert!(DECK_FRAMEWORK.body.contains("deck-counter"));
         assert!(DECK_FRAMEWORK.body.contains("deck-stage"));
-        assert!(DECK_FRAMEWORK.body.contains("class=\"slide active\"") || DECK_FRAMEWORK.body.contains("slide.active"));
+        assert!(
+            DECK_FRAMEWORK.body.contains("class=\"slide active\"")
+                || DECK_FRAMEWORK.body.contains("slide.active")
+        );
     }
 
     #[test]

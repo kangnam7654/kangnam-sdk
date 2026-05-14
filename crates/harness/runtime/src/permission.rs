@@ -122,8 +122,7 @@ mod tests {
 
     #[test]
     fn glob_prefix() {
-        let evalr =
-            PermissionEvaluator::new(vec![rule("mcp__*", PermissionAction::Allow, 0)]);
+        let evalr = PermissionEvaluator::new(vec![rule("mcp__*", PermissionAction::Allow, 0)]);
         assert_eq!(
             evalr.evaluate("mcp__kangnam__preview", None),
             PermissionVerdict::Allow
@@ -133,11 +132,8 @@ mod tests {
 
     #[test]
     fn argument_match() {
-        let evalr = PermissionEvaluator::new(vec![rule(
-            "Bash(git status:*)",
-            PermissionAction::Allow,
-            0,
-        )]);
+        let evalr =
+            PermissionEvaluator::new(vec![rule("Bash(git status:*)", PermissionAction::Allow, 0)]);
         assert_eq!(
             evalr.evaluate("Bash(git status", Some("--short)")),
             PermissionVerdict::Allow

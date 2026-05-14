@@ -86,7 +86,10 @@ mod tests {
 
     #[test]
     fn parse_format_keys() {
-        assert_eq!(ExportFormat::parse("markdown"), Some(ExportFormat::Markdown));
+        assert_eq!(
+            ExportFormat::parse("markdown"),
+            Some(ExportFormat::Markdown)
+        );
         assert_eq!(ExportFormat::parse("MD"), Some(ExportFormat::Markdown));
         assert_eq!(ExportFormat::parse("json"), Some(ExportFormat::Json));
         assert_eq!(ExportFormat::parse("yaml"), None);
@@ -97,7 +100,18 @@ mod tests {
         let conn = setup();
         let conv = create_conversation(&conn, "claude", None).unwrap();
         add_message(&conn, &conv.id, "user", "hi", None, None, None, None, None).unwrap();
-        add_message(&conn, &conv.id, "assistant", "hello", None, None, None, None, None).unwrap();
+        add_message(
+            &conn,
+            &conv.id,
+            "assistant",
+            "hello",
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
         let md = export_conversation(&conn, &conv.id, ExportFormat::Markdown).unwrap();
         assert!(md.contains("# New Chat"));
         assert!(md.contains("**User**"));
@@ -110,7 +124,10 @@ mod tests {
     fn json_export_round_trips() {
         let conn = setup();
         let conv = create_conversation(&conn, "codex", None).unwrap();
-        add_message(&conn, &conv.id, "user", "test", None, None, None, None, None).unwrap();
+        add_message(
+            &conn, &conv.id, "user", "test", None, None, None, None, None,
+        )
+        .unwrap();
         let json = export_conversation(&conn, &conv.id, ExportFormat::Json).unwrap();
         let v: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert!(v.get("conversation").is_some());

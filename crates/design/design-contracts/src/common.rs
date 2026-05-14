@@ -26,14 +26,13 @@ pub struct BoundedJsonConstraints {
 /// Default bounded-JSON profile for live-artifact payloads — depth 8,
 /// 100 keys/object, 500 items/array, 16KiB string, 256KiB total. Matches
 /// `LIVE_ARTIFACT_BOUNDED_JSON_CONSTRAINTS` upstream byte-for-byte.
-pub const LIVE_ARTIFACT_BOUNDED_JSON_CONSTRAINTS: BoundedJsonConstraints =
-    BoundedJsonConstraints {
-        max_depth: 8,
-        max_object_keys: 100,
-        max_array_length: 500,
-        max_string_length: 16 * 1024,
-        max_serialized_bytes: 256 * 1024,
-    };
+pub const LIVE_ARTIFACT_BOUNDED_JSON_CONSTRAINTS: BoundedJsonConstraints = BoundedJsonConstraints {
+    max_depth: 8,
+    max_object_keys: 100,
+    max_array_length: 500,
+    max_string_length: 16 * 1024,
+    max_serialized_bytes: 256 * 1024,
+};
 
 /// `{ "ok": true }` — the canonical "command succeeded, nothing else to
 /// say" response shape. Note this is a struct envelope (one-field JSON

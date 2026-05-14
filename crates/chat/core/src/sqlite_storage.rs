@@ -13,11 +13,11 @@
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use uuid::Uuid;
 
 use crate::error::{Result, StorageError};
-use crate::storage::{derive_auto_title, now_ts, Storage};
+use crate::storage::{Storage, derive_auto_title, now_ts};
 use crate::types::{Conversation, Message, NewMessage, SearchResult};
 
 impl From<rusqlite::Error> for StorageError {
@@ -241,11 +241,7 @@ impl Storage for SqliteStorage {
         .await
     }
 
-    async fn auto_title_if_needed(
-        &self,
-        conversation_id: &str,
-        user_message: &str,
-    ) -> Result<()> {
+    async fn auto_title_if_needed(&self, conversation_id: &str, user_message: &str) -> Result<()> {
         let derived = derive_auto_title(user_message);
         let conversation_id = conversation_id.to_string();
         self.with_conn_async(move |conn| {
@@ -301,11 +297,7 @@ impl Storage for SqliteStorage {
         .await
     }
 
-    async fn add_message(
-        &self,
-        conversation_id: &str,
-        msg: NewMessage<'_>,
-    ) -> Result<Message> {
+    async fn add_message(&self, conversation_id: &str, msg: NewMessage<'_>) -> Result<Message> {
         // Owned copies — the closure outlives `'_`.
         let conversation_id = conversation_id.to_string();
         let role = msg.role.to_string();
@@ -490,7 +482,9 @@ mod tests {
     async fn delete_cascades() {
         let s = fresh().await;
         let conv = s.create_conversation("codex", None).await.unwrap();
-        s.add_message(&conv.id, NewMessage::user("x")).await.unwrap();
+        s.add_message(&conv.id, NewMessage::user("x"))
+            .await
+            .unwrap();
         s.delete_conversation(&conv.id).await.unwrap();
         assert_eq!(s.list_conversations().await.unwrap().len(), 0);
         assert_eq!(s.get_messages(&conv.id).await.unwrap().len(), 0);

@@ -2,14 +2,16 @@
 
 use async_trait::async_trait;
 use kangnam_design_artifact::question_form::parse_question_form;
-use kangnam_harness_runtime::{AwaitKind, AgentTool, ToolCtx, ToolResult};
-use serde_json::{json, Value};
+use kangnam_harness_runtime::{AgentTool, AwaitKind, ToolCtx, ToolResult};
+use serde_json::{Value, json};
 
 pub struct AskTool;
 
 #[async_trait]
 impl AgentTool for AskTool {
-    fn name(&self) -> &str { "ask" }
+    fn name(&self) -> &str {
+        "ask"
+    }
 
     fn parameters(&self) -> Value {
         json!({
@@ -32,26 +34,43 @@ impl AgentTool for AskTool {
     async fn execute(&self, params: Value, ctx: &ToolCtx) -> ToolResult {
         let form_value = match params.get("form") {
             Some(v) => v.clone(),
-            None => return ToolResult::Failed { error: "missing `form` parameter".into() },
+            None => {
+                return ToolResult::Failed {
+                    error: "missing `form` parameter".into(),
+                };
+            }
         };
         // Validate via the artifact crate so the renderer never sees a
         // bad schema.
         let form_str = match serde_json::to_string(&form_value) {
             Ok(s) => s,
-            Err(e) => return ToolResult::Failed { error: format!("form serialize: {e}") },
+            Err(e) => {
+                return ToolResult::Failed {
+                    error: format!("form serialize: {e}"),
+                };
+            }
         };
         if let Err(e) = parse_question_form(&form_str) {
-            return ToolResult::Failed { error: format!("invalid form: {e}") };
+            return ToolResult::Failed {
+                error: format!("invalid form: {e}"),
+            };
         }
 
-        match ctx.capabilities.bridge.register_question_form(&form_value).await {
+        match ctx
+            .capabilities
+            .bridge
+            .register_question_form(&form_value)
+            .await
+        {
             Ok((await_id, receiver)) => ToolResult::AwaitUser {
                 await_id,
                 kind: AwaitKind::QuestionForm,
                 payload: form_value,
                 receiver,
             },
-            Err(e) => ToolResult::Failed { error: format!("bridge error: {e}") },
+            Err(e) => ToolResult::Failed {
+                error: format!("bridge error: {e}"),
+            },
         }
     }
 }

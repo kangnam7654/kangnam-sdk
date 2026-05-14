@@ -51,7 +51,7 @@ pub(super) use slide::{
 
 // placeholder — XfrmRect is constructed directly in template/mod.rs, so fields must be pub(crate)
 pub(super) use placeholder::{
-    find_layout_placeholder, find_layout_placeholder_xfrm, upsert_slide_text_sp, XfrmRect,
+    XfrmRect, find_layout_placeholder, find_layout_placeholder_xfrm, upsert_slide_text_sp,
 };
 
 // shapes
@@ -88,7 +88,10 @@ mod tests {
 
     #[test]
     fn escape_xml_text_handles_specials() {
-        assert_eq!(util::escape_xml_text("a & b < c > d"), "a &amp; b &lt; c &gt; d");
+        assert_eq!(
+            util::escape_xml_text("a & b < c > d"),
+            "a &amp; b &lt; c &gt; d"
+        );
     }
 
     #[test]

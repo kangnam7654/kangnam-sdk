@@ -206,7 +206,10 @@ mod tests {
         assert!(!t.prompt.is_empty());
         let src = t.source.expect("vendored image prompts carry attribution");
         assert!(!src.repo.is_empty());
-        assert!(!src.license.is_empty(), "license required for CC-BY catalog");
+        assert!(
+            !src.license.is_empty(),
+            "license required for CC-BY catalog"
+        );
     }
 
     #[test]
@@ -219,12 +222,16 @@ mod tests {
     #[test]
     fn empty_dir_yields_empty_list() {
         let tmp = tempfile::tempdir().unwrap();
-        assert!(load_templates_from_dir(tmp.path(), Surface::Image)
-            .unwrap()
-            .is_empty());
-        assert!(list_template_ids(tmp.path(), Surface::Image)
-            .unwrap()
-            .is_empty());
+        assert!(
+            load_templates_from_dir(tmp.path(), Surface::Image)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            list_template_ids(tmp.path(), Surface::Image)
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]

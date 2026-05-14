@@ -39,7 +39,10 @@ fn empty_deck_writes_valid_zip_with_expected_parts() {
 
 #[test]
 fn empty_deck_error_when_no_slides() {
-    let deck = PptxDeck { title: None, slides: vec![] };
+    let deck = PptxDeck {
+        title: None,
+        slides: vec![],
+    };
     let err = write_deck_to_bytes(&deck).unwrap_err();
     assert!(matches!(err, PptxWriteError::EmptyDeck));
 }

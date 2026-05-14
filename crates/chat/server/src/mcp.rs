@@ -20,10 +20,10 @@
 
 use std::sync::Arc;
 
+use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use kangnam_chat_core::json_rpc::JsonRpcNotification;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -86,9 +86,7 @@ pub(crate) async fn mcp_sse_handler() -> impl IntoResponse {
 
     let init_event = Event::default().event("endpoint").data("/mcp");
 
-    Sse::new(stream::once(async move {
-        Ok::<_, Infallible>(init_event)
-    }))
+    Sse::new(stream::once(async move { Ok::<_, Infallible>(init_event) }))
 }
 
 /// `POST /mcp` — JSON-RPC entrypoint for `initialize`, `tools/list`,
@@ -101,7 +99,9 @@ pub(crate) async fn mcp_handler(
         "initialize" => handle_initialize(&state, req.id).into_response(),
         "notifications/initialized" => (StatusCode::OK, "").into_response(),
         "tools/list" => handle_tools_list(&state, req.id).into_response(),
-        "tools/call" => handle_tools_call(state, req.id, req.params).await.into_response(),
+        "tools/call" => handle_tools_call(state, req.id, req.params)
+            .await
+            .into_response(),
         _ => Json(McpResponse::error(req.id, -32601, "Method not found")).into_response(),
     }
 }
@@ -244,7 +244,11 @@ async fn handle_approve_call(
             -32603,
             "Permission request was cancelled",
         )),
-        Err(_) => Json(McpResponse::error(id, -32603, "Permission request timed out")),
+        Err(_) => Json(McpResponse::error(
+            id,
+            -32603,
+            "Permission request timed out",
+        )),
     }
 }
 
@@ -263,7 +267,7 @@ async fn handle_preview_call(
                 id,
                 -32601,
                 "Preview tool is not available on this host",
-            ))
+            ));
         }
     };
 
@@ -302,7 +306,11 @@ async fn handle_preview_call(
                 ]
             }),
         )),
-        Ok(Err(_)) => Json(McpResponse::error(id, -32603, "Preview request was cancelled")),
+        Ok(Err(_)) => Json(McpResponse::error(
+            id,
+            -32603,
+            "Preview request was cancelled",
+        )),
         Err(_) => Json(McpResponse::error(id, -32603, "Preview request timed out")),
     }
 }

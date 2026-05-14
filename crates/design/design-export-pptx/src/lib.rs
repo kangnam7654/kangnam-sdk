@@ -6,9 +6,9 @@
 pub mod color;
 pub mod color_convert;
 pub mod deck;
-pub mod from_html;
 pub mod element;
 pub mod error;
+pub mod from_html;
 pub mod geometry;
 pub mod template;
 pub mod writer;
@@ -21,13 +21,13 @@ pub use element::{
     TextBox, TextStyle,
 };
 pub use error::{PptxWriteError, Result};
+pub use from_html::from_html;
 pub use geometry::Frame;
 pub use template::{FontVariant, PptxTemplate, SlideRef};
-pub use from_html::from_html;
 pub use writer::{write_deck, write_deck_to_bytes};
 
 #[cfg(feature = "slide-doc")]
 pub mod from_slide_doc;
 
 #[cfg(feature = "slide-doc")]
-pub use from_slide_doc::{from_deck, from_slide_doc as slide_doc_to_pptx, FromSlideDocError};
+pub use from_slide_doc::{FromSlideDocError, from_deck, from_slide_doc as slide_doc_to_pptx};

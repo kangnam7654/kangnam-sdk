@@ -1,17 +1,26 @@
 use crate::deck::PptxDeck;
 use crate::error::PptxWriteError;
 
-use super::xml::{close_elem, empty_elem, into_bytes, new_writer, open_elem, write_decl, write_text};
+use super::xml::{
+    close_elem, empty_elem, into_bytes, new_writer, open_elem, write_decl, write_text,
+};
 
 pub fn core_xml(deck: &PptxDeck) -> Result<Vec<u8>, PptxWriteError> {
     let mut w = new_writer();
     write_decl(&mut w)?;
-    open_elem(&mut w, "cp:coreProperties", &[
-        ("xmlns:cp", "http://schemas.openxmlformats.org/package/2006/metadata/core-properties"),
-        ("xmlns:dc", "http://purl.org/dc/elements/1.1/"),
-        ("xmlns:dcterms", "http://purl.org/dc/terms/"),
-        ("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
-    ])?;
+    open_elem(
+        &mut w,
+        "cp:coreProperties",
+        &[
+            (
+                "xmlns:cp",
+                "http://schemas.openxmlformats.org/package/2006/metadata/core-properties",
+            ),
+            ("xmlns:dc", "http://purl.org/dc/elements/1.1/"),
+            ("xmlns:dcterms", "http://purl.org/dc/terms/"),
+            ("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+        ],
+    )?;
     open_elem(&mut w, "dc:title", &[])?;
     write_text(&mut w, deck.title.as_deref().unwrap_or(""))?;
     close_elem(&mut w, "dc:title")?;
@@ -25,10 +34,20 @@ pub fn core_xml(deck: &PptxDeck) -> Result<Vec<u8>, PptxWriteError> {
 pub fn app_xml(deck: &PptxDeck) -> Result<Vec<u8>, PptxWriteError> {
     let mut w = new_writer();
     write_decl(&mut w)?;
-    open_elem(&mut w, "Properties", &[
-        ("xmlns", "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"),
-        ("xmlns:vt", "http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"),
-    ])?;
+    open_elem(
+        &mut w,
+        "Properties",
+        &[
+            (
+                "xmlns",
+                "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties",
+            ),
+            (
+                "xmlns:vt",
+                "http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes",
+            ),
+        ],
+    )?;
     open_elem(&mut w, "Application", &[])?;
     write_text(&mut w, "design-export-pptx")?;
     close_elem(&mut w, "Application")?;
@@ -48,7 +67,10 @@ mod tests {
 
     #[test]
     fn core_contains_title() {
-        let d = PptxDeck { title: Some("Hello".into()), slides: vec![] };
+        let d = PptxDeck {
+            title: Some("Hello".into()),
+            slides: vec![],
+        };
         let s = String::from_utf8(core_xml(&d).unwrap()).unwrap();
         assert!(s.contains("<dc:title>Hello</dc:title>"));
     }

@@ -6,14 +6,31 @@ use super::xml::{close_elem, empty_elem, into_bytes, new_writer, open_elem, writ
 pub fn build(deck: &PptxDeck) -> Result<Vec<u8>, PptxWriteError> {
     let mut w = new_writer();
     write_decl(&mut w)?;
-    open_elem(&mut w, "p:presentation", &[
-        ("xmlns:a", "http://schemas.openxmlformats.org/drawingml/2006/main"),
-        ("xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
-        ("xmlns:p", "http://schemas.openxmlformats.org/presentationml/2006/main"),
-    ])?;
+    open_elem(
+        &mut w,
+        "p:presentation",
+        &[
+            (
+                "xmlns:a",
+                "http://schemas.openxmlformats.org/drawingml/2006/main",
+            ),
+            (
+                "xmlns:r",
+                "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+            ),
+            (
+                "xmlns:p",
+                "http://schemas.openxmlformats.org/presentationml/2006/main",
+            ),
+        ],
+    )?;
 
     open_elem(&mut w, "p:sldMasterIdLst", &[])?;
-    empty_elem(&mut w, "p:sldMasterId", &[("id", "2147483648"), ("r:id", "rId1")])?;
+    empty_elem(
+        &mut w,
+        "p:sldMasterId",
+        &[("id", "2147483648"), ("r:id", "rId1")],
+    )?;
     close_elem(&mut w, "p:sldMasterIdLst")?;
 
     open_elem(&mut w, "p:sldIdLst", &[])?;
@@ -29,10 +46,11 @@ pub fn build(deck: &PptxDeck) -> Result<Vec<u8>, PptxWriteError> {
         .first()
         .map(|s| (s.width_emu, s.height_emu))
         .unwrap_or((12_192_000, 6_858_000));
-    empty_elem(&mut w, "p:sldSz", &[
-        ("cx", &w_emu.to_string()),
-        ("cy", &h_emu.to_string()),
-    ])?;
+    empty_elem(
+        &mut w,
+        "p:sldSz",
+        &[("cx", &w_emu.to_string()), ("cy", &h_emu.to_string())],
+    )?;
     empty_elem(&mut w, "p:notesSz", &[("cx", "6858000"), ("cy", "9144000")])?;
 
     close_elem(&mut w, "p:presentation")?;

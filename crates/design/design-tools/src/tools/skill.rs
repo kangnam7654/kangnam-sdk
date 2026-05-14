@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use kangnam_harness_runtime::{AgentTool, ToolCtx, ToolResult};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::catalog::SkillCatalog;
 
@@ -13,12 +13,16 @@ pub struct SkillTool {
 }
 
 impl SkillTool {
-    pub fn new(catalog: Arc<dyn SkillCatalog>) -> Self { Self { catalog } }
+    pub fn new(catalog: Arc<dyn SkillCatalog>) -> Self {
+        Self { catalog }
+    }
 }
 
 #[async_trait]
 impl AgentTool for SkillTool {
-    fn name(&self) -> &str { "skill" }
+    fn name(&self) -> &str {
+        "skill"
+    }
 
     fn parameters(&self) -> Value {
         json!({
@@ -33,7 +37,11 @@ impl AgentTool for SkillTool {
     async fn execute(&self, params: Value, _ctx: &ToolCtx) -> ToolResult {
         let id = match params.get("id").and_then(|v| v.as_str()) {
             Some(s) => s,
-            None => return ToolResult::Failed { error: "missing `id`".into() },
+            None => {
+                return ToolResult::Failed {
+                    error: "missing `id`".into(),
+                };
+            }
         };
         match self.catalog.lookup(id).await {
             Some(skill) => ToolResult::Success {
@@ -44,7 +52,9 @@ impl AgentTool for SkillTool {
                     "body": skill.body,
                 }),
             },
-            None => ToolResult::Failed { error: format!("skill `{id}` not found") },
+            None => ToolResult::Failed {
+                error: format!("skill `{id}` not found"),
+            },
         }
     }
 }

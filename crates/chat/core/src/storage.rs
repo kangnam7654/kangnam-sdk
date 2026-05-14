@@ -55,11 +55,7 @@ pub trait Storage: Send + Sync {
     /// Insert a conversation row with the given id if it doesn't
     /// already exist. Used by chat-rpc's lazy-create path on first
     /// `cli.sendMessage` after `cli.startSession`.
-    async fn ensure_conversation(
-        &self,
-        id: &str,
-        cli_provider: &str,
-    ) -> Result<()>;
+    async fn ensure_conversation(&self, id: &str, cli_provider: &str) -> Result<()>;
 
     async fn delete_conversation(&self, id: &str) -> Result<()>;
 
@@ -72,21 +68,13 @@ pub trait Storage: Send + Sync {
     /// If the conversation's title is still the placeholder
     /// (`"New Chat"`), derive a title from the first non-empty line
     /// of `user_message` (truncated to 40 chars). No-op otherwise.
-    async fn auto_title_if_needed(
-        &self,
-        conversation_id: &str,
-        user_message: &str,
-    ) -> Result<()>;
+    async fn auto_title_if_needed(&self, conversation_id: &str, user_message: &str) -> Result<()>;
 
     // -- messages --
 
     async fn get_messages(&self, conversation_id: &str) -> Result<Vec<Message>>;
 
-    async fn add_message(
-        &self,
-        conversation_id: &str,
-        msg: NewMessage<'_>,
-    ) -> Result<Message>;
+    async fn add_message(&self, conversation_id: &str, msg: NewMessage<'_>) -> Result<Message>;
 
     async fn search_messages(&self, query: &str) -> Result<Vec<SearchResult>>;
 }

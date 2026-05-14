@@ -22,10 +22,7 @@ pub(crate) const REL_FONT: &str =
 
 /// Compute the next available `rId` integer for a `.rels` file by scanning
 /// existing `Id="rIdN"` attributes.
-pub(crate) fn compute_next_rel_id(
-    entries: &[(String, Vec<u8>)],
-    path: &str,
-) -> Result<usize> {
+pub(crate) fn compute_next_rel_id(entries: &[(String, Vec<u8>)], path: &str) -> Result<usize> {
     let xml = entries
         .iter()
         .find(|(n, _)| n == path)
@@ -42,7 +39,12 @@ pub(crate) fn append_presentation_rel_for_slide(
     rel_id: usize,
     slide_num: usize,
 ) -> Result<Vec<u8>> {
-    append_presentation_rel(xml, rel_id, REL_SLIDE, &format!("slides/slide{}.xml", slide_num))
+    append_presentation_rel(
+        xml,
+        rel_id,
+        REL_SLIDE,
+        &format!("slides/slide{}.xml", slide_num),
+    )
 }
 
 /// Append an arbitrary `<Relationship>` to `ppt/_rels/presentation.xml.rels`.

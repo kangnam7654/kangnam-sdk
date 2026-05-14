@@ -76,7 +76,10 @@ impl fmt::Display for SajuEngineError {
             Self::InvalidBirthDate(value) => write!(f, "invalid birth_date: {value}"),
             Self::InvalidBirthTime(value) => write!(f, "invalid birth_time: {value}"),
             Self::MissingTargetBirthDate => {
-                write!(f, "target_birth_date is required for compatibility readings")
+                write!(
+                    f,
+                    "target_birth_date is required for compatibility readings"
+                )
             }
             Self::InvalidTargetBirthDate(value) => {
                 write!(f, "invalid target_birth_date: {value}")
@@ -395,17 +398,13 @@ mod tests {
     fn high_level_api_rejects_invalid_birth_time() {
         let error = generate_daily_saju("2024-02-29", Some("24:00")).unwrap_err();
 
-        assert_eq!(
-            error,
-            SajuEngineError::InvalidBirthTime("24:00".into())
-        );
+        assert_eq!(error, SajuEngineError::InvalidBirthTime("24:00".into()));
     }
 
     #[test]
     fn high_level_api_rejects_invalid_target_birth_date() {
-        let error =
-            generate_saju_compatibility("1990-05-15", None, "1992-02-31", Some("09:00"))
-                .unwrap_err();
+        let error = generate_saju_compatibility("1990-05-15", None, "1992-02-31", Some("09:00"))
+            .unwrap_err();
 
         assert_eq!(
             error,
@@ -415,9 +414,8 @@ mod tests {
 
     #[test]
     fn high_level_api_rejects_invalid_target_birth_time() {
-        let error =
-            generate_saju_compatibility("1990-05-15", None, "1992-02-20", Some("25:00"))
-                .unwrap_err();
+        let error = generate_saju_compatibility("1990-05-15", None, "1992-02-20", Some("25:00"))
+            .unwrap_err();
 
         assert_eq!(
             error,
@@ -427,8 +425,7 @@ mod tests {
 
     #[test]
     fn high_level_api_generates_compatibility_without_birth_times() {
-        let response =
-            generate_saju_compatibility("1990-05-15", None, "1992-08-20", None).unwrap();
+        let response = generate_saju_compatibility("1990-05-15", None, "1992-08-20", None).unwrap();
 
         assert_eq!(response.engine_version, SAJU_ENGINE_VERSION);
         assert!(response.result_json["subject_info"].is_object());

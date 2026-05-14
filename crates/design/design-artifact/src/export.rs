@@ -22,9 +22,7 @@
 /// declare one, so the downloaded file opens directly in a browser.
 pub fn export_html(body: &str) -> String {
     let trimmed = body.trim_start();
-    if trimmed
-        .to_ascii_lowercase()
-        .starts_with("<!doctype")
+    if trimmed.to_ascii_lowercase().starts_with("<!doctype")
         || trimmed.to_ascii_lowercase().starts_with("<html")
     {
         return body.to_string();
@@ -186,7 +184,8 @@ pub fn export_zip(html: &str, assets: &[Asset]) -> Result<Vec<u8>, String> {
         let mut w = zip::ZipWriter::new(&mut cursor);
         let opts: SimpleFileOptions =
             SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
-        w.start_file("index.html", opts).map_err(|e| e.to_string())?;
+        w.start_file("index.html", opts)
+            .map_err(|e| e.to_string())?;
         w.write_all(html.as_bytes()).map_err(|e| e.to_string())?;
         for a in assets {
             w.start_file(&a.path, opts).map_err(|e| e.to_string())?;

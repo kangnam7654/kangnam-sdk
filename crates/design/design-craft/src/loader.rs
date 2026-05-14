@@ -295,10 +295,8 @@ mod tests {
             when_to_require: String::new(),
             body: "Don't use Tailwind indigo.".into(),
         };
-        let crafts: Vec<CraftRef<'_>> = vec![
-            crate::TYPOGRAPHY.as_craft_ref(),
-            owned.as_craft_ref(),
-        ];
+        let crafts: Vec<CraftRef<'_>> =
+            vec![crate::TYPOGRAPHY.as_craft_ref(), owned.as_craft_ref()];
         let out = crate::render_for_prompt(crafts);
         assert!(out.contains("## Typography craft rules"));
         assert!(out.contains("## House rule"));

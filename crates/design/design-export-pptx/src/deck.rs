@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::color::{Background, Color};
 use crate::element::PptxElement;
-use crate::geometry::{px_to_emu, Emu};
+use crate::geometry::{Emu, px_to_emu};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PptxDeck {
@@ -29,7 +29,9 @@ impl PptxSlide {
         Self {
             width_emu: px_to_emu(1280.0),
             height_emu: px_to_emu(720.0),
-            background: Background::Solid { color: Color::WHITE },
+            background: Background::Solid {
+                color: Color::WHITE,
+            },
             elements: Vec::new(),
             speaker_notes: None,
         }

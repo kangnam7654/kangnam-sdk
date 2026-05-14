@@ -5,12 +5,11 @@ use serde::Deserialize;
 use tera::{Context, Tera};
 use thiserror::Error;
 
+use kangnam_design_doc_slide::{CANVAS_HEIGHT, CANVAS_WIDTH, Deck, SlideDoc};
 use kangnam_design_llm::{AiAttachment, AiChunk, AiClient, AiError};
-use kangnam_design_doc_slide::{Deck, SlideDoc, CANVAS_HEIGHT, CANVAS_WIDTH};
 
 const TEMPLATE_NAME: &str = "deck-system-prompt";
-const DECK_SYSTEM_PROMPT_TEMPLATE: &str =
-    include_str!("../templates/deck-system-prompt.tera");
+const DECK_SYSTEM_PROMPT_TEMPLATE: &str = include_str!("../templates/deck-system-prompt.tera");
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GenerationEvent {
@@ -191,8 +190,8 @@ struct DeckBody {
 ///   than persist an unusable version).
 fn parse_deck(raw: &str) -> Result<(Deck, String), String> {
     let cleaned = strip_code_fence(raw.trim());
-    let envelope: DeckEnvelope = serde_json::from_str(cleaned)
-        .map_err(|e| format!("{e} :: {}", truncate(cleaned, 200)))?;
+    let envelope: DeckEnvelope =
+        serde_json::from_str(cleaned).map_err(|e| format!("{e} :: {}", truncate(cleaned, 200)))?;
     if envelope.deck.slides.is_empty() {
         return Err(format!(
             "deck.slides[] is empty :: {}",
@@ -211,9 +210,7 @@ fn parse_deck(raw: &str) -> Result<(Deck, String), String> {
 
 fn strip_code_fence(s: &str) -> &str {
     let s = s.trim();
-    let stripped = s
-        .strip_prefix("```json")
-        .or_else(|| s.strip_prefix("```"));
+    let stripped = s.strip_prefix("```json").or_else(|| s.strip_prefix("```"));
     let s = stripped.unwrap_or(s);
     let s = s.trim_start_matches('\n').trim();
     s.strip_suffix("```").map(str::trim).unwrap_or(s)
@@ -312,17 +309,21 @@ mod tests {
         let ai = Arc::new(FakeAiClient::new(vec![json]));
         let cgen = CanvasGenerator::new(ai.clone()).unwrap();
 
-        let events: Vec<_> = cgen
-            .generate("표지".into())
-            .collect::<Vec<_>>()
-            .await;
-        let unwrapped: Vec<GenerationEvent> =
-            events.into_iter().map(|r| r.expect("ok")).collect();
+        let events: Vec<_> = cgen.generate("표지".into()).collect::<Vec<_>>().await;
+        let unwrapped: Vec<GenerationEvent> = events.into_iter().map(|r| r.expect("ok")).collect();
 
-        assert!(unwrapped.iter().any(|e| matches!(e, GenerationEvent::Delta(_))));
+        assert!(
+            unwrapped
+                .iter()
+                .any(|e| matches!(e, GenerationEvent::Delta(_)))
+        );
         let last = unwrapped.last().expect("at least one");
         match last {
-            GenerationEvent::Complete { html, slide_doc_json, deck_doc_json } => {
+            GenerationEvent::Complete {
+                html,
+                slide_doc_json,
+                deck_doc_json,
+            } => {
                 assert!(html.contains("data-edit-zone=\"title\""));
                 assert!(html.contains("안녕, Canvas"));
                 assert!(slide_doc_json.contains("\"id\":\"s1\""));
@@ -392,7 +393,11 @@ mod tests {
         let events: Vec<_> = cgen.generate("표지".into()).collect::<Vec<_>>().await;
         let last = events.last().unwrap().as_ref().expect("ok");
         match last {
-            GenerationEvent::Complete { html, slide_doc_json, deck_doc_json } => {
+            GenerationEvent::Complete {
+                html,
+                slide_doc_json,
+                deck_doc_json,
+            } => {
                 let deck: kangnam_design_doc_slide::Deck =
                     serde_json::from_str(deck_doc_json).expect("valid deck json");
                 assert_eq!(deck.slides.len(), 1);
@@ -402,7 +407,11 @@ mod tests {
                     "legacy field carries first slide: {slide_doc_json}"
                 );
                 // HTML is the deck-level render (section per slide).
-                assert_eq!(html.matches("<section").count(), 1, "one <section> for one slide");
+                assert_eq!(
+                    html.matches("<section").count(),
+                    1,
+                    "one <section> for one slide"
+                );
                 assert!(html.contains("data-slide-id=\"slide-1\""));
             }
             other => panic!("expected Complete, got {other:?}"),
@@ -423,7 +432,11 @@ mod tests {
             .await;
         let last = events.last().unwrap().as_ref().expect("ok");
         match last {
-            GenerationEvent::Complete { html, deck_doc_json, .. } => {
+            GenerationEvent::Complete {
+                html,
+                deck_doc_json,
+                ..
+            } => {
                 let deck: kangnam_design_doc_slide::Deck =
                     serde_json::from_str(deck_doc_json).expect("valid deck json");
                 assert_eq!(deck.slides.len(), 3);

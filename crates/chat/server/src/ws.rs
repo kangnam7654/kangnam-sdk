@@ -11,19 +11,19 @@ use std::sync::Arc;
 
 use axum::{
     extract::{
-        ws::{Message, WebSocket},
         Query, State, WebSocketUpgrade,
+        ws::{Message, WebSocket},
     },
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
 };
-use kangnam_chat_core::json_rpc::JsonRpcRequest;
 use futures::{SinkExt, StreamExt};
+use kangnam_chat_core::json_rpc::JsonRpcRequest;
 use tokio::sync::mpsc;
 
+use crate::ServerContext;
 use crate::auth::{AuthParams, UserContext};
 use crate::broadcast::BroadcastSink;
-use crate::ServerContext;
 
 pub(crate) async fn ws_handler(
     ws: WebSocketUpgrade,
@@ -66,11 +66,7 @@ async fn resolve_user(
     }
 }
 
-async fn handle_socket(
-    socket: WebSocket,
-    ctx: Arc<ServerContext>,
-    user: Option<UserContext>,
-) {
+async fn handle_socket(socket: WebSocket, ctx: Arc<ServerContext>, user: Option<UserContext>) {
     let (mut ws_sender, mut ws_receiver) = socket.split();
 
     // Internal channel: handlers + broadcast forwarders → WS sender.

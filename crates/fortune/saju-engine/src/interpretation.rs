@@ -277,7 +277,11 @@ fn compose_relation(c: &GodCounts) -> String {
     if peers >= 2 {
         let g = COPY
             .ten_gods
-            .get(if c.geupjae >= c.bigyeon { "겁재" } else { "비견" })
+            .get(if c.geupjae >= c.bigyeon {
+                "겁재"
+            } else {
+                "비견"
+            })
             .expect("missing ten_god copy");
         lines.push(g.relation_meaning.clone());
     } else if peers == 1 {
@@ -297,7 +301,11 @@ fn compose_relation(c: &GodCounts) -> String {
 
     let mentors = c.jeongin + c.pyeonin;
     if mentors >= 1 {
-        let key = if c.jeongin >= c.pyeonin { "정인" } else { "편인" };
+        let key = if c.jeongin >= c.pyeonin {
+            "정인"
+        } else {
+            "편인"
+        };
         lines.push(
             COPY.ten_gods
                 .get(key)
@@ -309,7 +317,11 @@ fn compose_relation(c: &GodCounts) -> String {
 
     let expressors = c.sikshin + c.sanggwan;
     if expressors >= 1 {
-        let key = if c.sikshin >= c.sanggwan { "식신" } else { "상관" };
+        let key = if c.sikshin >= c.sanggwan {
+            "식신"
+        } else {
+            "상관"
+        };
         lines.push(
             COPY.ten_gods
                 .get(key)
@@ -362,7 +374,11 @@ fn compose_work(c: &GodCounts, dominant: ElementKey) -> String {
 
     let academic = c.jeongin + c.pyeonin;
     if academic >= 1 {
-        let key = if c.jeongin >= c.pyeonin { "정인" } else { "편인" };
+        let key = if c.jeongin >= c.pyeonin {
+            "정인"
+        } else {
+            "편인"
+        };
         lines.push(
             COPY.ten_gods
                 .get(key)
@@ -374,7 +390,11 @@ fn compose_work(c: &GodCounts, dominant: ElementKey) -> String {
 
     let creative = c.sikshin + c.sanggwan;
     if creative >= 1 {
-        let key = if c.sikshin >= c.sanggwan { "식신" } else { "상관" };
+        let key = if c.sikshin >= c.sanggwan {
+            "식신"
+        } else {
+            "상관"
+        };
         lines.push(
             COPY.ten_gods
                 .get(key)
@@ -385,7 +405,9 @@ fn compose_work(c: &GodCounts, dominant: ElementKey) -> String {
     }
 
     if lines.is_empty() {
-        lines.push("정해진 틀보다 자유로운 자리에서 본인 페이스로 움직일 수 있는 일이 잘 맞습니다.".into());
+        lines.push(
+            "정해진 틀보다 자유로운 자리에서 본인 페이스로 움직일 수 있는 일이 잘 맞습니다.".into(),
+        );
     }
 
     let dom_copy = COPY
@@ -403,18 +425,34 @@ fn compose_money(c: &GodCounts, dominant: ElementKey) -> String {
     let steady = c.jeongjae;
     let flexible = c.pyeonjae;
     if steady >= 1 && flexible >= 1 {
-        if let Some(m) = &COPY.ten_gods.get("정재").and_then(|t| t.money_meaning.clone()) {
+        if let Some(m) = &COPY
+            .ten_gods
+            .get("정재")
+            .and_then(|t| t.money_meaning.clone())
+        {
             lines.push(m.clone());
         }
-        if let Some(m) = &COPY.ten_gods.get("편재").and_then(|t| t.money_meaning.clone()) {
+        if let Some(m) = &COPY
+            .ten_gods
+            .get("편재")
+            .and_then(|t| t.money_meaning.clone())
+        {
             lines.push(m.clone());
         }
     } else if steady >= 1 {
-        if let Some(m) = &COPY.ten_gods.get("정재").and_then(|t| t.money_meaning.clone()) {
+        if let Some(m) = &COPY
+            .ten_gods
+            .get("정재")
+            .and_then(|t| t.money_meaning.clone())
+        {
             lines.push(m.clone());
         }
     } else if flexible >= 1 {
-        if let Some(m) = &COPY.ten_gods.get("편재").and_then(|t| t.money_meaning.clone()) {
+        if let Some(m) = &COPY
+            .ten_gods
+            .get("편재")
+            .and_then(|t| t.money_meaning.clone())
+        {
             lines.push(m.clone());
         }
     } else {
@@ -650,7 +688,11 @@ mod tests {
         assert!(it.summary.is_none(), "detail tier must not include summary");
         assert_eq!(it.sections.len(), 5);
         for s in &it.sections {
-            assert!(!s.body.is_empty(), "section {} body must not be empty", s.key);
+            assert!(
+                !s.body.is_empty(),
+                "section {} body must not be empty",
+                s.key
+            );
             assert!(
                 s.body.chars().count() < 1000,
                 "section {} body too long ({} chars) — copy bloat?",
@@ -667,7 +709,10 @@ mod tests {
         let gods = analyze_ten_gods(&pillars, true);
         let a = serde_json::to_string(&compose_detail(&pillars, &balance, &gods)).unwrap();
         let b = serde_json::to_string(&compose_detail(&pillars, &balance, &gods)).unwrap();
-        assert_eq!(a, b, "compose_detail() must be deterministic for cache stability");
+        assert_eq!(
+            a, b,
+            "compose_detail() must be deterministic for cache stability"
+        );
     }
 
     #[test]
@@ -715,7 +760,10 @@ mod tests {
         let obj = v.as_object().unwrap();
         assert!(obj.contains_key("headline"));
         assert!(obj.contains_key("summary"));
-        assert!(!obj.contains_key("sections"), "simple JSON must omit sections");
+        assert!(
+            !obj.contains_key("sections"),
+            "simple JSON must omit sections"
+        );
     }
 
     #[test]
@@ -728,7 +776,10 @@ mod tests {
         let obj = v.as_object().unwrap();
         assert!(obj.contains_key("headline"));
         assert!(obj.contains_key("sections"));
-        assert!(!obj.contains_key("summary"), "detail JSON must omit summary");
+        assert!(
+            !obj.contains_key("summary"),
+            "detail JSON must omit summary"
+        );
     }
 
     #[test]
@@ -738,6 +789,9 @@ mod tests {
         let gods = analyze_ten_gods(&pillars, true);
         let a = serde_json::to_string(&compose_simple(&pillars, &balance, &gods)).unwrap();
         let b = serde_json::to_string(&compose_simple(&pillars, &balance, &gods)).unwrap();
-        assert_eq!(a, b, "compose_simple() must be deterministic for cache stability");
+        assert_eq!(
+            a, b,
+            "compose_simple() must be deterministic for cache stability"
+        );
     }
 }

@@ -157,7 +157,8 @@ mod tests {
                 use tokio::io::{AsyncReadExt, AsyncWriteExt};
                 let mut buf = [0u8; 2048];
                 let _ = stream.read(&mut buf).await;
-                let body = r#"{"data":[{"id":"qwen2.5-coder:7b"},{"id":"llama-3.2-3b"}],"object":"list"}"#;
+                let body =
+                    r#"{"data":[{"id":"qwen2.5-coder:7b"},{"id":"llama-3.2-3b"}],"object":"list"}"#;
                 let response = format!(
                     "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
                     body.len(),

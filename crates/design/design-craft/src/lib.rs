@@ -61,7 +61,7 @@
 
 pub mod loader;
 
-pub use loader::{load_crafts_from_dir, list_craft_ids, CraftRef, LoadError, OwnedCraft};
+pub use loader::{CraftRef, LoadError, OwnedCraft, list_craft_ids, load_crafts_from_dir};
 
 use serde::{Deserialize, Serialize};
 

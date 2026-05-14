@@ -4,10 +4,17 @@ use thiserror::Error;
 #[non_exhaustive]
 pub enum PptxWriteError {
     #[error("invalid image bytes for slide {slide_idx} element {element_idx}: {msg}")]
-    InvalidImage { slide_idx: usize, element_idx: usize, msg: String },
+    InvalidImage {
+        slide_idx: usize,
+        element_idx: usize,
+        msg: String,
+    },
 
     #[error("image mime mismatch: declared {declared}, detected {detected}")]
-    MimeMismatch { declared: &'static str, detected: &'static str },
+    MimeMismatch {
+        declared: &'static str,
+        detected: &'static str,
+    },
 
     #[error("empty deck — need at least one slide")]
     EmptyDeck,
@@ -31,7 +38,10 @@ pub enum PptxWriteError {
 
     /// Layout has no `<p:ph idx="..."/>` matching the requested index.
     #[error("placeholder idx={placeholder_idx} not found in layout {layout_num}")]
-    PlaceholderNotFound { layout_num: usize, placeholder_idx: u32 },
+    PlaceholderNotFound {
+        layout_num: usize,
+        placeholder_idx: u32,
+    },
 
     /// `SlideRef` does not correspond to an appended slide.
     #[error("slide {slide_num} not found")]

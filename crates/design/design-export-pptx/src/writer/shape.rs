@@ -2,15 +2,19 @@ use crate::color::{Fill, Stroke};
 use crate::element::{ShapeBox, ShapeKind};
 use crate::error::PptxWriteError;
 
-use super::xml::{close_elem, empty_elem, open_elem, write_raw_fragment, XmlWriter};
+use super::xml::{XmlWriter, close_elem, empty_elem, open_elem, write_raw_fragment};
 
 pub fn emit(w: &mut XmlWriter, sb: &ShapeBox, sp_id: u32) -> Result<(), PptxWriteError> {
     open_elem(w, "p:sp", &[])?;
     open_elem(w, "p:nvSpPr", &[])?;
-    empty_elem(w, "p:cNvPr", &[
-        ("id", &sp_id.to_string()),
-        ("name", &format!("Shape {sp_id}")),
-    ])?;
+    empty_elem(
+        w,
+        "p:cNvPr",
+        &[
+            ("id", &sp_id.to_string()),
+            ("name", &format!("Shape {sp_id}")),
+        ],
+    )?;
     open_elem(w, "p:cNvSpPr", &[])?;
     close_elem(w, "p:cNvSpPr")?;
     empty_elem(w, "p:nvPr", &[])?;
@@ -18,14 +22,22 @@ pub fn emit(w: &mut XmlWriter, sb: &ShapeBox, sp_id: u32) -> Result<(), PptxWrit
 
     open_elem(w, "p:spPr", &[])?;
     open_elem(w, "a:xfrm", &[])?;
-    empty_elem(w, "a:off", &[
-        ("x", &sb.frame.x_emu.to_string()),
-        ("y", &sb.frame.y_emu.to_string()),
-    ])?;
-    empty_elem(w, "a:ext", &[
-        ("cx", &sb.frame.w_emu.to_string()),
-        ("cy", &sb.frame.h_emu.to_string()),
-    ])?;
+    empty_elem(
+        w,
+        "a:off",
+        &[
+            ("x", &sb.frame.x_emu.to_string()),
+            ("y", &sb.frame.y_emu.to_string()),
+        ],
+    )?;
+    empty_elem(
+        w,
+        "a:ext",
+        &[
+            ("cx", &sb.frame.w_emu.to_string()),
+            ("cy", &sb.frame.h_emu.to_string()),
+        ],
+    )?;
     close_elem(w, "a:xfrm")?;
 
     emit_geometry(w, &sb.shape, sb.frame.w_emu, sb.frame.h_emu)?;
@@ -73,7 +85,11 @@ fn emit_geometry(
         // OOXML adj = corner radius as percent of min(cx,cy) in 1/100_000ths,
         // capped at 50_000 (= 50%). Shared with the template-edit path.
         let adj = crate::geometry::roundrect_adj(*radius_emu, w_emu, h_emu);
-        empty_elem(w, "a:gd", &[("name", "adj"), ("fmla", &format!("val {adj}"))])?;
+        empty_elem(
+            w,
+            "a:gd",
+            &[("name", "adj"), ("fmla", &format!("val {adj}"))],
+        )?;
     }
     close_elem(w, "a:avLst")?;
     close_elem(w, "a:prstGeom")?;

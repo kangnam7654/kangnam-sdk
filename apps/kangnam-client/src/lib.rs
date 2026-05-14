@@ -8,12 +8,12 @@ mod server;
 mod skills;
 mod state;
 
-use std::sync::Arc;
 use state::AppState;
+use std::sync::Arc;
 use tauri::{
+    Manager,
     menu::{MenuBuilder, MenuItemBuilder},
     tray::TrayIconBuilder,
-    Manager,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -206,11 +206,15 @@ struct WindowState {
 
 fn window_state_path() -> std::path::PathBuf {
     #[cfg(target_os = "macos")]
-    let base = dirs::config_dir().unwrap_or_default().join("kangnam-client");
+    let base = dirs::config_dir()
+        .unwrap_or_default()
+        .join("kangnam-client");
     #[cfg(target_os = "windows")]
     let base = dirs::data_dir().unwrap_or_default().join("kangnam-client");
     #[cfg(target_os = "linux")]
-    let base = dirs::config_dir().unwrap_or_default().join("kangnam-client");
+    let base = dirs::config_dir()
+        .unwrap_or_default()
+        .join("kangnam-client");
     base.join("window-state.json")
 }
 

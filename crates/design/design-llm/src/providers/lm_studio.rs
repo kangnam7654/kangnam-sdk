@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use base64::Engine;
 use futures::stream::{BoxStream, StreamExt};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::client::{AiAttachment, AiChunk, AiClient, AiError};
 
@@ -210,8 +210,9 @@ fn build_user_content(prompt: &str, attachments: &[AiAttachment]) -> Result<Valu
     let mut parts: Vec<Value> = Vec::with_capacity(attachments.len() + 1);
     parts.push(json!({ "type": "text", "text": prompt }));
     for att in attachments {
-        let bytes = std::fs::read(&att.path)
-            .map_err(|e| AiError::Process(format!("read attachment {}: {e}", att.path.display())))?;
+        let bytes = std::fs::read(&att.path).map_err(|e| {
+            AiError::Process(format!("read attachment {}: {e}", att.path.display()))
+        })?;
         let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
         let data_url = format!("data:{};base64,{}", att.mime_type, b64);
         parts.push(json!({
@@ -260,9 +261,8 @@ mod tests {
                         body_start = pos + 4;
                         let headers = std::str::from_utf8(&buf[..pos]).unwrap();
                         for line in headers.split("\r\n") {
-                            if let Some(v) = line
-                                .to_ascii_lowercase()
-                                .strip_prefix("content-length:")
+                            if let Some(v) =
+                                line.to_ascii_lowercase().strip_prefix("content-length:")
                             {
                                 content_len = v.trim().parse().ok();
                             }
@@ -279,8 +279,7 @@ mod tests {
             }
 
             let body_bytes = &buf[body_start..];
-            let body_json: Value =
-                serde_json::from_slice(body_bytes).unwrap_or(Value::Null);
+            let body_json: Value = serde_json::from_slice(body_bytes).unwrap_or(Value::Null);
             let _ = tx.send(body_json);
 
             let response = format!(
@@ -293,10 +292,7 @@ mod tests {
         (addr, rx)
     }
 
-    async fn mock_sse_server_with_status(
-        status: u16,
-        body: &'static str,
-    ) -> SocketAddr {
+    async fn mock_sse_server_with_status(status: u16, body: &'static str) -> SocketAddr {
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
         let addr = listener.local_addr().unwrap();
 
@@ -374,7 +370,10 @@ mod tests {
 
         let body = body_rx.await.expect("body captured");
         let content = &body["messages"][0]["content"];
-        assert!(content.is_array(), "expected multimodal array, got {content}");
+        assert!(
+            content.is_array(),
+            "expected multimodal array, got {content}"
+        );
         let parts = content.as_array().unwrap();
         assert_eq!(parts[0]["type"], "text");
         assert_eq!(parts[0]["text"], "describe");

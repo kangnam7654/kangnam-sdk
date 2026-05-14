@@ -77,7 +77,11 @@ impl McpBridge {
                     Err(_) => continue,
                 };
 
-                if let Some(tx) = pending.lock().unwrap_or_else(|e| e.into_inner()).remove(&resp.id) {
+                if let Some(tx) = pending
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .remove(&resp.id)
+                {
                     if let Some(err) = resp.error {
                         let _ = tx.send(Err(err.message));
                     } else {
@@ -115,7 +119,10 @@ impl McpBridge {
         };
 
         let (tx, rx) = oneshot::channel();
-        self.pending.lock().unwrap_or_else(|e| e.into_inner()).insert(id, tx);
+        self.pending
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(id, tx);
 
         // Write to stdin
         {
@@ -123,7 +130,8 @@ impl McpBridge {
             if let Some(ref mut child) = *proc {
                 if let Some(ref mut stdin) = child.stdin {
                     let json = serde_json::to_string(&req).map_err(|e| e.to_string())?;
-                    writeln!(stdin, "{json}").map_err(|e| format!("Failed to write to sidecar: {e}"))?;
+                    writeln!(stdin, "{json}")
+                        .map_err(|e| format!("Failed to write to sidecar: {e}"))?;
                     stdin.flush().map_err(|e| format!("Failed to flush: {e}"))?;
                 }
             }
@@ -138,7 +146,9 @@ impl McpBridge {
     }
 
     pub async fn list_tools(&self) -> Result<Vec<AggregatedTool>, String> {
-        let result = self.request("mcp:list-tools", serde_json::json!({})).await?;
+        let result = self
+            .request("mcp:list-tools", serde_json::json!({}))
+            .await?;
         serde_json::from_value(result).map_err(|e| e.to_string())
     }
 
@@ -148,13 +158,18 @@ impl McpBridge {
         arguments: serde_json::Value,
     ) -> Result<ToolCallResult, String> {
         let result = self
-            .request("mcp:call-tool", serde_json::json!({ "name": name, "arguments": arguments }))
+            .request(
+                "mcp:call-tool",
+                serde_json::json!({ "name": name, "arguments": arguments }),
+            )
             .await?;
         serde_json::from_value(result).map_err(|e| e.to_string())
     }
 
     pub async fn server_status(&self) -> Result<Vec<ServerStatus>, String> {
-        let result = self.request("mcp:server-status", serde_json::json!({})).await?;
+        let result = self
+            .request("mcp:server-status", serde_json::json!({}))
+            .await?;
         serde_json::from_value(result).map_err(|e| e.to_string())
     }
 
@@ -163,7 +178,12 @@ impl McpBridge {
     }
 
     pub fn stop(&self) {
-        if let Some(mut child) = self.process.lock().unwrap_or_else(|e| e.into_inner()).take() {
+        if let Some(mut child) = self
+            .process
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+        {
             let _ = child.kill();
         }
     }

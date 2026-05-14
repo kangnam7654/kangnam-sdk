@@ -51,7 +51,7 @@ section.slide [data-edit-zone] { position: absolute; }
 mod tests {
     use super::*;
     use kangnam_design_doc_slide::{
-        Frame, SlideDoc, SlideElement, TextStyle, CANVAS_HEIGHT, CANVAS_WIDTH,
+        CANVAS_HEIGHT, CANVAS_WIDTH, Frame, SlideDoc, SlideElement, TextStyle,
     };
 
     fn slide(id: &str, content: &str) -> SlideDoc {

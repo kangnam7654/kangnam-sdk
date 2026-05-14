@@ -48,10 +48,11 @@
 
 ### 1차 시사점 (요약)
 
-가장 매력적인 import 후보 3개:
-1. **Tool `terminate` hint** — 1줄 변경에 가까운 ROI 큰 추가. `AgentTool` trait 반환에 `should_skip_followup: bool` 같은 필드.
-2. **Steering / follow-up message 큐 모델** — 우리 `InteractionBridge`가 suspend/resume 모델인데, 큐 모델이 동시 사용자 입력에 더 자연. 비교 ADR 가치.
-3. **Cost/token tracking** — `design-llm` 확장. provider별 가격표 + per-call 누적. 운영 시 즉시 가치.
+가장 매력적인 import 후보 4개:
+1. **Provider abstraction + model/cost/capability registry** — (현재 우리 router의 핵심 참고 포인트).
+2. **Tool `terminate` hint** — 1줄 변경에 가까운 ROI 큰 추가. `AgentTool` trait 반환에 `should_skip_followup: bool` 같은 필드.
+3. **Steering / follow-up message 큐 모델** — 우리 `InteractionBridge`가 suspend/resume 모델인데, 큐 모델이 동시 사용자 입력에 더 자연. 비교 ADR 가치.
+4. **Cost/token tracking** — `design-llm` 확장. provider별 가격표 + per-call 누적. 운영 시 즉시 가치.
 
 ---
 

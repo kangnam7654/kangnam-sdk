@@ -223,9 +223,7 @@ pub enum ChatSseEvent {
 
 // ─── Proxy-channel SSE event payloads ───────────────────────────────────
 
-use crate::api::proxy::{
-    ProxyStreamDeltaPayload, ProxyStreamEndPayload, ProxyStreamStartPayload,
-};
+use crate::api::proxy::{ProxyStreamDeltaPayload, ProxyStreamEndPayload, ProxyStreamStartPayload};
 
 pub const PROXY_SSE_PROTOCOL_VERSION: u32 = 1;
 
@@ -338,9 +336,7 @@ mod tests {
 
     #[test]
     fn chat_sse_event_round_trip_text_delta_inside_agent() {
-        let evt = ChatSseEvent::Agent(DaemonAgentPayload::TextDelta {
-            delta: "h".into(),
-        });
+        let evt = ChatSseEvent::Agent(DaemonAgentPayload::TextDelta { delta: "h".into() });
         let s = serde_json::to_string(&evt).unwrap();
         // event: "agent", data: { type: "text_delta", delta: "h" }
         assert!(s.contains("\"event\":\"agent\""));

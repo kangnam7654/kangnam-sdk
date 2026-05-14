@@ -59,9 +59,17 @@ pub struct NewMessage<'a> {
 
 impl<'a> NewMessage<'a> {
     pub fn user(content: &'a str) -> Self {
-        Self { role: "user", content, ..Self::default() }
+        Self {
+            role: "user",
+            content,
+            ..Self::default()
+        }
     }
     pub fn assistant(content: &'a str) -> Self {
-        Self { role: "assistant", content, ..Self::default() }
+        Self {
+            role: "assistant",
+            content,
+            ..Self::default()
+        }
     }
 }

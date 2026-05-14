@@ -37,13 +37,13 @@
 //!   advice tools (handoff in progress; capability-generic
 //!   `ToolCtx<C>` lands in Phase 2 of the harness generalization).
 
-pub mod tool;
-pub mod permission;
 pub mod hook;
+pub mod permission;
+pub mod tool;
 
+pub use hook::{HookExecutor, HookOutcome};
+pub use permission::{PermissionEvaluator, PermissionVerdict};
 pub use tool::{
     AgentTool, AwaitKind, DefaultCapabilities, FsCallbacks, ImageCallbacks, InteractionBridge,
     ToolCtx, ToolError, ToolResult, WebCallbacks,
 };
-pub use permission::{PermissionEvaluator, PermissionVerdict};
-pub use hook::{HookExecutor, HookOutcome};

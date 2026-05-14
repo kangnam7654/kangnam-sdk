@@ -30,7 +30,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::error::{Result, StorageError};
-use crate::storage::{derive_auto_title, now_ts, Storage};
+use crate::storage::{Storage, derive_auto_title, now_ts};
 use crate::types::{Conversation, Message, NewMessage, SearchResult};
 
 impl From<sqlx::Error> for StorageError {
@@ -161,14 +161,12 @@ impl Storage for PostgresStorage {
 
     async fn update_title(&self, id: &str, title: &str) -> Result<()> {
         let now = now_ts();
-        sqlx::query(
-            "UPDATE chat_conversations SET title = $1, updated_at = $2 WHERE id = $3",
-        )
-        .bind(title)
-        .bind(now)
-        .bind(id)
-        .execute(&self.pool)
-        .await?;
+        sqlx::query("UPDATE chat_conversations SET title = $1, updated_at = $2 WHERE id = $3")
+            .bind(title)
+            .bind(now)
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
         Ok(())
     }
 
@@ -183,11 +181,7 @@ impl Storage for PostgresStorage {
         Ok(())
     }
 
-    async fn auto_title_if_needed(
-        &self,
-        conversation_id: &str,
-        user_message: &str,
-    ) -> Result<()> {
+    async fn auto_title_if_needed(&self, conversation_id: &str, user_message: &str) -> Result<()> {
         let Some(new_title) = derive_auto_title(user_message) else {
             return Ok(());
         };
@@ -219,11 +213,7 @@ impl Storage for PostgresStorage {
         Ok(rows.into_iter().map(Into::into).collect())
     }
 
-    async fn add_message(
-        &self,
-        conversation_id: &str,
-        msg: NewMessage<'_>,
-    ) -> Result<Message> {
+    async fn add_message(&self, conversation_id: &str, msg: NewMessage<'_>) -> Result<Message> {
         let id = Uuid::new_v4().to_string();
         let now = now_ts();
 
@@ -249,13 +239,11 @@ impl Storage for PostgresStorage {
 
         // Best-effort updated_at bump. Mirrors the SQLite path which
         // uses `.ok()` to ignore failures (e.g. orphan FK).
-        let _ = sqlx::query(
-            "UPDATE chat_conversations SET updated_at = $1 WHERE id = $2",
-        )
-        .bind(now)
-        .bind(conversation_id)
-        .execute(&mut *tx)
-        .await;
+        let _ = sqlx::query("UPDATE chat_conversations SET updated_at = $1 WHERE id = $2")
+            .bind(now)
+            .bind(conversation_id)
+            .execute(&mut *tx)
+            .await;
 
         tx.commit().await?;
 

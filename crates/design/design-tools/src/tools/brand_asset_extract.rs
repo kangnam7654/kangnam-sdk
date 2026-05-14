@@ -17,14 +17,16 @@
 use async_trait::async_trait;
 use kangnam_harness_runtime::{AgentTool, ToolCtx, ToolResult};
 use regex::Regex;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 
 pub struct BrandAssetExtractTool;
 
 #[async_trait]
 impl AgentTool for BrandAssetExtractTool {
-    fn name(&self) -> &str { "brand_asset_extract" }
+    fn name(&self) -> &str {
+        "brand_asset_extract"
+    }
 
     fn parameters(&self) -> Value {
         json!({
@@ -41,11 +43,19 @@ impl AgentTool for BrandAssetExtractTool {
     async fn execute(&self, params: Value, ctx: &ToolCtx) -> ToolResult {
         let brand = match params.get("brand").and_then(|v| v.as_str()) {
             Some(s) => s.to_string(),
-            None => return ToolResult::Failed { error: "missing `brand`".into() },
+            None => {
+                return ToolResult::Failed {
+                    error: "missing `brand`".into(),
+                };
+            }
         };
         let url = match params.get("url").and_then(|v| v.as_str()) {
             Some(s) => s.to_string(),
-            None => return ToolResult::Failed { error: "missing `url`".into() },
+            None => {
+                return ToolResult::Failed {
+                    error: "missing `url`".into(),
+                };
+            }
         };
         let out_rel = params
             .get("out")
@@ -54,15 +64,16 @@ impl AgentTool for BrandAssetExtractTool {
 
         let body_bytes = match ctx.capabilities.web.fetch(&url).await {
             Ok(b) => b,
-            Err(e) => return ToolResult::Failed { error: format!("fetch failed: {e}") },
+            Err(e) => {
+                return ToolResult::Failed {
+                    error: format!("fetch failed: {e}"),
+                };
+            }
         };
         let body = String::from_utf8_lossy(&body_bytes);
         let palette = extract_palette(&body);
 
-        let primary = palette
-            .first()
-            .cloned()
-            .unwrap_or_else(|| "#000000".into());
+        let primary = palette.first().cloned().unwrap_or_else(|| "#000000".into());
         let accent = palette.get(1).cloned().unwrap_or_else(|| "#888888".into());
 
         let spec = format!(
@@ -98,12 +109,16 @@ impl AgentTool for BrandAssetExtractTool {
 
         let abs = match ctx.resolve_path(out_rel) {
             Some(p) => p,
-            None => return ToolResult::Failed {
-                error: "brand_asset_extract requires a working directory".into(),
-            },
+            None => {
+                return ToolResult::Failed {
+                    error: "brand_asset_extract requires a working directory".into(),
+                };
+            }
         };
         if let Err(e) = ctx.capabilities.fs.write(&abs, spec.as_bytes()).await {
-            return ToolResult::Failed { error: format!("write {} failed: {e}", abs.display()) };
+            return ToolResult::Failed {
+                error: format!("write {} failed: {e}", abs.display()),
+            };
         }
 
         ToolResult::Success {
@@ -145,10 +160,9 @@ mod tests {
         let body = b"<style>.a{color:#ff0033}.b{color:#ff0033}.c{color:#1234aa}</style>".to_vec();
         let (ctx, ws) = test_ctx_with_web_workspace(body);
         let tool = BrandAssetExtractTool;
-        let res = tool.execute(
-            json!({"brand":"Acme","url":"https://example.com"}),
-            &ctx,
-        ).await;
+        let res = tool
+            .execute(json!({"brand":"Acme","url":"https://example.com"}), &ctx)
+            .await;
         match res {
             ToolResult::Success { content } => {
                 assert_eq!(content["primary"], "#ff0033");

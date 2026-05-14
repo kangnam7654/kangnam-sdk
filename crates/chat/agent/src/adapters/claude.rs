@@ -173,9 +173,9 @@ impl ClaudeAdapter {
                             return Ok(None);
                         }
                         let parsed = serde_json::from_str::<serde_json::Value>(&acc.input_json)
-                            .unwrap_or_else(|_| {
-                                serde_json::json!({ "_raw_partial_json": acc.input_json })
-                            });
+                            .unwrap_or_else(
+                                |_| serde_json::json!({ "_raw_partial_json": acc.input_json }),
+                            );
                         return Ok(Some(UnifiedMessage::ToolUseInput {
                             id: acc.id,
                             input: parsed,
@@ -331,8 +331,16 @@ impl ClaudeAdapter {
             .map(|arr| {
                 arr.iter()
                     .map(|p| PluginInfo {
-                        name: p.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                        path: p.get("path").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                        name: p
+                            .get("name")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string(),
+                        path: p
+                            .get("path")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string(),
                     })
                     .collect()
             })
@@ -343,7 +351,11 @@ impl ClaudeAdapter {
             .map(|arr| {
                 arr.iter()
                     .map(|s| McpServerInfo {
-                        name: s.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                        name: s
+                            .get("name")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string(),
                         status: s
                             .get("status")
                             .and_then(|v| v.as_str())
@@ -1017,7 +1029,8 @@ mod tests {
         }
 
         // Subsequent stop with no pending accumulator is a no-op.
-        let stop_again = r#"{"type":"stream_event","event":{"type":"content_block_stop","index":0}}"#;
+        let stop_again =
+            r#"{"type":"stream_event","event":{"type":"content_block_stop","index":0}}"#;
         assert!(adapter.parse_line(stop_again).unwrap().is_none());
     }
 

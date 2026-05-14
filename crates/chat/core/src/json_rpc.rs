@@ -72,21 +72,45 @@ impl JsonRpcNotification {
 
 impl JsonRpcError {
     pub fn method_not_found() -> Self {
-        Self { code: -32601, message: "Method not found".to_string(), data: None }
+        Self {
+            code: -32601,
+            message: "Method not found".to_string(),
+            data: None,
+        }
     }
     pub fn invalid_params(msg: &str) -> Self {
-        Self { code: -32602, message: msg.to_string(), data: None }
+        Self {
+            code: -32602,
+            message: msg.to_string(),
+            data: None,
+        }
     }
     pub fn internal(msg: &str) -> Self {
-        Self { code: -32603, message: msg.to_string(), data: None }
+        Self {
+            code: -32603,
+            message: msg.to_string(),
+            data: None,
+        }
     }
     pub fn provider_not_found(provider: &str) -> Self {
-        Self { code: -32001, message: format!("Unknown provider: {}", provider), data: None }
+        Self {
+            code: -32001,
+            message: format!("Unknown provider: {}", provider),
+            data: None,
+        }
     }
     pub fn session_not_found(id: &str) -> Self {
-        Self { code: -32002, message: format!("Session not found: {}", id), data: None }
+        Self {
+            code: -32002,
+            message: format!("Session not found: {}", id),
+            data: None,
+        }
     }
     pub fn dir_not_found(path: &str) -> Self {
-        Self { code: -32005, message: format!("Directory does not exist: {}", path), data: None }
+        Self {
+            code: -32005,
+            message: format!("Directory does not exist: {}", path),
+            data: None,
+        }
     }
 }

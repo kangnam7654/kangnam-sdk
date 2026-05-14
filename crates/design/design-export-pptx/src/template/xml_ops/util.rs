@@ -66,7 +66,9 @@ pub(crate) fn parse_attrs(s: &str) -> Vec<(String, String)> {
         while i < bytes.len() && bytes[i] != b'=' && !bytes[i].is_ascii_whitespace() {
             i += 1;
         }
-        let name = std::str::from_utf8(&bytes[name_start..i]).unwrap_or("").to_string();
+        let name = std::str::from_utf8(&bytes[name_start..i])
+            .unwrap_or("")
+            .to_string();
         while i < bytes.len() && bytes[i].is_ascii_whitespace() {
             i += 1;
         }
@@ -92,7 +94,9 @@ pub(crate) fn parse_attrs(s: &str) -> Vec<(String, String)> {
         while i < bytes.len() && bytes[i] != quote {
             i += 1;
         }
-        let val = std::str::from_utf8(&bytes[val_start..i]).unwrap_or("").to_string();
+        let val = std::str::from_utf8(&bytes[val_start..i])
+            .unwrap_or("")
+            .to_string();
         if i < bytes.len() {
             i += 1;
         }
@@ -105,7 +109,9 @@ pub(crate) fn parse_attrs(s: &str) -> Vec<(String, String)> {
 
 /// Escape XML text content (`&`, `<`, `>`).
 pub(crate) fn escape_xml_text(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
 }
 
 /// Escape XML attribute value (double-quote context).

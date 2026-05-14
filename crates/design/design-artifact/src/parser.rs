@@ -230,10 +230,9 @@ impl ArtifactParser {
             };
             let tag_str: String = self.pending.drain(..=end).collect();
             let attrs = parse_attrs(&tag_str);
-            let id = attrs
-                .get("id")
-                .cloned()
-                .unwrap_or_else(|| self.next_auto_id(if is_artifact { "artifact" } else { "qform" }));
+            let id = attrs.get("id").cloned().unwrap_or_else(|| {
+                self.next_auto_id(if is_artifact { "artifact" } else { "qform" })
+            });
             let kind = if is_artifact {
                 ArtifactKind::from_attr(attrs.get("type").map(String::as_str))
             } else {
@@ -306,7 +305,8 @@ mod tests {
     #[test]
     fn whole_artifact_in_one_chunk() {
         let mut p = ArtifactParser::new();
-        let events = p.feed("Here we go: <artifact id=\"a1\" type=\"html\"><h1>hi</h1></artifact>\n");
+        let events =
+            p.feed("Here we go: <artifact id=\"a1\" type=\"html\"><h1>hi</h1></artifact>\n");
         let last_text = events
             .iter()
             .find_map(|e| match e {
@@ -321,9 +321,11 @@ mod tests {
         assert!(events
             .iter()
             .any(|e| matches!(e, ArtifactEvent::ArtifactDelta { id, text } if id == "a1" && text.contains("<h1>"))));
-        assert!(events
-            .iter()
-            .any(|e| matches!(e, ArtifactEvent::ArtifactEnd { id } if id == "a1")));
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, ArtifactEvent::ArtifactEnd { id } if id == "a1"))
+        );
     }
 
     #[test]
@@ -350,12 +352,14 @@ mod tests {
         let combined = deltas.join("");
         assert!(combined.contains("part1"));
         assert!(combined.contains("part2"));
-        assert!(all
-            .iter()
-            .any(|e| matches!(e, ArtifactEvent::ArtifactEnd { id } if id == "x")));
-        assert!(all
-            .iter()
-            .any(|e| matches!(e, ArtifactEvent::Text { text } if text.contains("tail"))));
+        assert!(
+            all.iter()
+                .any(|e| matches!(e, ArtifactEvent::ArtifactEnd { id } if id == "x"))
+        );
+        assert!(
+            all.iter()
+                .any(|e| matches!(e, ArtifactEvent::Text { text } if text.contains("tail")))
+        );
     }
 
     #[test]

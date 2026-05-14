@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 use tera::{Context, Tera};
 use thiserror::Error;
 
-use kangnam_design_llm::{run_stream, strip_code_fence, truncate_for_msg, AiClient, AiError, EditEvent};
+use kangnam_design_llm::{
+    AiClient, AiError, EditEvent, run_stream, strip_code_fence, truncate_for_msg,
+};
 
 const SYSTEM_PROMPT_TEMPLATE: &str = include_str!("../templates/zone-edit-prompt.tera");
 const TEMPLATE_NAME: &str = "zone-edit-prompt";
@@ -27,7 +29,9 @@ pub enum ZoneEditEvent {
 pub enum BatchEditEvent {
     Delta(String),
     /// Parsed `(zone_id, new_html)` pairs in the same order as the request.
-    Complete { zones: Vec<(String, String)> },
+    Complete {
+        zones: Vec<(String, String)>,
+    },
 }
 
 #[derive(Debug, Error)]
@@ -216,7 +220,10 @@ impl ZoneEditor {
 ///   no duplicates, no extras. This is what enforces all-or-nothing.
 /// - Returned order preserves the request order so UIs can render progress
 ///   deterministically.
-fn parse_batch_response(raw: &str, requested: &[String]) -> Result<Vec<(String, String)>, ZoneEditError> {
+fn parse_batch_response(
+    raw: &str,
+    requested: &[String],
+) -> Result<Vec<(String, String)>, ZoneEditError> {
     #[derive(Deserialize)]
     struct Outer {
         zones: Vec<Inner>,
@@ -230,10 +237,16 @@ fn parse_batch_response(raw: &str, requested: &[String]) -> Result<Vec<(String, 
     // `run_stream` has already stripped fences; this is idempotent.
     let cleaned = strip_code_fence(raw.trim()).trim();
     if cleaned.is_empty() {
-        return Err(ZoneEditError::InvalidBatchResponse("empty response".to_string()));
+        return Err(ZoneEditError::InvalidBatchResponse(
+            "empty response".to_string(),
+        ));
     }
-    let parsed: Outer = serde_json::from_str(cleaned)
-        .map_err(|e| ZoneEditError::InvalidBatchResponse(format!("json parse: {e} :: {}", truncate_for_msg(cleaned, 200))))?;
+    let parsed: Outer = serde_json::from_str(cleaned).map_err(|e| {
+        ZoneEditError::InvalidBatchResponse(format!(
+            "json parse: {e} :: {}",
+            truncate_for_msg(cleaned, 200)
+        ))
+    })?;
 
     let requested_set: BTreeSet<&str> = requested.iter().map(|s| s.as_str()).collect();
     let response_set: BTreeSet<&str> = parsed.zones.iter().map(|z| z.id.as_str()).collect();
@@ -256,11 +269,8 @@ fn parse_batch_response(raw: &str, requested: &[String]) -> Result<Vec<(String, 
     // Preserve request order in the returned vector so downstream rendering
     // (status list, override insertion) is deterministic regardless of the
     // order the model chose in its JSON.
-    let by_id: std::collections::HashMap<String, String> = parsed
-        .zones
-        .into_iter()
-        .map(|z| (z.id, z.html))
-        .collect();
+    let by_id: std::collections::HashMap<String, String> =
+        parsed.zones.into_iter().map(|z| (z.id, z.html)).collect();
     let mut out = Vec::with_capacity(requested.len());
     for id in requested {
         let html = by_id
@@ -268,7 +278,9 @@ fn parse_batch_response(raw: &str, requested: &[String]) -> Result<Vec<(String, 
             .cloned()
             .expect("set equality guarantees presence");
         if html.trim().is_empty() {
-            return Err(ZoneEditError::InvalidBatchResponse(format!("empty html for zone '{id}'")));
+            return Err(ZoneEditError::InvalidBatchResponse(format!(
+                "empty html for zone '{id}'"
+            )));
         }
         out.push((id.clone(), html));
     }
@@ -278,8 +290,8 @@ fn parse_batch_response(raw: &str, requested: &[String]) -> Result<Vec<(String, 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kangnam_design_llm::FakeAiClient;
     use futures::StreamExt;
+    use kangnam_design_llm::FakeAiClient;
 
     fn input<'a>(instr: &'a str, current: &'a str) -> EditPromptInput<'a> {
         EditPromptInput {
@@ -352,13 +364,19 @@ mod tests {
         let editor = ZoneEditor::new(ai.clone()).unwrap();
 
         let events: Vec<_> = editor
-            .edit(input("짧게", r#"<div data-edit-zone="title">긴 제목</div>"#))
+            .edit(input(
+                "짧게",
+                r#"<div data-edit-zone="title">긴 제목</div>"#,
+            ))
             .collect::<Vec<_>>()
             .await;
-        let unwrapped: Vec<ZoneEditEvent> =
-            events.into_iter().map(|r| r.expect("ok")).collect();
+        let unwrapped: Vec<ZoneEditEvent> = events.into_iter().map(|r| r.expect("ok")).collect();
 
-        assert!(unwrapped.iter().any(|e| matches!(e, ZoneEditEvent::Delta(_))));
+        assert!(
+            unwrapped
+                .iter()
+                .any(|e| matches!(e, ZoneEditEvent::Delta(_)))
+        );
         let last = unwrapped.last().expect("at least one");
         match last {
             ZoneEditEvent::Complete { html } => {
@@ -404,7 +422,10 @@ mod tests {
             .collect::<Vec<_>>()
             .await;
         let last = events.last().unwrap();
-        assert!(matches!(last, Err(ZoneEditError::EmptyOutput)), "got {last:?}");
+        assert!(
+            matches!(last, Err(ZoneEditError::EmptyOutput)),
+            "got {last:?}"
+        );
     }
 
     #[tokio::test]
@@ -427,10 +448,7 @@ mod tests {
     // FakeAiClient scripted with a fixed final response so we can assert
     // parsing + validation independent of any real model behaviour.
 
-    fn batch<'a>(
-        instr: &'a str,
-        zones: Vec<(&'a str, &'a str, &'a str)>,
-    ) -> BatchEditInput<'a> {
+    fn batch<'a>(instr: &'a str, zones: Vec<(&'a str, &'a str, &'a str)>) -> BatchEditInput<'a> {
         BatchEditInput {
             instruction: instr,
             zones: zones
@@ -473,7 +491,11 @@ mod tests {
             .build_batch_prompt(&batch(
                 "톤 맞춰서 더 진중하게",
                 vec![
-                    ("title", "표지 제목", r#"<div data-edit-zone="title">원본</div>"#),
+                    (
+                        "title",
+                        "표지 제목",
+                        r#"<div data-edit-zone="title">원본</div>"#,
+                    ),
                     ("sub", "부제목", r#"<div data-edit-zone="sub">서브</div>"#),
                 ],
             ))
@@ -503,7 +525,11 @@ mod tests {
             .edit_batch(batch(
                 "진중하게",
                 vec![
-                    ("title", "표지 제목", r#"<div data-edit-zone="title">A</div>"#),
+                    (
+                        "title",
+                        "표지 제목",
+                        r#"<div data-edit-zone="title">A</div>"#,
+                    ),
                     ("sub", "부제", r#"<div data-edit-zone="sub">B</div>"#),
                 ],
             ))
@@ -531,7 +557,10 @@ mod tests {
         let editor = ZoneEditor::new(ai).unwrap();
 
         let events: Vec<_> = editor
-            .edit_batch(batch("x", vec![("t", "T", r#"<p data-edit-zone="t">old</p>"#)]))
+            .edit_batch(batch(
+                "x",
+                vec![("t", "T", r#"<p data-edit-zone="t">old</p>"#)],
+            ))
             .collect::<Vec<_>>()
             .await;
         let last = events.last().unwrap().as_ref().expect("ok");
@@ -548,7 +577,8 @@ mod tests {
     async fn edit_batch_rejects_missing_zone_id() {
         // Requested two zones, AI returned only one → should error, no
         // partial commit. This is the main defence for all-or-nothing.
-        let response = r#"{"zones":[{"id":"title","html":"<div data-edit-zone=\"title\">OK</div>"}]}"#;
+        let response =
+            r#"{"zones":[{"id":"title","html":"<div data-edit-zone=\"title\">OK</div>"}]}"#;
         let ai = Arc::new(FakeAiClient::new(vec![response]));
         let editor = ZoneEditor::new(ai).unwrap();
 
@@ -582,7 +612,10 @@ mod tests {
         let editor = ZoneEditor::new(ai).unwrap();
 
         let events: Vec<_> = editor
-            .edit_batch(batch("x", vec![("title", "T", r#"<div data-edit-zone="title">A</div>"#)]))
+            .edit_batch(batch(
+                "x",
+                vec![("title", "T", r#"<div data-edit-zone="title">A</div>"#)],
+            ))
             .collect::<Vec<_>>()
             .await;
         let last = events.last().unwrap();
@@ -599,7 +632,10 @@ mod tests {
         let editor = ZoneEditor::new(ai).unwrap();
 
         let events: Vec<_> = editor
-            .edit_batch(batch("x", vec![("title", "T", r#"<div data-edit-zone="title">old</div>"#)]))
+            .edit_batch(batch(
+                "x",
+                vec![("title", "T", r#"<div data-edit-zone="title">old</div>"#)],
+            ))
             .collect::<Vec<_>>()
             .await;
         let last = events.last().unwrap();
@@ -617,7 +653,10 @@ mod tests {
         let editor = ZoneEditor::new(ai).unwrap();
 
         let events: Vec<_> = editor
-            .edit_batch(batch("x", vec![("t", "T", r#"<p data-edit-zone="t">x</p>"#)]))
+            .edit_batch(batch(
+                "x",
+                vec![("t", "T", r#"<p data-edit-zone="t">x</p>"#)],
+            ))
             .collect::<Vec<_>>()
             .await;
         let last = events.last().unwrap();
@@ -662,15 +701,18 @@ mod tests {
         let editor = ZoneEditor::new(ai).unwrap();
 
         let events: Vec<_> = editor
-            .edit_batch(batch("x", vec![("t", "T", r#"<p data-edit-zone="t">old</p>"#)]))
+            .edit_batch(batch(
+                "x",
+                vec![("t", "T", r#"<p data-edit-zone="t">old</p>"#)],
+            ))
             .collect::<Vec<_>>()
             .await;
-        let oks: Vec<&BatchEditEvent> = events
-            .iter()
-            .filter_map(|r| r.as_ref().ok())
-            .collect();
+        let oks: Vec<&BatchEditEvent> = events.iter().filter_map(|r| r.as_ref().ok()).collect();
         assert!(oks.iter().any(|e| matches!(e, BatchEditEvent::Delta(_))));
-        assert!(matches!(oks.last().unwrap(), BatchEditEvent::Complete { .. }));
+        assert!(matches!(
+            oks.last().unwrap(),
+            BatchEditEvent::Complete { .. }
+        ));
     }
 
     #[tokio::test]
@@ -678,7 +720,10 @@ mod tests {
         let ai = Arc::new(FakeAiClient::failing("upstream gone"));
         let editor = ZoneEditor::new(ai).unwrap();
         let events: Vec<_> = editor
-            .edit_batch(batch("x", vec![("t", "T", r#"<p data-edit-zone="t">x</p>"#)]))
+            .edit_batch(batch(
+                "x",
+                vec![("t", "T", r#"<p data-edit-zone="t">x</p>"#)],
+            ))
             .collect::<Vec<_>>()
             .await;
         assert_eq!(events.len(), 1);

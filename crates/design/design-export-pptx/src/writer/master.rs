@@ -1,5 +1,7 @@
 pub fn build() -> Vec<u8> {
-    include_str!("boilerplate/slide_master1.xml").as_bytes().to_vec()
+    include_str!("boilerplate/slide_master1.xml")
+        .as_bytes()
+        .to_vec()
 }
 
 #[cfg(test)]

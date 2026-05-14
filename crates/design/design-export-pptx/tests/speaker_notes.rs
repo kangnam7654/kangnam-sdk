@@ -46,12 +46,18 @@ fn deck_without_notes_omits_notes_artifacts() {
 #[test]
 fn deck_with_notes_emits_master_and_per_slide_notes() {
     let mut s1 = PptxSlide::blank_1280_720();
-    s1.background = Background::Solid { color: Color::WHITE };
+    s1.background = Background::Solid {
+        color: Color::WHITE,
+    };
     s1.speaker_notes = Some("첫 슬라이드 메모입니다.".into());
     let mut s2 = PptxSlide::blank_1280_720();
-    s2.background = Background::Solid { color: Color::WHITE };
+    s2.background = Background::Solid {
+        color: Color::WHITE,
+    };
     let mut s3 = PptxSlide::blank_1280_720();
-    s3.background = Background::Solid { color: Color::WHITE };
+    s3.background = Background::Solid {
+        color: Color::WHITE,
+    };
     s3.speaker_notes = Some("Three lines\nof notes\nhere.".into());
 
     let deck = PptxDeck {
@@ -61,7 +67,11 @@ fn deck_with_notes_emits_master_and_per_slide_notes() {
     let bytes = write_deck_to_bytes(&deck).expect("write");
     let names = entries(&bytes);
 
-    assert!(names.iter().any(|n| n == "ppt/notesMasters/notesMaster1.xml"));
+    assert!(
+        names
+            .iter()
+            .any(|n| n == "ppt/notesMasters/notesMaster1.xml")
+    );
     assert!(
         names
             .iter()

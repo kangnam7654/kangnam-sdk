@@ -52,7 +52,12 @@ mod tests {
         let mut doc = SlideDoc::empty(id);
         doc.elements.push(SlideElement::Text {
             id: "title".into(),
-            frame: Frame { x: 80.0, y: 80.0, w: 1120.0, h: 120.0 },
+            frame: Frame {
+                x: 80.0,
+                y: 80.0,
+                w: 1120.0,
+                h: 120.0,
+            },
             content: content.into(),
             style: TextStyle::default(),
         });

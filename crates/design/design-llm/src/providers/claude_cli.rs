@@ -187,7 +187,11 @@ fn parse_line(
             if is_error {
                 Err(AiError::Process(format!(
                     "claude status=error: {}",
-                    if result_text.is_empty() { "(no detail)" } else { &result_text }
+                    if result_text.is_empty() {
+                        "(no detail)"
+                    } else {
+                        &result_text
+                    }
                 )))
             } else {
                 *final_text = Some(result_text);
@@ -324,5 +328,4 @@ EOF
         let first = stream.next().await.expect("one item").unwrap_err();
         assert!(matches!(first, AiError::Process(_)));
     }
-
 }

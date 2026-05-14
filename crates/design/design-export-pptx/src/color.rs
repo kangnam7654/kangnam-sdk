@@ -63,7 +63,10 @@ pub enum Fill {
 
     /// Multi-stop linear gradient. `angle_deg` is CSS convention
     /// (0° = up, clockwise); converted to OOXML angle internally.
-    LinearGradient { angle_deg: f32, stops: Vec<GradientStop> },
+    LinearGradient {
+        angle_deg: f32,
+        stops: Vec<GradientStop>,
+    },
 
     /// Multi-stop radial gradient (`<a:path path="circle"/>` centered at
     /// 50%/50%). v1: center is fixed; no ellipse mode.
@@ -126,7 +129,11 @@ impl Fill {
             ));
         }
         let png_bytes = build_dot_tile_png(tile_w_px, tile_h_px, dot_radius_px, color_rgba)?;
-        Ok(Fill::TilePattern { png_bytes, tile_w_px, tile_h_px })
+        Ok(Fill::TilePattern {
+            png_bytes,
+            tile_w_px,
+            tile_h_px,
+        })
     }
 
     /// Emit the OOXML fill XML fragment for this variant.
@@ -147,9 +154,7 @@ impl Fill {
         #[allow(deprecated)]
         match self {
             Fill::Solid { color, alpha } => solid_fill_xml(color, *alpha),
-            Fill::LinearGradient { angle_deg, stops } => {
-                linear_gradient_xml(*angle_deg, stops)
-            }
+            Fill::LinearGradient { angle_deg, stops } => linear_gradient_xml(*angle_deg, stops),
             Fill::RadialGradient { stops } => radial_gradient_xml(stops),
             Fill::TilePattern { .. } => {
                 // Cannot emit: requires PNG embed into zip + slide rels mutation.
@@ -157,10 +162,22 @@ impl Fill {
                 // (available since v0.3.4) for tile fills.
                 String::new()
             }
-            Fill::Gradient { from, to, angle_deg } => {
+            Fill::Gradient {
+                from,
+                to,
+                angle_deg,
+            } => {
                 let stops = vec![
-                    GradientStop { position: 0.0, color: *from, alpha: None },
-                    GradientStop { position: 1.0, color: *to, alpha: None },
+                    GradientStop {
+                        position: 0.0,
+                        color: *from,
+                        alpha: None,
+                    },
+                    GradientStop {
+                        position: 1.0,
+                        color: *to,
+                        alpha: None,
+                    },
                 ];
                 linear_gradient_xml(*angle_deg, &stops)
             }
@@ -194,9 +211,9 @@ pub(crate) fn gs_list_xml(stops: &[GradientStop]) -> String {
         let p = (stop.position.clamp(0.0, 1.0) * 100_000.0).round() as i64;
         let hex = stop.color.to_hex6();
         let inner = match stop.alpha {
-            Some(a) if a < 100_000 => format!(
-                r#"<a:srgbClr val="{hex}"><a:alpha val="{a}"/></a:srgbClr>"#,
-            ),
+            Some(a) if a < 100_000 => {
+                format!(r#"<a:srgbClr val="{hex}"><a:alpha val="{a}"/></a:srgbClr>"#,)
+            }
             _ => format!(r#"<a:srgbClr val="{hex}"/>"#),
         };
         s.push_str(&format!(r#"<a:gs pos="{p}">{inner}</a:gs>"#));
@@ -329,8 +346,14 @@ fn build_dot_tile_png(
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Background {
-    Solid { color: Color },
-    Gradient { from: Color, to: Color, angle_deg: f32 },
+    Solid {
+        color: Color,
+    },
+    Gradient {
+        from: Color,
+        to: Color,
+        angle_deg: f32,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -371,12 +394,21 @@ mod tests {
     #[test]
     fn fill_solid_constructor_defaults_alpha_none() {
         let f = Fill::solid(Color::WHITE);
-        assert_eq!(f, Fill::Solid { color: Color::WHITE, alpha: None });
+        assert_eq!(
+            f,
+            Fill::Solid {
+                color: Color::WHITE,
+                alpha: None
+            }
+        );
     }
 
     #[test]
     fn fill_solid_with_alpha_round_trips_serde() {
-        let f = Fill::Solid { color: Color(255, 0, 0), alpha: Some(50_000) };
+        let f = Fill::Solid {
+            color: Color(255, 0, 0),
+            alpha: Some(50_000),
+        };
         let json = serde_json::to_string(&f).unwrap();
         let back: Fill = serde_json::from_str(&json).unwrap();
         assert_eq!(f, back);
@@ -405,10 +437,16 @@ mod tests {
 
     #[test]
     fn to_ooxml_fill_xml_solid_with_alpha_emits_alpha_tag() {
-        let f = Fill::Solid { color: Color(0xFF, 0xFF, 0xFF), alpha: Some(50_000) };
+        let f = Fill::Solid {
+            color: Color(0xFF, 0xFF, 0xFF),
+            alpha: Some(50_000),
+        };
         let xml = f.to_ooxml_fill_xml();
         assert!(xml.contains("<a:solidFill>"), "has solidFill: {xml}");
-        assert!(xml.contains(r#"<a:alpha val="50000"/>"#), "has alpha tag: {xml}");
+        assert!(
+            xml.contains(r#"<a:alpha val="50000"/>"#),
+            "has alpha tag: {xml}"
+        );
     }
 
     #[test]

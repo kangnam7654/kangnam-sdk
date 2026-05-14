@@ -26,6 +26,6 @@ pub mod loader;
 pub mod model;
 
 pub use loader::{
-    list_template_ids, load_all_templates, load_template, load_templates_from_dir, LoadError,
+    LoadError, list_template_ids, load_all_templates, load_template, load_templates_from_dir,
 };
 pub use model::{PromptTemplate, SourceAttribution, Surface};

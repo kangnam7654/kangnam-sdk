@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use kangnam_harness_runtime::{AgentTool, ToolCtx, ToolResult};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::catalog::SkillCatalog;
 
@@ -21,12 +21,16 @@ pub struct ScaffoldTool {
 }
 
 impl ScaffoldTool {
-    pub fn new(catalog: Arc<dyn SkillCatalog>) -> Self { Self { catalog } }
+    pub fn new(catalog: Arc<dyn SkillCatalog>) -> Self {
+        Self { catalog }
+    }
 }
 
 #[async_trait]
 impl AgentTool for ScaffoldTool {
-    fn name(&self) -> &str { "scaffold" }
+    fn name(&self) -> &str {
+        "scaffold"
+    }
 
     fn parameters(&self) -> Value {
         json!({
@@ -42,30 +46,42 @@ impl AgentTool for ScaffoldTool {
     async fn execute(&self, params: Value, ctx: &ToolCtx) -> ToolResult {
         let skill_id = match params.get("skill_id").and_then(|v| v.as_str()) {
             Some(s) => s,
-            None => return ToolResult::Failed { error: "missing `skill_id`".into() },
+            None => {
+                return ToolResult::Failed {
+                    error: "missing `skill_id`".into(),
+                };
+            }
         };
         let dest_rel = match params.get("dest").and_then(|v| v.as_str()) {
             Some(s) => s,
-            None => return ToolResult::Failed { error: "missing `dest`".into() },
+            None => {
+                return ToolResult::Failed {
+                    error: "missing `dest`".into(),
+                };
+            }
         };
         let assets = match self.catalog.assets_dir(skill_id).await {
             Some(p) => p,
             None => {
                 return ToolResult::Failed {
                     error: format!("skill `{skill_id}` has no assets directory in catalog"),
-                }
+                };
             }
         };
 
         let dest_root = match ctx.resolve_path(dest_rel) {
             Some(p) => p,
-            None => return ToolResult::Failed {
-                error: "scaffold requires a working directory".into(),
-            },
+            None => {
+                return ToolResult::Failed {
+                    error: "scaffold requires a working directory".into(),
+                };
+            }
         };
         let mut copied: Vec<String> = Vec::new();
         if let Err(e) = walk_and_copy(&assets, &assets, &dest_root, ctx, &mut copied).await {
-            return ToolResult::Failed { error: format!("scaffold failed: {e}") };
+            return ToolResult::Failed {
+                error: format!("scaffold failed: {e}"),
+            };
         }
 
         ToolResult::Success {
@@ -125,7 +141,9 @@ mod tests {
         let cat = Arc::new(StaticSkillCatalog::new());
         let tool = ScaffoldTool::new(cat);
         let (ctx, _g) = test_ctx_with_workspace();
-        let res = tool.execute(json!({"skill_id":"nope","dest":"x"}), &ctx).await;
+        let res = tool
+            .execute(json!({"skill_id":"nope","dest":"x"}), &ctx)
+            .await;
         match res {
             ToolResult::Failed { error } => assert!(error.contains("no assets")),
             other => panic!("expected Failed, got {other:?}"),
@@ -136,19 +154,24 @@ mod tests {
     async fn copies_assets_dir_into_workspace() {
         // Set up source assets in a tempdir.
         let src = tempfile::tempdir().unwrap();
-        tokio::fs::create_dir_all(src.path().join("nested")).await.unwrap();
-        tokio::fs::write(src.path().join("a.html"), b"<p>a</p>").await.unwrap();
-        tokio::fs::write(src.path().join("nested/b.css"), b"body{}").await.unwrap();
+        tokio::fs::create_dir_all(src.path().join("nested"))
+            .await
+            .unwrap();
+        tokio::fs::write(src.path().join("a.html"), b"<p>a</p>")
+            .await
+            .unwrap();
+        tokio::fs::write(src.path().join("nested/b.css"), b"body{}")
+            .await
+            .unwrap();
 
         let mut cat = StaticSkillCatalog::new();
         cat.with_assets("web-prototype", src.path().to_path_buf());
         let tool = ScaffoldTool::new(Arc::new(cat));
 
         let (ctx, ws) = test_ctx_with_workspace();
-        let res = tool.execute(
-            json!({"skill_id":"web-prototype","dest":"out"}),
-            &ctx,
-        ).await;
+        let res = tool
+            .execute(json!({"skill_id":"web-prototype","dest":"out"}), &ctx)
+            .await;
         match res {
             ToolResult::Success { content } => {
                 let files = content["files"].as_array().unwrap();

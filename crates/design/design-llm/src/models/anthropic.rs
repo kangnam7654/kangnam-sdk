@@ -1,10 +1,9 @@
 //! Anthropic / Claude model discovery: curated fallback, live API, and
 //! public-docs scrape.
 
-use super::{http, ModelList, ModelListError, ModelSource};
+use super::{ModelList, ModelListError, ModelSource, http};
 
-const CLAUDE_DOCS_URL: &str =
-    "https://platform.claude.com/docs/en/docs/about-claude/models";
+const CLAUDE_DOCS_URL: &str = "https://platform.claude.com/docs/en/docs/about-claude/models";
 
 /// Curated Claude model names.
 ///
@@ -181,10 +180,7 @@ mod tests {
         assert!(ids.contains(&"claude-haiku-4-5".to_string()));
         assert!(ids.contains(&"claude-haiku-4-5-20251001".to_string()));
         // Aliases (no date) should come before dated snapshots.
-        let alias_pos = ids
-            .iter()
-            .position(|s| s == "claude-haiku-4-5")
-            .unwrap();
+        let alias_pos = ids.iter().position(|s| s == "claude-haiku-4-5").unwrap();
         let dated_pos = ids
             .iter()
             .position(|s| s == "claude-haiku-4-5-20251001")

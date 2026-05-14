@@ -57,13 +57,9 @@ impl SiteDoc {
         let mut out = String::with_capacity(4096);
         out.push_str("<!DOCTYPE html>\n<html lang=\"ko\">\n<head>\n");
         out.push_str("<meta charset=\"utf-8\">\n");
-        out.push_str(
-            "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n",
-        );
+        out.push_str("<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n");
         out.push_str("<title>");
-        out.push_str(&html_escape(
-            self.title.as_deref().unwrap_or("Canvas Web"),
-        ));
+        out.push_str(&html_escape(self.title.as_deref().unwrap_or("Canvas Web")));
         out.push_str("</title>\n");
         out.push_str("<script src=\"https://cdn.tailwindcss.com\"></script>\n");
         out.push_str(

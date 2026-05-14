@@ -121,7 +121,13 @@ mod tests {
         assert!(s.contains("\"model\":\"claude-opus-4-7\""));
         let back: AppConfigPrefs = serde_json::from_str(&s).unwrap();
         assert_eq!(
-            back.agent_models.as_ref().unwrap().get("claude").unwrap().model.as_deref(),
+            back.agent_models
+                .as_ref()
+                .unwrap()
+                .get("claude")
+                .unwrap()
+                .model
+                .as_deref(),
             Some("claude-opus-4-7")
         );
     }

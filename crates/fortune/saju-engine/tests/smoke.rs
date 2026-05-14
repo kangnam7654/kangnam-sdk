@@ -84,7 +84,10 @@ fn daily_detail_category_details_has_7_keys() {
             .get("score")
             .and_then(|v| v.as_i64())
             .unwrap_or_else(|| panic!("{key}.score missing or non-integer"));
-        assert!((30..=98).contains(&score), "{key}.score out of range: {score}");
+        assert!(
+            (30..=98).contains(&score),
+            "{key}.score out of range: {score}"
+        );
     }
     // 결혼·자녀는 daily에 노출하지 않는다 — 키가 새로 들어가면 본명/일운 BM 분리가
     // 깨진 신호이므로 회귀 lock.

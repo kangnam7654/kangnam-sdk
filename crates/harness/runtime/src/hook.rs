@@ -133,7 +133,11 @@ mod tests {
     async fn passing_hook_allows() {
         let exec = HookExecutor::new(Duration::from_secs(5));
         let outcome = exec
-            .run(HookEvent::PreToolUse, Some("Bash"), &[hook("ok", "true", None)])
+            .run(
+                HookEvent::PreToolUse,
+                Some("Bash"),
+                &[hook("ok", "true", None)],
+            )
             .await;
         assert_eq!(outcome, HookOutcome::Allowed);
     }

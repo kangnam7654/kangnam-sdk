@@ -11,7 +11,9 @@ use kangnam_design_export_pptx::{from_html, write_deck_to_bytes};
 fn entries(bytes: &[u8]) -> Vec<String> {
     let cursor = std::io::Cursor::new(bytes);
     let mut zip = zip::ZipArchive::new(cursor).expect("zip");
-    (0..zip.len()).map(|i| zip.by_index(i).unwrap().name().to_string()).collect()
+    (0..zip.len())
+        .map(|i| zip.by_index(i).unwrap().name().to_string())
+        .collect()
 }
 
 fn read_entry(bytes: &[u8], name: &str) -> Option<String> {
@@ -51,11 +53,8 @@ fn html_with_heading_and_body_bg_writes_valid_pptx() {
 
 #[test]
 fn html_with_data_uri_image_embeds_media() {
-    let png_b64 =
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkAAIAAAoAAv/lxKUAAAAASUVORK5CYII=";
-    let html = format!(
-        r#"<body><h1>x</h1><img src="data:image/png;base64,{png_b64}"></body>"#
-    );
+    let png_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkAAIAAAoAAv/lxKUAAAAASUVORK5CYII=";
+    let html = format!(r#"<body><h1>x</h1><img src="data:image/png;base64,{png_b64}"></body>"#);
     let deck = from_html(&html);
     let bytes = write_deck_to_bytes(&deck).expect("write");
     let names = entries(&bytes);

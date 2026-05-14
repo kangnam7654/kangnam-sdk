@@ -76,8 +76,11 @@ fn resolve_dir(env_var: &str, default_rel: &str) -> Option<PathBuf> {
 
 #[tauri::command]
 pub fn design_skill_list() -> Result<Vec<DesignSkillEntry>, String> {
-    let dir = resolve_dir("KANGNAM_DESIGN_SKILLS_DIR", "crates/design/design-skill/skills")
-        .ok_or_else(|| "design skills directory not found".to_string())?;
+    let dir = resolve_dir(
+        "KANGNAM_DESIGN_SKILLS_DIR",
+        "crates/design/design-skill/skills",
+    )
+    .ok_or_else(|| "design skills directory not found".to_string())?;
     let skills = kangnam_design_skill::load_skills_from_dir(&dir).map_err(|e| e.to_string())?;
     let out = skills
         .into_iter()

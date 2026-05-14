@@ -1,20 +1,33 @@
-use crate::color::{css_to_ooxml_angle, Background};
+use crate::color::{Background, css_to_ooxml_angle};
 use crate::deck::PptxSlide;
 use crate::element::PptxElement;
 use crate::error::PptxWriteError;
 
-use super::xml::{close_elem, empty_elem, into_bytes, new_writer, open_elem, write_decl};
 use super::SlideImage;
+use super::xml::{close_elem, empty_elem, into_bytes, new_writer, open_elem, write_decl};
 
 /// Build `ppt/slides/slideN.xml`.
 pub fn build(slide: &PptxSlide, slide_images: &[SlideImage]) -> Result<Vec<u8>, PptxWriteError> {
     let mut w = new_writer();
     write_decl(&mut w)?;
-    open_elem(&mut w, "p:sld", &[
-        ("xmlns:a", "http://schemas.openxmlformats.org/drawingml/2006/main"),
-        ("xmlns:r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
-        ("xmlns:p", "http://schemas.openxmlformats.org/presentationml/2006/main"),
-    ])?;
+    open_elem(
+        &mut w,
+        "p:sld",
+        &[
+            (
+                "xmlns:a",
+                "http://schemas.openxmlformats.org/drawingml/2006/main",
+            ),
+            (
+                "xmlns:r",
+                "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+            ),
+            (
+                "xmlns:p",
+                "http://schemas.openxmlformats.org/presentationml/2006/main",
+            ),
+        ],
+    )?;
     open_elem(&mut w, "p:cSld", &[])?;
 
     // Background
@@ -48,7 +61,9 @@ pub fn build(slide: &PptxSlide, slide_images: &[SlideImage]) -> Result<Vec<u8>, 
             PptxElement::Shape(sb) => super::shape::emit(&mut w, sb, sp_id)?,
             PptxElement::Image(img) => {
                 // Look up the rel id assigned during `collect_slide_images`.
-                let si = slide_images.iter().find(|si| si.elem_idx == idx)
+                let si = slide_images
+                    .iter()
+                    .find(|si| si.elem_idx == idx)
                     .expect("slide_images must include every image element");
                 super::image::emit_pic(&mut w, img, sp_id, &si.rel_id)?;
             }
@@ -72,7 +87,11 @@ fn emit_background_fill(
             empty_elem(w, "a:srgbClr", &[("val", &color.to_hex6())])?;
             close_elem(w, "a:solidFill")?;
         }
-        Background::Gradient { from, to, angle_deg } => {
+        Background::Gradient {
+            from,
+            to,
+            angle_deg,
+        } => {
             open_elem(w, "a:gradFill", &[("flip", "none"), ("rotWithShape", "1")])?;
             open_elem(w, "a:gsLst", &[])?;
             open_elem(w, "a:gs", &[("pos", "0")])?;
@@ -104,7 +123,9 @@ mod tests {
         let s = PptxSlide {
             width_emu: 12_192_000,
             height_emu: 6_858_000,
-            background: Background::Solid { color: Color(0xAB, 0xCD, 0xEF) },
+            background: Background::Solid {
+                color: Color(0xAB, 0xCD, 0xEF),
+            },
             elements: vec![],
             speaker_notes: None,
         };

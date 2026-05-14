@@ -36,16 +36,15 @@ use crate::error::{PptxWriteError, Result};
 use crate::geometry::Frame;
 
 use xml_ops::{
-    append_presentation_rel, append_presentation_rel_for_slide, append_relationship,
-    build_free_text_sp_xml, build_geom_shape_xml, build_minimal_slide_xml, build_pic_xml,
-    build_shape_sp_xml, build_slide_rels, compute_next_rel_id, count_existing_fonts,
-    count_existing_images, count_existing_slides, find_layout_placeholder,
-    find_layout_placeholder_xfrm, image_mime_for_ext, insert_before_sptree_close,
-    insert_content_types_default, insert_content_types_override,
-    insert_content_types_override_for_slide, next_sp_id_in_slide,
+    CT_FONT, REL_FONT, REL_IMAGE, XfrmRect, append_presentation_rel,
+    append_presentation_rel_for_slide, append_relationship, build_free_text_sp_xml,
+    build_geom_shape_xml, build_minimal_slide_xml, build_pic_xml, build_shape_sp_xml,
+    build_slide_rels, compute_next_rel_id, count_existing_fonts, count_existing_images,
+    count_existing_slides, find_layout_placeholder, find_layout_placeholder_xfrm,
+    image_mime_for_ext, insert_before_sptree_close, insert_content_types_default,
+    insert_content_types_override, insert_content_types_override_for_slide, next_sp_id_in_slide,
     parse_declared_extensions, parse_slide_size, prst_geom_xml, stroke_xml as shape_stroke_xml,
-    update_sld_id_lst, upsert_embedded_font, upsert_slide_text_sp, XfrmRect, CT_FONT, REL_FONT,
-    REL_IMAGE,
+    update_sld_id_lst, upsert_embedded_font, upsert_slide_text_sp,
 };
 
 /// Font weight/style variant for [`PptxTemplate::embed_font`].
@@ -182,9 +181,7 @@ impl PptxTemplate {
     /// `ppt/presentation.xml`. Falls back to (12_192_000, 6_858_000) (16:9 EMU)
     /// if not parseable.
     pub fn slide_size_emu(&self) -> (i64, i64) {
-        let pres = self
-            .entry_bytes("ppt/presentation.xml")
-            .unwrap_or(&[]);
+        let pres = self.entry_bytes("ppt/presentation.xml").unwrap_or(&[]);
         parse_slide_size(pres).unwrap_or((12_192_000, 6_858_000))
     }
 
@@ -210,9 +207,7 @@ impl PptxTemplate {
             .push((slide_rels_path, build_slide_rels(layout_num).into_bytes()));
 
         // Mutate [Content_Types].xml
-        let ct = self
-            .entry_bytes_required("[Content_Types].xml")?
-            .to_vec();
+        let ct = self.entry_bytes_required("[Content_Types].xml")?.to_vec();
         let new_ct = insert_content_types_override_for_slide(&ct, slide_num)?;
         self.set_entry("[Content_Types].xml", new_ct);
 
@@ -242,11 +237,12 @@ impl PptxTemplate {
     ) -> Result<()> {
         let layout_xml = self.layout_xml_for_slide(slide)?.to_vec();
         let layout_num = self.layout_num_for_slide(slide)?;
-        let ph_meta = find_layout_placeholder(&layout_xml, placeholder_idx)?
-            .ok_or(PptxWriteError::PlaceholderNotFound {
+        let ph_meta = find_layout_placeholder(&layout_xml, placeholder_idx)?.ok_or(
+            PptxWriteError::PlaceholderNotFound {
                 layout_num,
                 placeholder_idx,
-            })?;
+            },
+        )?;
 
         let slide_path = self.slide_path(slide);
         let slide_xml = self.entry_bytes_required(&slide_path)?.to_vec();
@@ -265,8 +261,8 @@ impl PptxTemplate {
         mime: ImageMime,
     ) -> Result<()> {
         let layout_xml = self.layout_xml_for_slide(slide)?.to_vec();
-        let xfrm = find_layout_placeholder_xfrm(&layout_xml, placeholder_idx)?
-            .unwrap_or(XfrmRect {
+        let xfrm =
+            find_layout_placeholder_xfrm(&layout_xml, placeholder_idx)?.unwrap_or(XfrmRect {
                 off_x: 0,
                 off_y: 0,
                 ext_cx: 5_486_400,
@@ -475,9 +471,8 @@ impl PptxTemplate {
         let mut buf = Cursor::new(Vec::<u8>::new());
         {
             let mut zw = zip::ZipWriter::new(&mut buf);
-            let options: zip::write::SimpleFileOptions =
-                zip::write::SimpleFileOptions::default()
-                    .compression_method(zip::CompressionMethod::Deflated);
+            let options: zip::write::SimpleFileOptions = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Deflated);
             for (name, bytes) in &self.entries {
                 zw.start_file(name, options)?;
                 zw.write_all(bytes)?;
@@ -533,8 +528,7 @@ impl PptxTemplate {
         // Register <Default Extension="png"> if not already declared.
         if !self.declared_extensions.contains("png") {
             let ct = self.entry_bytes_required("[Content_Types].xml")?.to_vec();
-            let new_ct =
-                insert_content_types_default(&ct, "png", image_mime_for_ext("png"))?;
+            let new_ct = insert_content_types_default(&ct, "png", image_mime_for_ext("png"))?;
             self.set_entry("[Content_Types].xml", new_ct);
             self.declared_extensions.insert("png".to_string());
         }
@@ -584,7 +578,8 @@ impl PptxTemplate {
     }
 
     fn entry_bytes_required(&self, name: &str) -> Result<&[u8]> {
-        self.entry_bytes(name).ok_or_else(|| PptxWriteError::Xml(format!("entry missing: {name}")))
+        self.entry_bytes(name)
+            .ok_or_else(|| PptxWriteError::Xml(format!("entry missing: {name}")))
     }
 
     fn set_entry(&mut self, name: &str, bytes: Vec<u8>) {

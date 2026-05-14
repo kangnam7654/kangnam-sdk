@@ -3,13 +3,15 @@
 
 use async_trait::async_trait;
 use kangnam_harness_runtime::{AgentTool, ToolCtx, ToolResult};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 pub struct DoneTool;
 
 #[async_trait]
 impl AgentTool for DoneTool {
-    fn name(&self) -> &str { "done" }
+    fn name(&self) -> &str {
+        "done"
+    }
 
     fn parameters(&self) -> Value {
         json!({
@@ -41,7 +43,10 @@ mod tests {
     async fn returns_done_marker() {
         let tool = DoneTool;
         let ctx = test_ctx();
-        match tool.execute(serde_json::json!({"summary":"shipped"}), &ctx).await {
+        match tool
+            .execute(serde_json::json!({"summary":"shipped"}), &ctx)
+            .await
+        {
             ToolResult::Success { content } => {
                 assert_eq!(content["done"], true);
                 assert_eq!(content["summary"], "shipped");

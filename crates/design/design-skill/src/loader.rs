@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use kangnam_design_catalog_core as catalog;
 
-use crate::frontmatter::{parse_frontmatter, FrontmatterError};
+use crate::frontmatter::{FrontmatterError, parse_frontmatter};
 use crate::model::DesignSkill;
 
 #[derive(Debug, thiserror::Error)]

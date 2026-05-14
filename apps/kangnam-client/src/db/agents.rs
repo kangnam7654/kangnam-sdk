@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -45,8 +45,8 @@ pub fn list_agents(conn: &Connection) -> Result<Vec<Agent>, rusqlite::Error> {
     let agents = stmt
         .query_map([], |row| {
             let tools_json: Option<String> = row.get(5)?;
-            let allowed_tools: Option<Vec<String>> = tools_json
-                .and_then(|s| serde_json::from_str(&s).ok());
+            let allowed_tools: Option<Vec<String>> =
+                tools_json.and_then(|s| serde_json::from_str(&s).ok());
             Ok(Agent {
                 id: row.get(0)?,
                 name: row.get(1)?,
@@ -70,8 +70,8 @@ pub fn get_agent(conn: &Connection, id: &str) -> Option<Agent> {
         params![id],
         |row| {
             let tools_json: Option<String> = row.get(5)?;
-            let allowed_tools: Option<Vec<String>> = tools_json
-                .and_then(|s| serde_json::from_str(&s).ok());
+            let allowed_tools: Option<Vec<String>> =
+                tools_json.and_then(|s| serde_json::from_str(&s).ok());
             Ok(Agent {
                 id: row.get(0)?,
                 name: row.get(1)?,
@@ -98,7 +98,9 @@ pub fn create_agent(
 ) -> Result<Agent, rusqlite::Error> {
     let id = Uuid::new_v4().to_string();
     let now = chrono::Utc::now().timestamp();
-    let tools_json = allowed_tools.as_ref().map(|t| serde_json::to_string(t).unwrap_or_default());
+    let tools_json = allowed_tools
+        .as_ref()
+        .map(|t| serde_json::to_string(t).unwrap_or_default());
     conn.execute(
         "INSERT INTO agents (id, name, description, instructions, model, allowed_tools, max_turns, sort_order, created_at, updated_at) \
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, ?8, ?9)",
@@ -127,17 +129,29 @@ pub fn update_agent(
     max_turns: i64,
 ) -> Result<(), rusqlite::Error> {
     let now = chrono::Utc::now().timestamp();
-    let tools_json = allowed_tools.as_ref().map(|t| serde_json::to_string(t).unwrap_or_default());
+    let tools_json = allowed_tools
+        .as_ref()
+        .map(|t| serde_json::to_string(t).unwrap_or_default());
     conn.execute(
         "UPDATE agents SET name = ?1, description = ?2, instructions = ?3, \
          model = ?4, allowed_tools = ?5, max_turns = ?6, updated_at = ?7 WHERE id = ?8",
-        params![name, description, instructions, model, tools_json, max_turns, now, id],
+        params![
+            name,
+            description,
+            instructions,
+            model,
+            tools_json,
+            max_turns,
+            now,
+            id
+        ],
     )?;
     Ok(())
 }
 
 pub fn delete_agent(conn: &Connection, id: &str) {
-    conn.execute("DELETE FROM agents WHERE id = ?1", params![id]).ok();
+    conn.execute("DELETE FROM agents WHERE id = ?1", params![id])
+        .ok();
 }
 
 // ── Agent Runs ──
@@ -182,11 +196,7 @@ pub fn complete_agent_run(
     Ok(())
 }
 
-pub fn fail_agent_run(
-    conn: &Connection,
-    run_id: &str,
-    error: &str,
-) -> Result<(), rusqlite::Error> {
+pub fn fail_agent_run(conn: &Connection, run_id: &str, error: &str) -> Result<(), rusqlite::Error> {
     let now = chrono::Utc::now().timestamp();
     conn.execute(
         "UPDATE agent_runs SET result = ?1, status = 'failed', completed_at = ?2 WHERE id = ?3",
@@ -210,7 +220,8 @@ mod tests {
     #[test]
     fn test_create_and_list_agents() {
         let conn = setup_db();
-        let agent = create_agent(&conn, "test-agent", "desc", "instructions", None, None, 10).unwrap();
+        let agent =
+            create_agent(&conn, "test-agent", "desc", "instructions", None, None, 10).unwrap();
         assert_eq!(agent.name, "test-agent");
         assert_eq!(agent.max_turns, 10);
 
@@ -222,7 +233,16 @@ mod tests {
     #[test]
     fn test_get_agent() {
         let conn = setup_db();
-        let agent = create_agent(&conn, "finder", "finds things", "find it", Some("gpt-4"), None, 5).unwrap();
+        let agent = create_agent(
+            &conn,
+            "finder",
+            "finds things",
+            "find it",
+            Some("gpt-4"),
+            None,
+            5,
+        )
+        .unwrap();
         let found = get_agent(&conn, &agent.id).unwrap();
         assert_eq!(found.name, "finder");
         assert_eq!(found.model, Some("gpt-4".to_string()));
@@ -233,7 +253,17 @@ mod tests {
     fn test_update_agent() {
         let conn = setup_db();
         let agent = create_agent(&conn, "old", "old desc", "old inst", None, None, 10).unwrap();
-        update_agent(&conn, &agent.id, "new", "new desc", "new inst", Some("claude"), None, 20).unwrap();
+        update_agent(
+            &conn,
+            &agent.id,
+            "new",
+            "new desc",
+            "new inst",
+            Some("claude"),
+            None,
+            20,
+        )
+        .unwrap();
         let updated = get_agent(&conn, &agent.id).unwrap();
         assert_eq!(updated.name, "new");
         assert_eq!(updated.model, Some("claude".to_string()));
@@ -254,7 +284,10 @@ mod tests {
         let tools = Some(vec!["read".to_string(), "write".to_string()]);
         let agent = create_agent(&conn, "limited", "desc", "inst", None, tools, 10).unwrap();
         let found = get_agent(&conn, &agent.id).unwrap();
-        assert_eq!(found.allowed_tools, Some(vec!["read".to_string(), "write".to_string()]));
+        assert_eq!(
+            found.allowed_tools,
+            Some(vec!["read".to_string(), "write".to_string()])
+        );
     }
 
     #[test]
@@ -264,7 +297,8 @@ mod tests {
         conn.execute(
             "INSERT INTO conversations (id, title, cli_provider) VALUES ('conv-1', 'Test', 'test')",
             [],
-        ).unwrap();
+        )
+        .unwrap();
 
         let agent = create_agent(&conn, "runner", "desc", "inst", None, None, 10).unwrap();
         let run = create_agent_run(&conn, &agent.id, "conv-1", "do something").unwrap();
@@ -272,11 +306,13 @@ mod tests {
 
         complete_agent_run(&conn, &run.id, "done!", Some("gpt-4")).unwrap();
         // Verify via raw query
-        let status: String = conn.query_row(
-            "SELECT status FROM agent_runs WHERE id = ?1",
-            params![run.id],
-            |row| row.get(0),
-        ).unwrap();
+        let status: String = conn
+            .query_row(
+                "SELECT status FROM agent_runs WHERE id = ?1",
+                params![run.id],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(status, "completed");
     }
 
@@ -286,17 +322,20 @@ mod tests {
         conn.execute(
             "INSERT INTO conversations (id, title, cli_provider) VALUES ('conv-2', 'Test', 'test')",
             [],
-        ).unwrap();
+        )
+        .unwrap();
 
         let agent = create_agent(&conn, "failer", "desc", "inst", None, None, 10).unwrap();
         let run = create_agent_run(&conn, &agent.id, "conv-2", "will fail").unwrap();
         fail_agent_run(&conn, &run.id, "something broke").unwrap();
 
-        let status: String = conn.query_row(
-            "SELECT status FROM agent_runs WHERE id = ?1",
-            params![run.id],
-            |row| row.get(0),
-        ).unwrap();
+        let status: String = conn
+            .query_row(
+                "SELECT status FROM agent_runs WHERE id = ?1",
+                params![run.id],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(status, "failed");
     }
 

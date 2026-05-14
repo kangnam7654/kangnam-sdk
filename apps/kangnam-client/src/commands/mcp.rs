@@ -27,7 +27,9 @@ fn validate_server_config(config: &ServerConfig) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn mcp_list_servers(state: State<'_, Arc<AppState>>) -> Result<Vec<ServerStatus>, String> {
+pub async fn mcp_list_servers(
+    state: State<'_, Arc<AppState>>,
+) -> Result<Vec<ServerStatus>, String> {
     state.mcp.server_status().await
 }
 
@@ -39,7 +41,11 @@ pub async fn mcp_add_server(
     validate_server_config(&config)?;
     state
         .mcp
-        .request("mcp:add-server", serde_json::to_value(&config).map_err(|_| "Failed to serialize server config".to_string())?)
+        .request(
+            "mcp:add-server",
+            serde_json::to_value(&config)
+                .map_err(|_| "Failed to serialize server config".to_string())?,
+        )
         .await?;
     Ok(())
 }
@@ -74,7 +80,10 @@ pub async fn mcp_update_server(
 }
 
 #[tauri::command]
-pub async fn mcp_remove_server(name: String, state: State<'_, Arc<AppState>>) -> Result<(), String> {
+pub async fn mcp_remove_server(
+    name: String,
+    state: State<'_, Arc<AppState>>,
+) -> Result<(), String> {
     state
         .mcp
         .request("mcp:remove-server", serde_json::json!({ "name": name }))
@@ -83,12 +92,16 @@ pub async fn mcp_remove_server(name: String, state: State<'_, Arc<AppState>>) ->
 }
 
 #[tauri::command]
-pub async fn mcp_list_tools(state: State<'_, Arc<AppState>>) -> Result<Vec<AggregatedTool>, String> {
+pub async fn mcp_list_tools(
+    state: State<'_, Arc<AppState>>,
+) -> Result<Vec<AggregatedTool>, String> {
     state.mcp.list_tools().await
 }
 
 #[tauri::command]
-pub async fn mcp_server_status(state: State<'_, Arc<AppState>>) -> Result<Vec<ServerStatus>, String> {
+pub async fn mcp_server_status(
+    state: State<'_, Arc<AppState>>,
+) -> Result<Vec<ServerStatus>, String> {
     state.mcp.server_status().await
 }
 
@@ -101,13 +114,15 @@ pub async fn mcp_get_config(
         .mcp
         .request("mcp:server-configs", serde_json::json!({}))
         .await?;
-    let configs: Vec<ServerConfig> =
-        serde_json::from_value(configs).map_err(|_| "Invalid server configuration data".to_string())?;
+    let configs: Vec<ServerConfig> = serde_json::from_value(configs)
+        .map_err(|_| "Invalid server configuration data".to_string())?;
     configs
         .into_iter()
         .find(|c| c.name == name)
         .ok_or(format!("Server '{name}' not found"))
-        .and_then(|c| serde_json::to_value(c).map_err(|_| "Failed to serialize server config".to_string()))
+        .and_then(|c| {
+            serde_json::to_value(c).map_err(|_| "Failed to serialize server config".to_string())
+        })
 }
 
 #[tauri::command]

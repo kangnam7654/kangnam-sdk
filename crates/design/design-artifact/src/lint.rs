@@ -55,13 +55,18 @@ pub fn lint_artifact(html: &str) -> Vec<LintFinding> {
         out.push(LintFinding {
             severity: LintSeverity::P0,
             rule: "a11y:img-missing-alt",
-            message: "<img> missing or empty alt — accessibility regression and signals lazy content.".into(),
+            message:
+                "<img> missing or empty alt — accessibility regression and signals lazy content."
+                    .into(),
             excerpt: Some(cap),
         });
     }
 
     // P1: invented metric pattern — "10× faster" / "10x faster" / "300% more".
-    if let Some(m) = find_pattern(html, &["10× faster", "10x faster", "300% more", "100× faster"]) {
+    if let Some(m) = find_pattern(
+        html,
+        &["10× faster", "10x faster", "300% more", "100× faster"],
+    ) {
         out.push(LintFinding {
             severity: LintSeverity::P1,
             rule: "content:invented-metric",
@@ -77,7 +82,10 @@ pub fn lint_artifact(html: &str) -> Vec<LintFinding> {
         for snippet in extract_font_family_rules(html) {
             let s = snippet.to_ascii_lowercase();
             if s.contains("inter")
-                && (s.contains("h1") || s.contains("h2") || s.contains("display") || s.contains("hero"))
+                && (s.contains("h1")
+                    || s.contains("h2")
+                    || s.contains("display")
+                    || s.contains("hero"))
             {
                 out.push(LintFinding {
                     severity: LintSeverity::P1,
@@ -181,44 +189,48 @@ mod tests {
 
     #[test]
     fn flags_purple_pink_gradient_p0() {
-        let html = "<div style=\"background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);\"></div>";
+        let html =
+            "<div style=\"background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);\"></div>";
         let findings = lint_artifact(html);
-        assert!(findings
-            .iter()
-            .any(|f| f.severity == LintSeverity::P0 && f.rule == "anti-slop:purple-pink-gradient"));
+        assert!(
+            findings
+                .iter()
+                .any(|f| f.severity == LintSeverity::P0
+                    && f.rule == "anti-slop:purple-pink-gradient")
+        );
     }
 
     #[test]
     fn flags_img_without_alt_p0() {
         let findings = lint_artifact("<img src=\"x.png\">");
-        assert!(findings
-            .iter()
-            .any(|f| f.severity == LintSeverity::P0 && f.rule == "a11y:img-missing-alt"));
+        assert!(
+            findings
+                .iter()
+                .any(|f| f.severity == LintSeverity::P0 && f.rule == "a11y:img-missing-alt")
+        );
     }
 
     #[test]
     fn passes_img_with_real_alt() {
         let findings = lint_artifact("<img src=\"x.png\" alt=\"a real description\">");
-        assert!(!findings
-            .iter()
-            .any(|f| f.rule == "a11y:img-missing-alt"));
+        assert!(!findings.iter().any(|f| f.rule == "a11y:img-missing-alt"));
     }
 
     #[test]
     fn flags_invented_metric() {
         let findings = lint_artifact("Our system is 10× faster than the competition.");
-        assert!(findings
-            .iter()
-            .any(|f| f.rule == "content:invented-metric"));
+        assert!(findings.iter().any(|f| f.rule == "content:invented-metric"));
     }
 
     #[test]
     fn flags_inter_as_display() {
         let css = ".hero h1 { font-family: 'Inter', sans-serif; font-size: 96px; }";
         let findings = lint_artifact(&format!("<style>{css}</style>"));
-        assert!(findings
-            .iter()
-            .any(|f| f.rule == "typography:inter-as-display"));
+        assert!(
+            findings
+                .iter()
+                .any(|f| f.rule == "typography:inter-as-display")
+        );
     }
 
     #[test]

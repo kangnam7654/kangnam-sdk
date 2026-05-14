@@ -41,8 +41,7 @@ fn zip_has_entry_matching(bytes: &[u8], prefix: &str, suffix: &str) -> bool {
 
 fn slide2_xml(tmpl: PptxTemplate) -> String {
     let bytes = tmpl.pack().unwrap();
-    read_zip_entry_str(&bytes, "ppt/slides/slide2.xml")
-        .expect("ppt/slides/slide2.xml must exist")
+    read_zip_entry_str(&bytes, "ppt/slides/slide2.xml").expect("ppt/slides/slide2.xml must exist")
 }
 
 // ── test 1: Rect → prstGeom prst="rect" ──────────────────────────────────
@@ -101,14 +100,8 @@ fn add_element_shape_rounded_rect_emits_avlst_adj() {
         xml.contains(r#"prst="roundRect""#),
         "must have roundRect: {xml}"
     );
-    assert!(
-        xml.contains(r#"<a:avLst>"#),
-        "must have avLst: {xml}"
-    );
-    assert!(
-        xml.contains(r#"name="adj""#),
-        "must have adj guide: {xml}"
-    );
+    assert!(xml.contains(r#"<a:avLst>"#), "must have avLst: {xml}");
+    assert!(xml.contains(r#"name="adj""#), "must have adj guide: {xml}");
     assert!(
         xml.contains(r#"fmla="val 10000""#),
         "adj must be 10000 (10%): {xml}"
@@ -129,7 +122,8 @@ fn add_element_shape_with_solid_fill_emits_solid_fill() {
         Fill::solid(Color(0x3B, 0x82, 0xF6)),
         None,
     );
-    tmpl.add_element(slide, PptxElement::Shape(sb_opaque)).unwrap();
+    tmpl.add_element(slide, PptxElement::Shape(sb_opaque))
+        .unwrap();
 
     let xml = slide2_xml(tmpl);
     assert!(
@@ -151,10 +145,15 @@ fn add_element_shape_with_solid_fill_emits_solid_fill() {
     let sb_alpha = ShapeBox::new(
         Frame::from_px(0.0, 0.0, 100.0, 50.0),
         ShapeKind::Rect,
-        Fill::Solid { color: Color(0xFF, 0x00, 0x00), alpha: Some(50_000) },
+        Fill::Solid {
+            color: Color(0xFF, 0x00, 0x00),
+            alpha: Some(50_000),
+        },
         None,
     );
-    tmpl2.add_element(slide2, PptxElement::Shape(sb_alpha)).unwrap();
+    tmpl2
+        .add_element(slide2, PptxElement::Shape(sb_alpha))
+        .unwrap();
     let xml2 = slide2_xml(tmpl2);
     assert!(
         xml2.contains(r#"<a:alpha val="50000"/>"#),
@@ -170,27 +169,36 @@ fn add_element_shape_with_gradient_fill_emits_grad_fill() {
     let slide = tmpl.add_slide_from_layout(1).unwrap();
 
     let stops = vec![
-        GradientStop { position: 0.0, color: Color(0xFF, 0x00, 0x00), alpha: None },
-        GradientStop { position: 0.5, color: Color(0x00, 0xFF, 0x00), alpha: None },
-        GradientStop { position: 1.0, color: Color(0x00, 0x00, 0xFF), alpha: None },
+        GradientStop {
+            position: 0.0,
+            color: Color(0xFF, 0x00, 0x00),
+            alpha: None,
+        },
+        GradientStop {
+            position: 0.5,
+            color: Color(0x00, 0xFF, 0x00),
+            alpha: None,
+        },
+        GradientStop {
+            position: 1.0,
+            color: Color(0x00, 0x00, 0xFF),
+            alpha: None,
+        },
     ];
     let sb = ShapeBox::new(
         Frame::from_px(0.0, 0.0, 200.0, 100.0),
         ShapeKind::Rect,
-        Fill::LinearGradient { angle_deg: 180.0, stops },
+        Fill::LinearGradient {
+            angle_deg: 180.0,
+            stops,
+        },
         None,
     );
     tmpl.add_element(slide, PptxElement::Shape(sb)).unwrap();
 
     let xml = slide2_xml(tmpl);
-    assert!(
-        xml.contains("<a:gradFill"),
-        "must have gradFill: {xml}"
-    );
-    assert!(
-        xml.contains("<a:gsLst>"),
-        "must have gsLst: {xml}"
-    );
+    assert!(xml.contains("<a:gradFill"), "must have gradFill: {xml}");
+    assert!(xml.contains("<a:gsLst>"), "must have gsLst: {xml}");
     // 3 gradient stops
     assert_eq!(
         xml.matches("<a:gs ").count(),
@@ -228,8 +236,7 @@ fn add_element_shape_with_tile_fill_embeds_png() {
         "ppt/media/imageN.png must exist in zip"
     );
 
-    let slide_xml =
-        read_zip_entry_str(&bytes, "ppt/slides/slide2.xml").expect("slide2.xml");
+    let slide_xml = read_zip_entry_str(&bytes, "ppt/slides/slide2.xml").expect("slide2.xml");
     let rels_xml =
         read_zip_entry_str(&bytes, "ppt/slides/_rels/slide2.xml.rels").expect("slide2 rels");
 
@@ -288,22 +295,13 @@ fn add_element_shape_with_shadow_emits_outer_shdw() {
     tmpl.add_element(slide, PptxElement::Shape(sb)).unwrap();
 
     let xml = slide2_xml(tmpl);
-    assert!(
-        xml.contains("<a:effectLst>"),
-        "must have effectLst: {xml}"
-    );
-    assert!(
-        xml.contains("<a:outerShdw"),
-        "must have outerShdw: {xml}"
-    );
+    assert!(xml.contains("<a:effectLst>"), "must have effectLst: {xml}");
+    assert!(xml.contains("<a:outerShdw"), "must have outerShdw: {xml}");
     assert!(
         xml.contains(r#"blurRad="114300""#),
         "blurRad must be 114300: {xml}"
     );
-    assert!(
-        xml.contains(r#"dist="53882""#),
-        "dist must be 53882: {xml}"
-    );
+    assert!(xml.contains(r#"dist="53882""#), "dist must be 53882: {xml}");
     assert!(
         xml.contains(r#"dir="2700000""#),
         "dir must be 2700000 (45°): {xml}"
@@ -326,16 +324,15 @@ fn add_element_shape_with_shadow_emits_outer_shdw() {
 
 #[test]
 fn shadow_dir_correctly_computed_from_offsets() {
-
     // We test outer_shdw_xml indirectly by adding shapes with known offsets
     // and checking the emitted dir attribute.
 
     let cases: &[(f32, f32, &str)] = &[
         // (dx, dy, expected dir as string)
-        (10.0,   0.0,  r#"dir="0""#),            // 0°   → 0
-        (0.0,   10.0,  r#"dir="5400000""#),       // 90°  → 5_400_000
-        (-10.0,  0.0,  r#"dir="10800000""#),      // 180° → 10_800_000
-        (0.0,  -10.0,  r#"dir="16200000""#),      // 270° → 16_200_000
+        (10.0, 0.0, r#"dir="0""#),         // 0°   → 0
+        (0.0, 10.0, r#"dir="5400000""#),   // 90°  → 5_400_000
+        (-10.0, 0.0, r#"dir="10800000""#), // 180° → 10_800_000
+        (0.0, -10.0, r#"dir="16200000""#), // 270° → 16_200_000
     ];
 
     for (dx, dy, expected_dir) in cases {

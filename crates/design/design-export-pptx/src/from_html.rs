@@ -38,8 +38,10 @@
 
 use crate::color::{Background, Color, Fill};
 use crate::deck::{PptxDeck, PptxSlide};
-use crate::element::{ImageBox, ImageFit, ImageMime, PptxElement, ShapeBox, ShapeKind, TextAlign, TextBox, TextStyle};
-use crate::geometry::{px_to_emu, Frame};
+use crate::element::{
+    ImageBox, ImageFit, ImageMime, PptxElement, ShapeBox, ShapeKind, TextAlign, TextBox, TextStyle,
+};
+use crate::geometry::{Frame, px_to_emu};
 
 /// Convert an HTML string into a single-slide PptxDeck.
 ///
@@ -50,7 +52,9 @@ pub fn from_html(html: &str) -> PptxDeck {
     let (width_px, height_px) = extract_slide_size(html).unwrap_or((1280, 720));
     let background = extract_body_background(html)
         .map(|c| Background::Solid { color: c })
-        .unwrap_or(Background::Solid { color: Color::WHITE });
+        .unwrap_or(Background::Solid {
+            color: Color::WHITE,
+        });
 
     let mut elements: Vec<PptxElement> = Vec::new();
 
@@ -70,7 +74,12 @@ pub fn from_html(html: &str) -> PptxDeck {
             ..Default::default()
         };
         elements.push(PptxElement::Text(TextBox {
-            frame: Frame::from_px(60.0, y_cursor, (width_px as f32) - 120.0, block.size_pt * 1.6),
+            frame: Frame::from_px(
+                60.0,
+                y_cursor,
+                (width_px as f32) - 120.0,
+                block.size_pt * 1.6,
+            ),
             content: block.text.clone(),
             style,
         }));
@@ -147,7 +156,11 @@ fn push_tag(out: &mut Vec<TextBlock>, html: &str, tag: &str, size_pt: f32, weigh
         let inner = &html[after_open_tag..close_idx];
         let text = strip_inline_tags(inner).trim().to_string();
         if !text.is_empty() {
-            out.push(TextBlock { text, size_pt, weight });
+            out.push(TextBlock {
+                text,
+                size_pt,
+                weight,
+            });
         }
         start = close_idx + close.len();
     }
@@ -248,9 +261,7 @@ fn extract_data_uri_images(html: &str) -> Vec<DataUriImage> {
                     None
                 };
                 if let (Some(mime), true) = (mime, header.contains(";base64")) {
-                    if let Ok(bytes) =
-                        base64::engine::general_purpose::STANDARD.decode(payload)
-                    {
+                    if let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(payload) {
                         out.push(DataUriImage { bytes, mime });
                     }
                 }
@@ -324,9 +335,7 @@ mod tests {
     #[test]
     fn data_uri_image_decoded() {
         let png_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkAAIAAAoAAv/lxKUAAAAASUVORK5CYII=";
-        let html = format!(
-            "<body><h1>x</h1><img src=\"data:image/png;base64,{png_b64}\"></body>"
-        );
+        let html = format!("<body><h1>x</h1><img src=\"data:image/png;base64,{png_b64}\"></body>");
         let deck = from_html(&html);
         let elements = &deck.slides[0].elements;
         assert!(elements.iter().any(|e| matches!(e, PptxElement::Image(_))));

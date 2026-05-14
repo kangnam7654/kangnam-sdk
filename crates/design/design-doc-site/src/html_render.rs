@@ -82,7 +82,11 @@ html, body {{ margin: 0; padding: 0; background: #f5f5f5; font-family: 'Pretenda
 fn render_background_css(bg: &Background) -> String {
     match bg {
         Background::Color { color } => format!("background: {};", escape_css(color)),
-        Background::Gradient { from, to, angle_deg } => format!(
+        Background::Gradient {
+            from,
+            to,
+            angle_deg,
+        } => format!(
             "background: linear-gradient({deg}deg, {from} 0%, {to} 100%);",
             deg = angle_deg,
             from = escape_css(from),
@@ -103,7 +107,9 @@ fn render_element(el: &SlideElement) -> String {
     );
 
     match el {
-        SlideElement::Text { id, content, style, .. } => {
+        SlideElement::Text {
+            id, content, style, ..
+        } => {
             let style_css = text_style_css(style);
             format!(
                 r#"<div {zone}="{id}" {label}="{id}" style="{pos}{style_css}">{content}</div>"#,
@@ -115,7 +121,13 @@ fn render_element(el: &SlideElement) -> String {
                 content = escape_html(content),
             )
         }
-        SlideElement::Shape { id, shape, fill, stroke, .. } => {
+        SlideElement::Shape {
+            id,
+            shape,
+            fill,
+            stroke,
+            ..
+        } => {
             let mut css = pos.clone();
             css.push_str(&fill_css(fill));
             if let Some(s) = stroke {
@@ -171,7 +183,11 @@ fn text_style_css(s: &TextStyle) -> String {
 fn fill_css(fill: &Fill) -> String {
     match fill {
         Fill::Solid { color } => format!("background:{};", escape_css(color)),
-        Fill::Gradient { from, to, angle_deg } => format!(
+        Fill::Gradient {
+            from,
+            to,
+            angle_deg,
+        } => format!(
             "background:linear-gradient({deg}deg,{from} 0%,{to} 100%);",
             deg = angle_deg,
             from = escape_css(from),
@@ -216,8 +232,8 @@ fn escape_css(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use kangnam_design_doc_slide::slide::*;
     use super::*;
+    use kangnam_design_doc_slide::slide::*;
 
     #[test]
     fn empty_doc_renders_canvas_dimensions() {
@@ -233,13 +249,23 @@ mod tests {
         let mut doc = SlideDoc::empty("s2");
         doc.elements.push(SlideElement::Text {
             id: "title".into(),
-            frame: Frame { x: 0.0, y: 0.0, w: 100.0, h: 100.0 },
+            frame: Frame {
+                x: 0.0,
+                y: 0.0,
+                w: 100.0,
+                h: 100.0,
+            },
             content: "hi".into(),
             style: TextStyle::default(),
         });
         doc.elements.push(SlideElement::Shape {
             id: "bar".into(),
-            frame: Frame { x: 0.0, y: 100.0, w: 100.0, h: 10.0 },
+            frame: Frame {
+                x: 0.0,
+                y: 100.0,
+                w: 100.0,
+                h: 10.0,
+            },
             shape: ShapeKind::Rect,
             fill: Fill::solid("#000"),
             stroke: None,
@@ -260,7 +286,12 @@ mod tests {
         let mut doc = SlideDoc::empty("s3");
         doc.elements.push(SlideElement::Text {
             id: "x".into(),
-            frame: Frame { x: 0.0, y: 0.0, w: 10.0, h: 10.0 },
+            frame: Frame {
+                x: 0.0,
+                y: 0.0,
+                w: 10.0,
+                h: 10.0,
+            },
             content: "<script>alert(1)</script>".into(),
             style: TextStyle::default(),
         });
@@ -278,7 +309,10 @@ mod tests {
             angle_deg: 90.0,
         };
         let html = render(&doc);
-        assert!(html.contains("linear-gradient(90deg, #000 0%, #fff 100%)"), "got: {html}");
+        assert!(
+            html.contains("linear-gradient(90deg, #000 0%, #fff 100%)"),
+            "got: {html}"
+        );
     }
 
     #[test]
@@ -286,7 +320,12 @@ mod tests {
         let mut doc = SlideDoc::empty("s5");
         doc.elements.push(SlideElement::Shape {
             id: "dot".into(),
-            frame: Frame { x: 0.0, y: 0.0, w: 40.0, h: 80.0 },
+            frame: Frame {
+                x: 0.0,
+                y: 0.0,
+                w: 40.0,
+                h: 80.0,
+            },
             shape: ShapeKind::Circle,
             fill: Fill::solid("#f00"),
             stroke: None,

@@ -1,13 +1,13 @@
 //! The eight design-mode tools.
 
 pub mod ask;
+pub mod brand_asset_extract;
+pub mod done;
+pub mod gen_image;
+pub mod preview;
 pub mod scaffold;
 pub mod skill;
-pub mod preview;
 pub mod tweaks;
-pub mod done;
-pub mod brand_asset_extract;
-pub mod gen_image;
 
 use std::sync::Arc;
 

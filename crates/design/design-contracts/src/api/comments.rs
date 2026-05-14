@@ -220,10 +220,7 @@ mod tests {
         assert!(s.contains("\"memberCount\":3"));
         assert!(s.contains("\"podMembers\""));
         let back: PreviewCommentTarget = serde_json::from_str(&s).unwrap();
-        assert_eq!(
-            back.selection_kind,
-            Some(PreviewCommentSelectionKind::Pod)
-        );
+        assert_eq!(back.selection_kind, Some(PreviewCommentSelectionKind::Pod));
     }
 
     #[test]
@@ -231,7 +228,10 @@ mod tests {
         let r = PreviewCommentStatusRequest {
             status: PreviewCommentStatus::Resolved,
         };
-        assert_eq!(serde_json::to_string(&r).unwrap(), r#"{"status":"resolved"}"#);
+        assert_eq!(
+            serde_json::to_string(&r).unwrap(),
+            r#"{"status":"resolved"}"#
+        );
     }
 
     #[test]

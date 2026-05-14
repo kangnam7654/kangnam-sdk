@@ -208,8 +208,8 @@ mod tests {
 
     crate::locked_true!(
         /// Test-only locked-true marker.
-        pub(super) struct TestOk
-        ; field_name = "ok"
+        pub(super) struct TestOk;
+        field_name = "ok"
     );
 
     #[test]

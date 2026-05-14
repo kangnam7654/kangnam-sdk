@@ -6,15 +6,17 @@ fn slide_with(shape: ShapeKind) -> PptxDeck {
         slides: vec![PptxSlide {
             width_emu: 12_192_000,
             height_emu: 6_858_000,
-            background: Background::Solid { color: Color::WHITE },
+            background: Background::Solid {
+                color: Color::WHITE,
+            },
             elements: vec![PptxElement::Shape(ShapeBox::new(
                 Frame::from_px(0.0, 0.0, 200.0, 100.0),
                 shape,
                 Fill::solid(Color(0x3B, 0x82, 0xF6)),
                 None,
             ))],
-        
-        speaker_notes: None,
+
+            speaker_notes: None,
         }],
     }
 }
@@ -26,7 +28,8 @@ fn slide_xml(deck: &PptxDeck) -> String {
     std::io::Read::read_to_string(
         &mut archive.by_name("ppt/slides/slide1.xml").unwrap(),
         &mut s,
-    ).unwrap();
+    )
+    .unwrap();
     s
 }
 
@@ -40,7 +43,9 @@ fn rect_uses_prst_rect() {
 
 #[test]
 fn rounded_rect_uses_prst_roundrect_with_guide() {
-    let d = slide_with(ShapeKind::RoundedRect { radius_emu: 190_500 });
+    let d = slide_with(ShapeKind::RoundedRect {
+        radius_emu: 190_500,
+    });
     let xml = slide_xml(&d);
     assert!(xml.contains(r#"<a:prstGeom prst="roundRect">"#));
     // `adj` guide should appear in avLst — we encode the radius as a percent
@@ -66,7 +71,10 @@ fn line_uses_prst_line() {
 fn stroke_emits_ln_element_with_width() {
     let mut d = slide_with(ShapeKind::Rect);
     if let PptxElement::Shape(sb) = &mut d.slides[0].elements[0] {
-        sb.stroke = Some(Stroke { color: Color::BLACK, width_emu: 19_050 });
+        sb.stroke = Some(Stroke {
+            color: Color::BLACK,
+            width_emu: 19_050,
+        });
     }
     let xml = slide_xml(&d);
     assert!(xml.contains(r#"<a:ln w="19050">"#));
@@ -101,7 +109,10 @@ fn shadow_emits_effect_lst_in_write_only_path() {
     let xml = slide_xml(&d);
     assert!(xml.contains("<a:effectLst>"), "must emit effectLst: {xml}");
     assert!(xml.contains("<a:outerShdw"), "must emit outerShdw: {xml}");
-    assert!(xml.contains(r#"<a:alpha val="40000"/>"#), "must emit alpha: {xml}");
+    assert!(
+        xml.contains(r#"<a:alpha val="40000"/>"#),
+        "must emit alpha: {xml}"
+    );
     // dx=dy=4 → atan2(4,4) = 45° → 45 × 60_000 = 2_700_000
     assert!(xml.contains(r#"dir="2700000""#), "shadow direction: {xml}");
 }

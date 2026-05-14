@@ -18,19 +18,32 @@ fn deck_with_text_color(color: &str) -> kangnam_design_doc_slide::deck::Deck {
     let mut doc = SlideDoc::empty("s1");
     doc.elements.push(SlideElement::Text {
         id: "t".into(),
-        frame: SdFrame { x: 0.0, y: 0.0, w: 100.0, h: 50.0 },
+        frame: SdFrame {
+            x: 0.0,
+            y: 0.0,
+            w: 100.0,
+            h: 50.0,
+        },
         content: "hi".into(),
         style,
     });
     use kangnam_design_doc_slide::deck::Deck;
-    Deck { id: "test".into(), slides: vec![doc] }
+    Deck {
+        id: "test".into(),
+        slides: vec![doc],
+    }
 }
 
 fn deck_with_bg(bg_color: &str) -> kangnam_design_doc_slide::deck::Deck {
     let mut doc = SlideDoc::empty("s1");
-    doc.background = SdBackground::Color { color: bg_color.into() };
+    doc.background = SdBackground::Color {
+        color: bg_color.into(),
+    };
     use kangnam_design_doc_slide::deck::Deck;
-    Deck { id: "test".into(), slides: vec![doc] }
+    Deck {
+        id: "test".into(),
+        slides: vec![doc],
+    }
 }
 
 #[test]
@@ -74,5 +87,8 @@ fn unknown_color_format_errors_explicitly() {
     let deck = deck_with_text_color("hsl(0, 100%, 50%)");
     let err = from_deck(&deck).expect_err("hsl unsupported");
     let msg = format!("{err:?}");
-    assert!(msg.contains("InvalidHex") || msg.contains("hsl"), "got {msg}");
+    assert!(
+        msg.contains("InvalidHex") || msg.contains("hsl"),
+        "got {msg}"
+    );
 }

@@ -9,8 +9,8 @@
 //! complete dom_to_pptx port.
 
 use kangnam_design_doc_slide::slide::{
-    Background, Fill, Frame, ShapeKind, SlideDoc, SlideElement, Stroke, TextAlign, TextStyle,
-    CANVAS_HEIGHT, CANVAS_WIDTH,
+    Background, CANVAS_HEIGHT, CANVAS_WIDTH, Fill, Frame, ShapeKind, SlideDoc, SlideElement,
+    Stroke, TextAlign, TextStyle,
 };
 
 pub use crate::model::{
@@ -46,13 +46,21 @@ fn convert_shape(shape: ManifestShape) -> Result<SlideElement, ManifestError> {
     match shape {
         ManifestShape::Text(t) => Ok(SlideElement::Text {
             id: t.id,
-            frame: Frame { x: t.x, y: t.y, w: t.w, h: t.h },
+            frame: Frame {
+                x: t.x,
+                y: t.y,
+                w: t.w,
+                h: t.h,
+            },
             content: t.content,
             style: TextStyle {
                 font_family: "Pretendard".into(),
                 font_size_px: t.font_size_px,
                 font_weight: t.font_weight,
-                color: t.color.map(|c| c.to_css()).unwrap_or_else(|| "#111111".into()),
+                color: t
+                    .color
+                    .map(|c| c.to_css())
+                    .unwrap_or_else(|| "#111111".into()),
                 line_height: 1.4,
                 letter_spacing_px: 0.0,
                 align: parse_align(t.align.as_deref()),
@@ -60,7 +68,12 @@ fn convert_shape(shape: ManifestShape) -> Result<SlideElement, ManifestError> {
         }),
         ManifestShape::Rect(r) => Ok(SlideElement::Shape {
             id: r.id,
-            frame: Frame { x: r.x, y: r.y, w: r.w, h: r.h },
+            frame: Frame {
+                x: r.x,
+                y: r.y,
+                w: r.w,
+                h: r.h,
+            },
             shape: if r.border_radius_px > 0.0 {
                 ShapeKind::RoundedRect
             } else {
@@ -131,7 +144,9 @@ mod tests {
         assert_eq!(doc.elements.len(), 2);
 
         match &doc.elements[0] {
-            SlideElement::Text { id, content, style, .. } => {
+            SlideElement::Text {
+                id, content, style, ..
+            } => {
                 assert_eq!(id, "title");
                 assert_eq!(content, "Canvas");
                 assert_eq!(style.font_size_px, 64.0);
@@ -151,10 +166,7 @@ mod tests {
 
     #[test]
     fn missing_dimensions_fall_back_to_canvas_defaults() {
-        let m: Manifest = serde_json::from_str(
-            r#"{"slide_id":"x","shapes":[]}"#,
-        )
-        .unwrap();
+        let m: Manifest = serde_json::from_str(r#"{"slide_id":"x","shapes":[]}"#).unwrap();
         let doc = slide_from_manifest(m).unwrap();
         assert_eq!(doc.width_px, CANVAS_WIDTH);
         assert_eq!(doc.height_px, CANVAS_HEIGHT);
@@ -191,7 +203,10 @@ mod tests {
         let m: Manifest = serde_json::from_str(json).unwrap();
         let doc = slide_from_manifest(m).unwrap();
         match &doc.elements[0] {
-            SlideElement::Shape { fill: Fill::Solid { color }, .. } => {
+            SlideElement::Shape {
+                fill: Fill::Solid { color },
+                ..
+            } => {
                 assert!(color.starts_with("rgba("), "got: {color}");
             }
             _ => panic!("expected solid fill"),

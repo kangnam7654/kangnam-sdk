@@ -323,8 +323,8 @@ pub struct ShutdownResult {
 
 crate::locked_true!(
     /// `accepted: true` literal on `ShutdownResult` — see [`crate::locked_true`].
-    pub struct ShutdownAccepted
-    ; field_name = "accepted"
+    pub struct ShutdownAccepted;
+    field_name = "accepted"
 );
 
 // ─── Message envelopes ──────────────────────────────────────────────────
@@ -521,8 +521,7 @@ mod tests {
             serde_json::to_string(&SidecarErrorCode::InvalidMessage).unwrap(),
             "\"SIDECAR_INVALID_MESSAGE\""
         );
-        let e: SidecarErrorCode =
-            serde_json::from_str("\"SIDECAR_UNKNOWN_MESSAGE\"").unwrap();
+        let e: SidecarErrorCode = serde_json::from_str("\"SIDECAR_UNKNOWN_MESSAGE\"").unwrap();
         assert_eq!(e, SidecarErrorCode::UnknownMessage);
     }
 
@@ -682,7 +681,10 @@ mod tests {
 
     #[test]
     fn stamp_fields_const_matches_upstream() {
-        assert_eq!(SIDECAR_STAMP_FIELDS, &["app", "mode", "namespace", "ipc", "source"]);
+        assert_eq!(
+            SIDECAR_STAMP_FIELDS,
+            &["app", "mode", "namespace", "ipc", "source"]
+        );
     }
 
     #[test]

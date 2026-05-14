@@ -29,9 +29,8 @@ fn rewrite_entry(pptx: &[u8], target: &str, new_bytes: &[u8]) -> Vec<u8> {
     let mut out = Cursor::new(Vec::<u8>::new());
     {
         let mut zw = zip::ZipWriter::new(&mut out);
-        let opts: zip::write::SimpleFileOptions =
-            zip::write::SimpleFileOptions::default()
-                .compression_method(zip::CompressionMethod::Deflated);
+        let opts: zip::write::SimpleFileOptions = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
         for i in 0..archive.len() {
             let mut entry = archive.by_index(i).unwrap();
             let name = entry.name().to_string();
@@ -178,7 +177,10 @@ fn add_slide_from_invalid_layout_returns_typed_error() {
     assert!(
         matches!(
             err,
-            PptxWriteError::LayoutNotFound { layout_num: 99, max: 1 }
+            PptxWriteError::LayoutNotFound {
+                layout_num: 99,
+                max: 1
+            }
         ),
         "got {err:?}"
     );
@@ -188,7 +190,10 @@ fn add_slide_from_invalid_layout_returns_typed_error() {
 fn add_slide_from_layout_zero_returns_typed_error() {
     let mut tmpl = PptxTemplate::load_bytes(&base_pptx_bytes()).unwrap();
     let err = tmpl.add_slide_from_layout(0).unwrap_err();
-    assert!(matches!(err, PptxWriteError::LayoutNotFound { layout_num: 0, .. }));
+    assert!(matches!(
+        err,
+        PptxWriteError::LayoutNotFound { layout_num: 0, .. }
+    ));
 }
 
 #[test]
@@ -196,7 +201,11 @@ fn add_slide_appends_slide_xml_and_rels() {
     let mut tmpl = PptxTemplate::load_bytes(&base_pptx_bytes()).unwrap();
     // Base already has slide1, so the new one is slide2.
     let s = tmpl.add_slide_from_layout(1).unwrap();
-    assert_eq!(s, SlideRef(2), "SlideRef is absolute (existing slide1 + appended)");
+    assert_eq!(
+        s,
+        SlideRef(2),
+        "SlideRef is absolute (existing slide1 + appended)"
+    );
 
     let bytes = tmpl.pack().unwrap();
 
@@ -214,8 +223,7 @@ fn add_slide_appends_slide_xml_and_rels() {
         "Content_Types Override added"
     );
 
-    let pres_rels =
-        read_zip_entry_str(&bytes, "ppt/_rels/presentation.xml.rels").unwrap();
+    let pres_rels = read_zip_entry_str(&bytes, "ppt/_rels/presentation.xml.rels").unwrap();
     assert!(
         pres_rels.contains("slides/slide2.xml"),
         "presentation rels references new slide"
@@ -250,7 +258,8 @@ fn set_placeholder_text_with_real_placeholders_injects_runs() {
     let mut tmpl = PptxTemplate::load_bytes(&fixture_with_placeholders()).unwrap();
     let s = tmpl.add_slide_from_layout(1).unwrap();
     tmpl.set_placeholder_text(s, 0, "Hello Title").unwrap();
-    tmpl.set_placeholder_text(s, 1, "Body line 1\nBody line 2").unwrap();
+    tmpl.set_placeholder_text(s, 1, "Body line 1\nBody line 2")
+        .unwrap();
 
     let bytes = tmpl.pack().unwrap();
     let slide2 = read_zip_entry_str(&bytes, "ppt/slides/slide2.xml").unwrap();
@@ -309,8 +318,7 @@ fn add_full_bleed_image_inserts_pic_and_image_entry() {
     assert!(slide2.contains("<p:pic>"), "slide2 has <p:pic>");
     assert!(slide2.contains("r:embed="), "blip has r:embed");
 
-    let rels2 =
-        read_zip_entry_str(&bytes, "ppt/slides/_rels/slide2.xml.rels").unwrap();
+    let rels2 = read_zip_entry_str(&bytes, "ppt/slides/_rels/slide2.xml.rels").unwrap();
     assert!(rels2.contains("../media/image"));
     assert!(rels2.contains("relationships/image"));
 }

@@ -34,6 +34,6 @@ pub mod frontmatter;
 pub mod loader;
 pub mod model;
 
-pub use frontmatter::{parse_frontmatter, FrontmatterError};
-pub use loader::{list_skill_ids, load_skill, load_skills_from_dir, LoadError};
+pub use frontmatter::{FrontmatterError, parse_frontmatter};
+pub use loader::{LoadError, list_skill_ids, load_skill, load_skills_from_dir};
 pub use model::{DesignSkill, OdCraft, OdDesignSystem, OdMetadata, OdPreview};

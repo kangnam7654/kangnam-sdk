@@ -3,7 +3,7 @@ use tauri::State;
 
 use crate::db::conversations::{self, Conversation, Message, SearchResult};
 use crate::state::AppState;
-use kangnam_chat::core::export::{export_conversation, ExportFormat};
+use kangnam_chat::core::export::{ExportFormat, export_conversation};
 
 #[tauri::command]
 pub fn conv_list(state: State<'_, Arc<AppState>>) -> Result<Vec<Conversation>, String> {
@@ -12,7 +12,10 @@ pub fn conv_list(state: State<'_, Arc<AppState>>) -> Result<Vec<Conversation>, S
 }
 
 #[tauri::command]
-pub fn conv_create(provider: String, state: State<'_, Arc<AppState>>) -> Result<Conversation, String> {
+pub fn conv_create(
+    provider: String,
+    state: State<'_, Arc<AppState>>,
+) -> Result<Conversation, String> {
     let conn = state.db.lock().unwrap_or_else(|e| e.into_inner());
     conversations::create_conversation(&conn, &provider, None).map_err(|e| e.to_string())
 }
@@ -24,7 +27,10 @@ pub fn conv_delete(id: String, state: State<'_, Arc<AppState>>) -> Result<(), St
 }
 
 #[tauri::command]
-pub fn conv_get_messages(id: String, state: State<'_, Arc<AppState>>) -> Result<Vec<Message>, String> {
+pub fn conv_get_messages(
+    id: String,
+    state: State<'_, Arc<AppState>>,
+) -> Result<Vec<Message>, String> {
     let conn = state.db.lock().unwrap_or_else(|e| e.into_inner());
     conversations::get_messages(&conn, &id).map_err(|e| e.to_string())
 }

@@ -23,7 +23,8 @@ pub trait HarnessStore: Send + Sync {
     async fn delete_skill(&self, id: &str) -> Result<()>;
 
     // ── Hooks ──
-    async fn list_hooks(&self, event: Option<HookEvent>, scope: Option<Scope>) -> Result<Vec<Hook>>;
+    async fn list_hooks(&self, event: Option<HookEvent>, scope: Option<Scope>)
+    -> Result<Vec<Hook>>;
     async fn get_hook(&self, id: &str) -> Result<Option<Hook>>;
     async fn upsert_hook(&self, hook: Hook) -> Result<()>;
     async fn delete_hook(&self, id: &str) -> Result<()>;

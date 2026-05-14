@@ -14,12 +14,11 @@ pub mod providers;
 pub mod streaming_editor;
 
 pub use client::{AiAttachment, AiChunk, AiClient, AiError};
-pub use models::{list_models, ModelList, ModelListError, ModelSource};
-pub use streaming_editor::{run_stream, strip_code_fence, truncate_for_msg, EditEvent};
+pub use models::{ModelList, ModelListError, ModelSource, list_models};
 pub use providers::{
-    AiProvider, AiProviderConfig, AiProviderError, ClaudeCliClient, GeminiCliClient,
-    LmStudioClient,
+    AiProvider, AiProviderConfig, AiProviderError, ClaudeCliClient, GeminiCliClient, LmStudioClient,
 };
+pub use streaming_editor::{EditEvent, run_stream, strip_code_fence, truncate_for_msg};
 
 #[cfg(feature = "test-util")]
 pub use providers::FakeAiClient;

@@ -1,7 +1,6 @@
 //! Shared HTTP helpers used by every model-discovery strategy.
 
-pub(super) const DOCS_USER_AGENT: &str =
-    "Mozilla/5.0 (compatible; canvas-slide-designer/1.0; +https://github.com/kangnam7653/design-canvas)";
+pub(super) const DOCS_USER_AGENT: &str = "Mozilla/5.0 (compatible; canvas-slide-designer/1.0; +https://github.com/kangnam7653/design-canvas)";
 
 pub(super) fn http_client() -> Result<reqwest::Client, super::ModelListError> {
     reqwest::Client::builder()

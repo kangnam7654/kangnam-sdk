@@ -94,8 +94,14 @@ impl AiProviderConfig {
         let provider = AiProvider::from_slug(provider)
             .ok_or_else(|| AiProviderError::Unknown(provider.to_string()))?;
 
-        let endpoint = endpoint.map(str::trim).filter(|s| !s.is_empty()).map(String::from);
-        let model = model.map(str::trim).filter(|s| !s.is_empty()).map(String::from);
+        let endpoint = endpoint
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(String::from);
+        let model = model
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(String::from);
 
         if matches!(provider, AiProvider::LmStudio) && endpoint.is_none() {
             return Err(AiProviderError::MissingField {
@@ -132,8 +138,12 @@ impl AiProviderConfig {
                 Arc::new(ClaudeCliClient::new(bin, self.model.clone()))
             }
             AiProvider::LmStudio => Arc::new(LmStudioClient::new(
-                self.endpoint.clone().expect("endpoint validated by from_parts"),
-                self.model.clone().unwrap_or_else(|| "local-model".to_string()),
+                self.endpoint
+                    .clone()
+                    .expect("endpoint validated by from_parts"),
+                self.model
+                    .clone()
+                    .unwrap_or_else(|| "local-model".to_string()),
             )),
         }
     }
@@ -145,7 +155,11 @@ mod tests {
 
     #[test]
     fn from_slug_round_trip() {
-        for p in [AiProvider::GeminiCli, AiProvider::ClaudeCli, AiProvider::LmStudio] {
+        for p in [
+            AiProvider::GeminiCli,
+            AiProvider::ClaudeCli,
+            AiProvider::LmStudio,
+        ] {
             assert_eq!(AiProvider::from_slug(p.as_str()), Some(p));
         }
     }
@@ -161,7 +175,10 @@ mod tests {
         let err = AiProviderConfig::from_parts("lm-studio", None, Some("qwen")).unwrap_err();
         assert!(matches!(
             err,
-            AiProviderError::MissingField { provider: "lm-studio", field: "endpoint" }
+            AiProviderError::MissingField {
+                provider: "lm-studio",
+                field: "endpoint"
+            }
         ));
     }
 

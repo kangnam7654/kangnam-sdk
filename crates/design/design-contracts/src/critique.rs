@@ -163,10 +163,7 @@ impl CritiqueConfig {
         if !(0.0..=100.0).contains(&self.score_threshold) {
             return Err(CritiqueConfigError::OutOfRange {
                 field: "scoreThreshold",
-                detail: format!(
-                    "got {}, expected 0.0..=100.0",
-                    self.score_threshold
-                ),
+                detail: format!("got {}, expected 0.0..=100.0", self.score_threshold),
             });
         }
         // Cross-field: scoreThreshold ≤ scoreScale (with epsilon).
@@ -206,10 +203,7 @@ impl CritiqueConfig {
         if self.parser_max_block_bytes < 1024 {
             return Err(CritiqueConfigError::OutOfRange {
                 field: "parserMaxBlockBytes",
-                detail: format!(
-                    "got {}, expected >= 1024",
-                    self.parser_max_block_bytes
-                ),
+                detail: format!("got {}, expected >= 1024", self.parser_max_block_bytes),
             });
         }
         if self.protocol_version < 1 {
@@ -234,10 +228,7 @@ pub enum CritiqueConfigError {
     #[error("cast must contain at least 1 panelist role")]
     EmptyCast,
     #[error("{field}: {detail}")]
-    OutOfRange {
-        field: &'static str,
-        detail: String,
-    },
+    OutOfRange { field: &'static str, detail: String },
     #[error("scoreThreshold ({threshold}) must be <= scoreScale ({scale})")]
     ThresholdExceedsScale { threshold: f64, scale: u32 },
 }
@@ -378,10 +369,7 @@ pub enum PanelEvent {
         composite: f64,
     },
     #[serde(rename_all = "camelCase")]
-    Failed {
-        run_id: String,
-        cause: FailedCause,
-    },
+    Failed { run_id: String, cause: FailedCause },
     #[serde(rename_all = "camelCase")]
     ParserWarning {
         run_id: String,
@@ -530,7 +518,10 @@ mod tests {
     fn validate_rejects_empty_cast() {
         let mut cfg = CritiqueConfig::defaults();
         cfg.cast.clear();
-        assert!(matches!(cfg.validate(), Err(CritiqueConfigError::EmptyCast)));
+        assert!(matches!(
+            cfg.validate(),
+            Err(CritiqueConfigError::EmptyCast)
+        ));
     }
 
     #[test]
@@ -560,13 +551,19 @@ mod tests {
         cfg.max_rounds = 0;
         assert!(matches!(
             cfg.validate(),
-            Err(CritiqueConfigError::OutOfRange { field: "maxRounds", .. })
+            Err(CritiqueConfigError::OutOfRange {
+                field: "maxRounds",
+                ..
+            })
         ));
         let mut cfg = CritiqueConfig::defaults();
         cfg.max_rounds = 11;
         assert!(matches!(
             cfg.validate(),
-            Err(CritiqueConfigError::OutOfRange { field: "maxRounds", .. })
+            Err(CritiqueConfigError::OutOfRange {
+                field: "maxRounds",
+                ..
+            })
         ));
     }
 
@@ -576,7 +573,10 @@ mod tests {
         cfg.weights.copy = 1.5;
         assert!(matches!(
             cfg.validate(),
-            Err(CritiqueConfigError::OutOfRange { field: "weights", .. })
+            Err(CritiqueConfigError::OutOfRange {
+                field: "weights",
+                ..
+            })
         ));
     }
 
@@ -586,7 +586,10 @@ mod tests {
         cfg.per_round_timeout_ms = 500;
         assert!(matches!(
             cfg.validate(),
-            Err(CritiqueConfigError::OutOfRange { field: "perRoundTimeoutMs", .. })
+            Err(CritiqueConfigError::OutOfRange {
+                field: "perRoundTimeoutMs",
+                ..
+            })
         ));
     }
 

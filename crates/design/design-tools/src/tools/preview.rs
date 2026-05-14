@@ -2,14 +2,16 @@
 //! iframe and return screenshot + console errors.
 
 use async_trait::async_trait;
-use kangnam_harness_runtime::{AwaitKind, AgentTool, ToolCtx, ToolResult};
-use serde_json::{json, Value};
+use kangnam_harness_runtime::{AgentTool, AwaitKind, ToolCtx, ToolResult};
+use serde_json::{Value, json};
 
 pub struct PreviewTool;
 
 #[async_trait]
 impl AgentTool for PreviewTool {
-    fn name(&self) -> &str { "preview" }
+    fn name(&self) -> &str {
+        "preview"
+    }
 
     fn parameters(&self) -> Value {
         json!({
@@ -31,13 +33,19 @@ impl AgentTool for PreviewTool {
     async fn execute(&self, params: Value, ctx: &ToolCtx) -> ToolResult {
         let path = match params.get("path").and_then(|v| v.as_str()) {
             Some(s) => s.to_string(),
-            None => return ToolResult::Failed { error: "missing `path`".into() },
+            None => {
+                return ToolResult::Failed {
+                    error: "missing `path`".into(),
+                };
+            }
         };
         let abs = match ctx.resolve_path(&path) {
             Some(p) => p,
-            None => return ToolResult::Failed {
-                error: "preview requires a working directory".into(),
-            },
+            None => {
+                return ToolResult::Failed {
+                    error: "preview requires a working directory".into(),
+                };
+            }
         };
         let payload = json!({
             "path": abs.display().to_string(),
@@ -50,7 +58,9 @@ impl AgentTool for PreviewTool {
                 payload,
                 receiver,
             },
-            Err(e) => ToolResult::Failed { error: format!("bridge error: {e}") },
+            Err(e) => ToolResult::Failed {
+                error: format!("bridge error: {e}"),
+            },
         }
     }
 }

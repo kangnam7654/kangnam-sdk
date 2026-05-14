@@ -20,16 +20,14 @@ use futures::stream::{BoxStream, StreamExt};
 use tera::{Context, Tera};
 use thiserror::Error;
 
-use kangnam_design_llm::{run_stream, truncate_for_msg, AiClient, AiError, EditEvent};
 use kangnam_design_doc_slide::SlideDoc;
+use kangnam_design_llm::{AiClient, AiError, EditEvent, run_stream, truncate_for_msg};
 
 const TEMPLATE_NAME: &str = "section-edit-prompt";
-const TEMPLATE_SOURCE: &str =
-    include_str!("../templates/section-edit-prompt.tera");
+const TEMPLATE_SOURCE: &str = include_str!("../templates/section-edit-prompt.tera");
 
 const ADD_TEMPLATE_NAME: &str = "section-add-prompt";
-const ADD_TEMPLATE_SOURCE: &str =
-    include_str!("../templates/section-add-prompt.tera");
+const ADD_TEMPLATE_SOURCE: &str = include_str!("../templates/section-add-prompt.tera");
 
 /// Streaming events for a single section-edit call.
 #[derive(Debug, Clone, PartialEq)]
@@ -41,7 +39,10 @@ pub enum SectionEditEvent {
     /// the same `id` as the section being edited) and its canonical
     /// JSON serialization so the handler can splice without
     /// re-serializing.
-    Complete { section: SlideDoc, section_json: String },
+    Complete {
+        section: SlideDoc,
+        section_json: String,
+    },
 }
 
 /// Streaming events for a section-add call. Shape parallels
@@ -51,7 +52,10 @@ pub enum SectionEditEvent {
 #[derive(Debug, Clone, PartialEq)]
 pub enum SectionAddEvent {
     Delta(String),
-    Complete { section: SlideDoc, section_json: String },
+    Complete {
+        section: SlideDoc,
+        section_json: String,
+    },
 }
 
 #[derive(Debug, Error)]
@@ -116,10 +120,7 @@ impl SectionEditor {
         Ok(Self { ai, tera })
     }
 
-    pub fn build_prompt(
-        &self,
-        input: &SectionEditInput<'_>,
-    ) -> Result<String, SectionEditError> {
+    pub fn build_prompt(&self, input: &SectionEditInput<'_>) -> Result<String, SectionEditError> {
         let mut ctx = Context::new();
         ctx.insert("section_id", input.section_id);
         ctx.insert("section_title", input.section_title.unwrap_or(""));
@@ -137,10 +138,7 @@ impl SectionEditor {
         let mut ctx = Context::new();
         ctx.insert("section_kind", input.section_kind);
         ctx.insert("insert_after_id", &input.insert_after_id.unwrap_or(""));
-        ctx.insert(
-            "existing_sections_summary",
-            input.existing_sections_summary,
-        );
+        ctx.insert("existing_sections_summary", input.existing_sections_summary);
         ctx.insert("instruction", input.instruction);
         self.tera
             .render(ADD_TEMPLATE_NAME, &ctx)
@@ -166,9 +164,10 @@ impl SectionEditor {
             .map(|ev| {
                 ev.map(|e| match e {
                     EditEvent::Delta(t) => SectionAddEvent::Delta(t),
-                    EditEvent::Complete((section, section_json)) => {
-                        SectionAddEvent::Complete { section, section_json }
-                    }
+                    EditEvent::Complete((section, section_json)) => SectionAddEvent::Complete {
+                        section,
+                        section_json,
+                    },
                 })
             })
             .boxed()
@@ -194,9 +193,10 @@ impl SectionEditor {
         .map(|ev| {
             ev.map(|e| match e {
                 EditEvent::Delta(t) => SectionEditEvent::Delta(t),
-                EditEvent::Complete((section, section_json)) => {
-                    SectionEditEvent::Complete { section, section_json }
-                }
+                EditEvent::Complete((section, section_json)) => SectionEditEvent::Complete {
+                    section,
+                    section_json,
+                },
             })
         })
         .boxed()
@@ -208,20 +208,14 @@ impl SectionEditor {
 /// so `cleaned` is already fence-free. Enforces that the returned `id`
 /// matches the section being edited, and re-serializes so downstream
 /// consumers get a clean, whitespace-normalized payload.
-fn parse_section(
-    cleaned: &str,
-    expected_id: &str,
-) -> Result<(SlideDoc, String), SectionEditError> {
+fn parse_section(cleaned: &str, expected_id: &str) -> Result<(SlideDoc, String), SectionEditError> {
     if cleaned.is_empty() {
         return Err(SectionEditError::InvalidSection(
             "empty response".to_string(),
         ));
     }
     let section: SlideDoc = serde_json::from_str(cleaned).map_err(|e| {
-        SectionEditError::InvalidSection(format!(
-            "{e} :: {}",
-            truncate_for_msg(cleaned, 200)
-        ))
+        SectionEditError::InvalidSection(format!("{e} :: {}", truncate_for_msg(cleaned, 200)))
     })?;
     if section.id != expected_id {
         return Err(SectionEditError::IdMismatch {
@@ -314,8 +308,10 @@ mod tests {
             }
         }
         assert_eq!(deltas.len(), 1);
-        let SectionEditEvent::Complete { section, section_json } =
-            complete.expect("complete required")
+        let SectionEditEvent::Complete {
+            section,
+            section_json,
+        } = complete.expect("complete required")
         else {
             unreachable!()
         };

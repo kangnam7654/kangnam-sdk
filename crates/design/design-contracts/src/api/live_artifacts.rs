@@ -444,8 +444,10 @@ mod tests {
             "\"connector_tool\""
         );
         assert_eq!(
-            serde_json::to_string(&LiveArtifactConnectorApprovalPolicy::ManualRefreshGrantedForReadOnly)
-                .unwrap(),
+            serde_json::to_string(
+                &LiveArtifactConnectorApprovalPolicy::ManualRefreshGrantedForReadOnly
+            )
+            .unwrap(),
             "\"manual_refresh_granted_for_read_only\""
         );
         assert_eq!(

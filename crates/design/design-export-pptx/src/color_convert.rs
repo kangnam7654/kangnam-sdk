@@ -75,8 +75,7 @@ fn parse_func_call(s: &str) -> Option<(String, String)> {
 /// optional `/ alpha` suffix. Returns the leading numeric tokens.
 fn split_args(args: &str) -> Vec<String> {
     let main = args.split('/').next().unwrap_or(args);
-    main
-        .split(|c: char| c.is_whitespace() || c == ',')
+    main.split(|c: char| c.is_whitespace() || c == ',')
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .map(String::from)
@@ -154,7 +153,11 @@ fn parse_rgb(args: &str) -> Option<Color> {
             Some(v.clamp(0.0, 255.0).round() as u8)
         }
     };
-    Some(Color(to_byte(&parts[0])?, to_byte(&parts[1])?, to_byte(&parts[2])?))
+    Some(Color(
+        to_byte(&parts[0])?,
+        to_byte(&parts[1])?,
+        to_byte(&parts[2])?,
+    ))
 }
 
 /// `linear_to_srgb_hex_unclamped_already_gamma` — when `color(srgb …)`
@@ -176,7 +179,7 @@ fn oklab_to_srgb(l: f64, a: f64, b: f64) -> Color {
     let m_c = m_.powi(3);
     let s_c = s_.powi(3);
     // Step 3: LMS → linear sRGB
-    let r =  4.076_741_661_5 * l_c - 3.307_711_591_3 * m_c + 0.230_969_929_2 * s_c;
+    let r = 4.076_741_661_5 * l_c - 3.307_711_591_3 * m_c + 0.230_969_929_2 * s_c;
     let g = -1.268_438_004_6 * l_c + 2.609_757_401_1 * m_c - 0.341_319_396_5 * s_c;
     let b = -0.004_196_086_3 * l_c - 0.703_418_614_7 * m_c + 1.707_614_701_0 * s_c;
     linear_to_srgb_color(r, g, b)
@@ -189,8 +192,8 @@ fn p3_to_srgb(r: f64, g: f64, b: f64) -> Color {
     let g_lin = srgb_to_linear(g);
     let b_lin = srgb_to_linear(b);
     // Display-P3 → linear sRGB matrix (CSS Color 4).
-    let r_s =  1.224_940_177_2 * r_lin - 0.224_940_177_2 * g_lin + 0.0       * b_lin;
-    let g_s = -0.042_056_954_5 * r_lin + 1.042_056_954_5 * g_lin + 0.0       * b_lin;
+    let r_s = 1.224_940_177_2 * r_lin - 0.224_940_177_2 * g_lin + 0.0 * b_lin;
+    let g_s = -0.042_056_954_5 * r_lin + 1.042_056_954_5 * g_lin + 0.0 * b_lin;
     let b_s = -0.019_637_554_2 * r_lin - 0.078_636_046_3 * g_lin + 1.098_273_600_5 * b_lin;
     linear_to_srgb_color(r_s, g_s, b_s)
 }

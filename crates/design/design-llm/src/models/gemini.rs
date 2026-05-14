@@ -1,6 +1,6 @@
 //! Gemini model discovery: curated fallback, live API, and public-docs scrape.
 
-use super::{http, ModelList, ModelListError, ModelSource};
+use super::{ModelList, ModelListError, ModelSource, http};
 
 const GEMINI_DOCS_URL: &str = "https://ai.google.dev/gemini-api/docs/models";
 
@@ -125,9 +125,7 @@ pub(super) fn parse_ids_from_html(html: &str) -> Vec<String> {
 }
 
 async fn fetch_live(api_key: &str) -> Result<Vec<String>, ModelListError> {
-    let url = format!(
-        "https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
-    );
+    let url = format!("https://generativelanguage.googleapis.com/v1beta/models?key={api_key}");
     let client = http::http_client()?;
     let resp = client
         .get(&url)

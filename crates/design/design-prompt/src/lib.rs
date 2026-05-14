@@ -231,7 +231,10 @@ mod tests {
         let identity_pos = out.find("Identity and workflow charter").unwrap();
         let skill_pos = out.find("Active skill").unwrap();
         assert!(framework_pos > identity_pos);
-        assert!(framework_pos > skill_pos, "deck framework must come after the skill");
+        assert!(
+            framework_pos > skill_pos,
+            "deck framework must come after the skill"
+        );
     }
 
     #[test]
@@ -263,9 +266,7 @@ mod tests {
     #[test]
     fn pre_flight_inserted_when_skill_has_assets() {
         let input = ComposeInput {
-            skill_body: Some(
-                "Use assets/template.html, then references/layouts.md.".into(),
-            ),
+            skill_body: Some("Use assets/template.html, then references/layouts.md.".into()),
             skill_name: Some("web-prototype".into()),
             ..Default::default()
         };

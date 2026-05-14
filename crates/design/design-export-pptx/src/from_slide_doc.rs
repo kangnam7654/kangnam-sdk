@@ -34,8 +34,11 @@ pub fn from_deck(deck: &Deck) -> Result<pw::PptxDeck> {
 
 /// Convert a single [`SlideDoc`] into a [`pw::PptxSlide`].
 pub fn from_slide_doc(doc: &SlideDoc) -> Result<pw::PptxSlide> {
-    let mut elements: Vec<pw::PptxElement> =
-        doc.elements.iter().map(convert_element).collect::<Result<_>>()?;
+    let mut elements: Vec<pw::PptxElement> = doc
+        .elements
+        .iter()
+        .map(convert_element)
+        .collect::<Result<_>>()?;
     let background = match &doc.background {
         SdBackground::Image { src } => {
             // Phase 6b-04: try to embed a data URI as a full-bleed
@@ -50,7 +53,9 @@ pub fn from_slide_doc(doc: &SlideDoc) -> Result<pw::PptxSlide> {
                 };
                 elements.insert(0, pw::PptxElement::Image(bleed));
             }
-            pw::Background::Solid { color: pw::Color::WHITE }
+            pw::Background::Solid {
+                color: pw::Color::WHITE,
+            }
         }
         other => convert_bg(other)?,
     };
@@ -65,7 +70,12 @@ pub fn from_slide_doc(doc: &SlideDoc) -> Result<pw::PptxSlide> {
 
 fn convert_element(e: &SlideElement) -> Result<pw::PptxElement> {
     match e {
-        SlideElement::Text { frame, content, style, .. } => {
+        SlideElement::Text {
+            frame,
+            content,
+            style,
+            ..
+        } => {
             Ok(pw::PptxElement::Text(pw::TextBox {
                 frame: pw::Frame::from_px(frame.x, frame.y, frame.w, frame.h),
                 content: content.clone(),
@@ -86,7 +96,13 @@ fn convert_element(e: &SlideElement) -> Result<pw::PptxElement> {
                 },
             }))
         }
-        SlideElement::Shape { frame, shape, fill, stroke, .. } => {
+        SlideElement::Shape {
+            frame,
+            shape,
+            fill,
+            stroke,
+            ..
+        } => {
             let kind = match shape {
                 SdShape::Rect => pw::ShapeKind::Rect,
                 SdShape::RoundedRect => pw::ShapeKind::RoundedRect {
@@ -98,7 +114,11 @@ fn convert_element(e: &SlideElement) -> Result<pw::PptxElement> {
             let pw_fill = match fill {
                 SdFill::Solid { color } => pw::Fill::solid(parse_hex(color)?),
                 #[allow(deprecated)]
-                SdFill::Gradient { from, to, angle_deg } => pw::Fill::Gradient {
+                SdFill::Gradient {
+                    from,
+                    to,
+                    angle_deg,
+                } => pw::Fill::Gradient {
                     from: parse_hex(from)?,
                     to: parse_hex(to)?,
                     angle_deg: *angle_deg,
@@ -122,7 +142,9 @@ fn convert_element(e: &SlideElement) -> Result<pw::PptxElement> {
                 shadow: None,
             }))
         }
-        SlideElement::Image { frame, src, fit, .. } => {
+        SlideElement::Image {
+            frame, src, fit, ..
+        } => {
             // Phase 6b-03: try to decode a `data:image/...;base64,...`
             // URI so the image actually embeds in the PPTX. Other URL
             // schemes (https, file) still fall back to a transparent
@@ -157,7 +179,11 @@ fn convert_bg(bg: &SdBackground) -> Result<pw::Background> {
         SdBackground::Color { color } => Ok(pw::Background::Solid {
             color: parse_hex(color)?,
         }),
-        SdBackground::Gradient { from, to, angle_deg } => Ok(pw::Background::Gradient {
+        SdBackground::Gradient {
+            from,
+            to,
+            angle_deg,
+        } => Ok(pw::Background::Gradient {
             from: parse_hex(from)?,
             to: parse_hex(to)?,
             angle_deg: *angle_deg,
@@ -218,16 +244,27 @@ pub(crate) fn parse_hex(s: &str) -> Result<pw::Color> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kangnam_design_doc_slide::{Background, Frame as SdFrame, SlideDoc, SlideElement, TextStyle};
+    use kangnam_design_doc_slide::{
+        Background, Frame as SdFrame, SlideDoc, SlideElement, TextStyle,
+    };
 
     #[test]
     fn text_element_converts_px_to_pt_correctly() {
         let mut doc = SlideDoc::empty("s1");
         doc.elements.push(SlideElement::Text {
             id: "t".into(),
-            frame: SdFrame { x: 0.0, y: 0.0, w: 100.0, h: 50.0 },
+            frame: SdFrame {
+                x: 0.0,
+                y: 0.0,
+                w: 100.0,
+                h: 50.0,
+            },
             content: "hello".into(),
-            style: TextStyle { font_size_px: 24.0, font_weight: 700, ..Default::default() },
+            style: TextStyle {
+                font_size_px: 24.0,
+                font_weight: 700,
+                ..Default::default()
+            },
         });
         let pptx = from_slide_doc(&doc).unwrap();
         match &pptx.elements[0] {
@@ -243,7 +280,9 @@ mod tests {
     #[test]
     fn invalid_hex_in_color_is_explicit_error() {
         let mut doc = SlideDoc::empty("s1");
-        doc.background = Background::Color { color: "not-a-hex".into() };
+        doc.background = Background::Color {
+            color: "not-a-hex".into(),
+        };
         assert!(matches!(
             from_slide_doc(&doc).unwrap_err(),
             FromSlideDocError::InvalidHex(_)
@@ -256,7 +295,9 @@ mod tests {
         // PPTX export. Adapter must strip the alpha byte and parse the
         // RGB prefix.
         let mut doc = SlideDoc::empty("s1");
-        doc.background = Background::Color { color: "#38BDF822".into() };
+        doc.background = Background::Color {
+            color: "#38BDF822".into(),
+        };
         let p = from_slide_doc(&doc).unwrap();
         match p.background {
             pw::Background::Solid { color } => {
@@ -269,7 +310,9 @@ mod tests {
     #[test]
     fn three_char_shorthand_expands() {
         let mut doc = SlideDoc::empty("s1");
-        doc.background = Background::Color { color: "#F00".into() };
+        doc.background = Background::Color {
+            color: "#F00".into(),
+        };
         let p = from_slide_doc(&doc).unwrap();
         match p.background {
             pw::Background::Solid { color } => {

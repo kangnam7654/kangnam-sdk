@@ -64,7 +64,9 @@ pub(crate) mod tests {
         }
         async fn str_replace(&self, path: &Path, old: &str, new: &str) -> Result<(), ToolError> {
             if let Some(rec) = &self.recorder {
-                rec.lock().unwrap().push((path.to_path_buf(), old.into(), new.into()));
+                rec.lock()
+                    .unwrap()
+                    .push((path.to_path_buf(), old.into(), new.into()));
             }
             Ok(())
         }
@@ -156,7 +158,12 @@ pub(crate) mod tests {
         ToolCtx {
             working_dir: Some(PathBuf::from("/tmp")),
             session_id: "test-session".into(),
-            capabilities: caps_with(RealFs { recorder: Some(rec) }, vec![]),
+            capabilities: caps_with(
+                RealFs {
+                    recorder: Some(rec),
+                },
+                vec![],
+            ),
         }
     }
 }

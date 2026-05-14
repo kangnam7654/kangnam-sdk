@@ -250,12 +250,16 @@ mod tests {
     use super::*;
 
     fn map(entries: &[(&str, &str)]) -> HashMap<String, String> {
-        entries.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
+        entries
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
     }
 
     #[test]
     fn replaces_single_zone() {
-        let html = r#"<html><body><div data-edit-zone="cover.tagline" class="t">old</div></body></html>"#;
+        let html =
+            r#"<html><body><div data-edit-zone="cover.tagline" class="t">old</div></body></html>"#;
         let out = apply_overrides(
             html,
             &map(&[(
@@ -351,15 +355,15 @@ mod tests {
 
     // ----- P5.5: slide-scoped overrides -----
 
-    fn slide_map(
-        entries: &[(&str, &[(&str, &str)])],
-    ) -> HashMap<String, HashMap<String, String>> {
+    fn slide_map(entries: &[(&str, &[(&str, &str)])]) -> HashMap<String, HashMap<String, String>> {
         entries
             .iter()
             .map(|(sid, zs)| {
                 (
                     sid.to_string(),
-                    zs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
+                    zs.iter()
+                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                        .collect(),
                 )
             })
             .collect()
@@ -395,9 +399,15 @@ mod tests {
         // applied — treat the whole HTML as one slide and apply every
         // slide's overrides in one pass.
         let html = r#"<div data-edit-zone="title">원본</div>"#;
-        let overrides = slide_map(&[("s1", &[("title", r#"<div data-edit-zone="title">새</div>"#)])]);
+        let overrides = slide_map(&[(
+            "s1",
+            &[("title", r#"<div data-edit-zone="title">새</div>"#)],
+        )]);
         let out = apply_overrides_by_slide(html, &overrides);
-        assert!(out.contains("새"), "legacy HTML still gets overridden: {out}");
+        assert!(
+            out.contains("새"),
+            "legacy HTML still gets overridden: {out}"
+        );
         assert!(!out.contains("원본"));
     }
 
@@ -405,11 +415,13 @@ mod tests {
     fn apply_overrides_by_slide_ignores_unknown_slide_ids() {
         // Override targets a slide that isn't present. Don't crash; leave
         // the HTML as-is for the unmatched slide, apply known slides.
-        let html =
-            r#"<section data-slide-id="s1" class="slide"><h1 data-edit-zone="title">A</h1></section>"#;
+        let html = r#"<section data-slide-id="s1" class="slide"><h1 data-edit-zone="title">A</h1></section>"#;
         let overrides = slide_map(&[
             ("s1", &[("title", r#"<h1 data-edit-zone="title">A2</h1>"#)]),
-            ("s9", &[("title", r#"<h1 data-edit-zone="title">ghost</h1>"#)]),
+            (
+                "s9",
+                &[("title", r#"<h1 data-edit-zone="title">ghost</h1>"#)],
+            ),
         ]);
         let out = apply_overrides_by_slide(html, &overrides);
         assert!(out.contains(">A2<"));
@@ -425,19 +437,26 @@ mod tests {
         let mut doc = SlideDoc::empty("s1");
         doc.elements.push(SlideElement::Text {
             id: "title".into(),
-            frame: Frame { x: 80.0, y: 300.0, w: 1120.0, h: 120.0 },
+            frame: Frame {
+                x: 80.0,
+                y: 300.0,
+                w: 1120.0,
+                h: 120.0,
+            },
             content: "원본 제목".into(),
             style: TextStyle::default(),
         });
         let rendered = to_html::render(&doc);
         assert!(rendered.contains("원본 제목"));
 
-        let new_html =
-            r#"<div data-edit-zone="title" data-edit-label="title" style="left:80.00px;top:300.00px;">새 제목</div>"#;
+        let new_html = r#"<div data-edit-zone="title" data-edit-label="title" style="left:80.00px;top:300.00px;">새 제목</div>"#;
         let out = apply_overrides(&rendered, &map(&[("title", new_html)]));
 
         assert!(out.contains("새 제목"), "new content missing: {out}");
         assert!(!out.contains("원본 제목"), "old content still present");
-        assert!(out.contains("data-slide-id=\"s1\""), "slide wrapper preserved");
+        assert!(
+            out.contains("data-slide-id=\"s1\""),
+            "slide wrapper preserved"
+        );
     }
 }

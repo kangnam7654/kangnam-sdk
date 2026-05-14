@@ -144,7 +144,8 @@ impl SajuEngine {
     }
 
     fn generate_daily_detail(&self, input: &Value, version: &str) -> (Value, String) {
-        let Some((year, month, day, hour, minute, has_birth_time)) = Self::parse_birth_data(input) else {
+        let Some((year, month, day, hour, minute, has_birth_time)) = Self::parse_birth_data(input)
+        else {
             return (
                 json!({
                     "error": "생년월일 정보가 필요합니다",
@@ -220,7 +221,8 @@ impl SajuEngine {
     }
 
     fn generate_saju(&self, input: &Value, version: &str, tier: InterpTier) -> (Value, String) {
-        let Some((year, month, day, hour, minute, has_birth_time)) = Self::parse_birth_data(input) else {
+        let Some((year, month, day, hour, minute, has_birth_time)) = Self::parse_birth_data(input)
+        else {
             return (
                 json!({"error": "사주 분석에는 생년월일시 정보가 필요합니다."}),
                 version.to_string(),
@@ -470,8 +472,13 @@ impl SajuEngine {
             );
         };
 
-        let user_pillars =
-            saju::calculate_four_pillars_precise(birth_year, birth_month, birth_day, birth_hour, birth_minute);
+        let user_pillars = saju::calculate_four_pillars_precise(
+            birth_year,
+            birth_month,
+            birth_day,
+            birth_hour,
+            birth_minute,
+        );
 
         let kst = chrono::FixedOffset::east_opt(9 * 3600).unwrap();
         let now = chrono::Utc::now().with_timezone(&kst).date_naive();
@@ -552,8 +559,13 @@ impl SajuEngine {
 
         let gender = input.get("gender").and_then(|v| v.as_str()).unwrap_or("M");
 
-        let user_pillars =
-            saju::calculate_four_pillars_precise(birth_year, birth_month, birth_day, birth_hour, birth_minute);
+        let user_pillars = saju::calculate_four_pillars_precise(
+            birth_year,
+            birth_month,
+            birth_day,
+            birth_hour,
+            birth_minute,
+        );
 
         let periods =
             daeun::calculate_daeun(&user_pillars, birth_year, birth_month, birth_day, gender);

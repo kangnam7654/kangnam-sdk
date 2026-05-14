@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -55,7 +55,15 @@ pub fn list_skills(conn: &Connection) -> Result<Vec<Skill>, rusqlite::Error> {
         "SELECT id, title, description, content, argument_hint, model, user_invocable \
          FROM prompts ORDER BY sort_order ASC, title ASC",
     )?;
-    let skills: Vec<(String, String, String, String, Option<String>, Option<String>, i64)> = stmt
+    let skills: Vec<(
+        String,
+        String,
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+        i64,
+    )> = stmt
         .query_map([], |row| {
             Ok((
                 row.get(0)?,
@@ -221,7 +229,8 @@ pub fn update_skill(
 }
 
 pub fn delete_skill(conn: &Connection, id: &str) {
-    conn.execute("DELETE FROM prompts WHERE id = ?1", params![id]).ok();
+    conn.execute("DELETE FROM prompts WHERE id = ?1", params![id])
+        .ok();
 }
 
 // ── Reference CRUD ──
@@ -264,7 +273,8 @@ pub fn update_skill_reference(conn: &Connection, id: &str, name: &str, content: 
 }
 
 pub fn delete_skill_reference(conn: &Connection, id: &str) {
-    conn.execute("DELETE FROM skill_references WHERE id = ?1", params![id]).ok();
+    conn.execute("DELETE FROM skill_references WHERE id = ?1", params![id])
+        .ok();
 }
 
 pub fn list_skill_references(conn: &Connection, skill_id: &str) -> Vec<SkillReference> {
@@ -295,7 +305,16 @@ mod tests {
     #[test]
     fn test_get_skill() {
         let conn = setup_db();
-        let skill = create_skill(&conn, "getter", "desc", "inst", Some("hint"), Some("gpt-4"), Some(false)).unwrap();
+        let skill = create_skill(
+            &conn,
+            "getter",
+            "desc",
+            "inst",
+            Some("hint"),
+            Some("gpt-4"),
+            Some(false),
+        )
+        .unwrap();
         let found = get_skill(&conn, &skill.id).unwrap();
         assert_eq!(found.name, "getter");
         assert_eq!(found.argument_hint, Some("hint".to_string()));
@@ -307,7 +326,9 @@ mod tests {
     fn test_update_skill() {
         let conn = setup_db();
         let skill = create_skill(&conn, "old", "old", "old", None, None, None).unwrap();
-        update_skill(&conn, &skill.id, "new", "new desc", "new inst", None, None, None);
+        update_skill(
+            &conn, &skill.id, "new", "new desc", "new inst", None, None, None,
+        );
         let updated = get_skill(&conn, &skill.id).unwrap();
         assert_eq!(updated.name, "new");
         assert_eq!(updated.description, "new desc");
@@ -344,7 +365,16 @@ mod tests {
     #[test]
     fn test_get_skill_instructions_with_refs() {
         let conn = setup_db();
-        let skill = create_skill(&conn, "inst-test", "d", "main instructions", None, None, None).unwrap();
+        let skill = create_skill(
+            &conn,
+            "inst-test",
+            "d",
+            "main instructions",
+            None,
+            None,
+            None,
+        )
+        .unwrap();
         add_skill_reference(&conn, &skill.id, "API Docs", "api content here").unwrap();
 
         let instructions = get_skill_instructions(&conn, &skill.id).unwrap();

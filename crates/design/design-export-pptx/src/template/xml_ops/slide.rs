@@ -11,9 +11,7 @@ pub(crate) fn count_existing_slides(entries: &[(String, Vec<u8>)]) -> usize {
     entries
         .iter()
         .filter(|(n, _)| {
-            n.starts_with("ppt/slides/slide")
-                && n.ends_with(".xml")
-                && !n.contains("_rels")
+            n.starts_with("ppt/slides/slide") && n.ends_with(".xml") && !n.contains("_rels")
         })
         .count()
 }

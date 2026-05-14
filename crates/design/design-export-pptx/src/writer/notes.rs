@@ -48,10 +48,7 @@ pub fn notes_master_rels() -> Result<Vec<u8>> {
 /// paragraph; multi-line notes are split on `\n` into multiple `<a:p>`.
 pub fn notes_slide_xml(slide: &PptxSlide) -> Vec<u8> {
     let body = slide.speaker_notes.as_deref().unwrap_or("");
-    let paragraphs = body
-        .split('\n')
-        .map(paragraph_xml)
-        .collect::<String>();
+    let paragraphs = body.split('\n').map(paragraph_xml).collect::<String>();
 
     let xml = format!(
         r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

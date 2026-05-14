@@ -55,13 +55,8 @@ fn tile_pattern_embeds_png_in_media() {
         _ => panic!("expected TilePattern"),
     };
 
-    tmpl.add_tile_pattern_rect(
-        s,
-        Frame::from_px(0.0, 0.0, 1280.0, 720.0),
-        &png_bytes,
-        0,
-    )
-    .unwrap();
+    tmpl.add_tile_pattern_rect(s, Frame::from_px(0.0, 0.0, 1280.0, 720.0), &png_bytes, 0)
+        .unwrap();
 
     let bytes = tmpl.pack().unwrap();
 
@@ -85,24 +80,20 @@ fn tile_pattern_blip_fill_references_image_rel() {
         _ => panic!("expected TilePattern"),
     };
 
-    tmpl.add_tile_pattern_rect(
-        s,
-        Frame::from_px(0.0, 0.0, 1280.0, 720.0),
-        &png_bytes,
-        0,
-    )
-    .unwrap();
+    tmpl.add_tile_pattern_rect(s, Frame::from_px(0.0, 0.0, 1280.0, 720.0), &png_bytes, 0)
+        .unwrap();
 
     let bytes = tmpl.pack().unwrap();
 
     // slide2 is the appended slide (base has slide1)
-    let slide_xml =
-        read_zip_entry_str(&bytes, "ppt/slides/slide2.xml").expect("slide2.xml");
+    let slide_xml = read_zip_entry_str(&bytes, "ppt/slides/slide2.xml").expect("slide2.xml");
     let rels_xml =
         read_zip_entry_str(&bytes, "ppt/slides/_rels/slide2.xml.rels").expect("slide2 rels");
 
     // Extract the rId from the slide XML
-    let embed_start = slide_xml.find(r#"r:embed=""#).expect("r:embed in slide xml");
+    let embed_start = slide_xml
+        .find(r#"r:embed=""#)
+        .expect("r:embed in slide xml");
     let after = &slide_xml[embed_start + r#"r:embed=""#.len()..];
     let embed_end = after.find('"').expect("closing quote");
     let rid = &after[..embed_end];
@@ -126,14 +117,29 @@ fn tile_pattern_blip_fill_references_image_rel() {
 #[test]
 fn radial_gradient_to_ooxml_emits_path_circle() {
     let stops = vec![
-        GradientStop { position: 0.0, color: Color(0, 0, 0), alpha: None },
-        GradientStop { position: 0.6, color: Color(50, 50, 50), alpha: Some(30_000) },
-        GradientStop { position: 1.0, color: Color(100, 100, 100), alpha: Some(80_000) },
+        GradientStop {
+            position: 0.0,
+            color: Color(0, 0, 0),
+            alpha: None,
+        },
+        GradientStop {
+            position: 0.6,
+            color: Color(50, 50, 50),
+            alpha: Some(30_000),
+        },
+        GradientStop {
+            position: 1.0,
+            color: Color(100, 100, 100),
+            alpha: Some(80_000),
+        },
     ];
     let fill = Fill::RadialGradient { stops };
     let xml = fill.to_ooxml_fill_xml();
 
-    assert!(xml.contains(r#"path="circle""#), "must have path circle: {xml}");
+    assert!(
+        xml.contains(r#"path="circle""#),
+        "must have path circle: {xml}"
+    );
     assert!(xml.contains("<a:gradFill"), "must have gradFill: {xml}");
     assert!(xml.contains("<a:gsLst>"), "must have gsLst: {xml}");
 }
@@ -143,9 +149,21 @@ fn radial_gradient_to_ooxml_emits_path_circle() {
 #[test]
 fn radial_gradient_stops_are_ordered() {
     let stops = vec![
-        GradientStop { position: 0.0, color: Color(0, 0, 0), alpha: None },
-        GradientStop { position: 0.6, color: Color(50, 50, 50), alpha: Some(30_000) },
-        GradientStop { position: 1.0, color: Color(100, 100, 100), alpha: Some(80_000) },
+        GradientStop {
+            position: 0.0,
+            color: Color(0, 0, 0),
+            alpha: None,
+        },
+        GradientStop {
+            position: 0.6,
+            color: Color(50, 50, 50),
+            alpha: Some(30_000),
+        },
+        GradientStop {
+            position: 1.0,
+            color: Color(100, 100, 100),
+            alpha: Some(80_000),
+        },
     ];
     let fill = Fill::RadialGradient { stops };
     let xml = fill.to_ooxml_fill_xml();
@@ -170,15 +188,33 @@ fn radial_gradient_stops_are_ordered() {
 #[test]
 fn linear_gradient_multi_stop_emits_all_stops() {
     let stops = vec![
-        GradientStop { position: 0.0, color: Color(255, 0, 0), alpha: None },
-        GradientStop { position: 0.5, color: Color(0, 255, 0), alpha: None },
-        GradientStop { position: 1.0, color: Color(0, 0, 255), alpha: None },
+        GradientStop {
+            position: 0.0,
+            color: Color(255, 0, 0),
+            alpha: None,
+        },
+        GradientStop {
+            position: 0.5,
+            color: Color(0, 255, 0),
+            alpha: None,
+        },
+        GradientStop {
+            position: 1.0,
+            color: Color(0, 0, 255),
+            alpha: None,
+        },
     ];
-    let fill = Fill::LinearGradient { angle_deg: 180.0, stops };
+    let fill = Fill::LinearGradient {
+        angle_deg: 180.0,
+        stops,
+    };
     let xml = fill.to_ooxml_fill_xml();
 
     let gs_count = xml.matches("<a:gs ").count();
-    assert_eq!(gs_count, 3, "must emit 3 gradient stops, got {gs_count}: {xml}");
+    assert_eq!(
+        gs_count, 3,
+        "must emit 3 gradient stops, got {gs_count}: {xml}"
+    );
 
     // CSS 180° → OOXML 90° → 90 × 60_000 = 5_400_000
     assert!(
@@ -195,8 +231,16 @@ fn gradient_angle_css_to_ooxml_conversion() {
     let fill0 = Fill::LinearGradient {
         angle_deg: 0.0,
         stops: vec![
-            GradientStop { position: 0.0, color: Color::BLACK, alpha: None },
-            GradientStop { position: 1.0, color: Color::WHITE, alpha: None },
+            GradientStop {
+                position: 0.0,
+                color: Color::BLACK,
+                alpha: None,
+            },
+            GradientStop {
+                position: 1.0,
+                color: Color::WHITE,
+                alpha: None,
+            },
         ],
     };
     assert!(
@@ -208,8 +252,16 @@ fn gradient_angle_css_to_ooxml_conversion() {
     let fill90 = Fill::LinearGradient {
         angle_deg: 90.0,
         stops: vec![
-            GradientStop { position: 0.0, color: Color::BLACK, alpha: None },
-            GradientStop { position: 1.0, color: Color::WHITE, alpha: None },
+            GradientStop {
+                position: 0.0,
+                color: Color::BLACK,
+                alpha: None,
+            },
+            GradientStop {
+                position: 1.0,
+                color: Color::WHITE,
+                alpha: None,
+            },
         ],
     };
     assert!(
@@ -221,8 +273,16 @@ fn gradient_angle_css_to_ooxml_conversion() {
     let fill180 = Fill::LinearGradient {
         angle_deg: 180.0,
         stops: vec![
-            GradientStop { position: 0.0, color: Color::BLACK, alpha: None },
-            GradientStop { position: 1.0, color: Color::WHITE, alpha: None },
+            GradientStop {
+                position: 0.0,
+                color: Color::BLACK,
+                alpha: None,
+            },
+            GradientStop {
+                position: 1.0,
+                color: Color::WHITE,
+                alpha: None,
+            },
         ],
     };
     assert!(
@@ -234,8 +294,16 @@ fn gradient_angle_css_to_ooxml_conversion() {
     let fill270 = Fill::LinearGradient {
         angle_deg: 270.0,
         stops: vec![
-            GradientStop { position: 0.0, color: Color::BLACK, alpha: None },
-            GradientStop { position: 1.0, color: Color::WHITE, alpha: None },
+            GradientStop {
+                position: 0.0,
+                color: Color::BLACK,
+                alpha: None,
+            },
+            GradientStop {
+                position: 1.0,
+                color: Color::WHITE,
+                alpha: None,
+            },
         ],
     };
     assert!(
@@ -275,8 +343,16 @@ fn deprecated_gradient_desugars_to_linear() {
     let modern = Fill::LinearGradient {
         angle_deg: 180.0,
         stops: vec![
-            GradientStop { position: 0.0, color: Color::BLACK, alpha: None },
-            GradientStop { position: 1.0, color: Color::WHITE, alpha: None },
+            GradientStop {
+                position: 0.0,
+                color: Color::BLACK,
+                alpha: None,
+            },
+            GradientStop {
+                position: 1.0,
+                color: Color::WHITE,
+                alpha: None,
+            },
         ],
     };
     assert_eq!(

@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use axum::{routing::get, Router};
+use axum::{Router, routing::get};
 use tower_http::cors::CorsLayer;
 use tower_http::services::ServeDir;
 
-use crate::{mcp, ws, ServerConfig, ServerContext};
+use crate::{ServerConfig, ServerContext, mcp, ws};
 
 pub(crate) fn create_router(ctx: Arc<ServerContext>, config: &ServerConfig) -> Router {
     let mcp_state = Arc::new(mcp::McpState {
@@ -16,12 +16,12 @@ pub(crate) fn create_router(ctx: Arc<ServerContext>, config: &ServerConfig) -> R
 
     let mut router = Router::new()
         .route("/ws", get(ws::ws_handler))
-        .route(
-            "/mcp",
-            get(mcp::mcp_sse_handler).post(mcp::mcp_handler),
-        )
+        .route("/mcp", get(mcp::mcp_sse_handler).post(mcp::mcp_handler))
         .layer(CorsLayer::permissive())
-        .with_state(RouterState { ctx, mcp: mcp_state });
+        .with_state(RouterState {
+            ctx,
+            mcp: mcp_state,
+        });
 
     if let Some(ref dir) = config.static_dir {
         router = router.nest_service("/", ServeDir::new(dir));

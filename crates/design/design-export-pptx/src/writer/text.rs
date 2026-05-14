@@ -2,7 +2,7 @@ use crate::element::{TextAlign, TextBox, TextStyle};
 use crate::error::PptxWriteError;
 use crate::geometry::pt_to_hundredths;
 
-use super::xml::{close_elem, empty_elem, open_elem, write_text, XmlWriter};
+use super::xml::{XmlWriter, close_elem, empty_elem, open_elem, write_text};
 
 /// Emit a `<p:sp>` element for a text box.
 /// `sp_id` must be unique within the slide (2+, since `cNvPr id=1` is the groupSp).
@@ -11,10 +11,14 @@ pub fn emit(w: &mut XmlWriter, tb: &TextBox, sp_id: u32) -> Result<(), PptxWrite
 
     // nvSpPr
     open_elem(w, "p:nvSpPr", &[])?;
-    empty_elem(w, "p:cNvPr", &[
-        ("id", &sp_id.to_string()),
-        ("name", &format!("TextBox {sp_id}")),
-    ])?;
+    empty_elem(
+        w,
+        "p:cNvPr",
+        &[
+            ("id", &sp_id.to_string()),
+            ("name", &format!("TextBox {sp_id}")),
+        ],
+    )?;
     open_elem(w, "p:cNvSpPr", &[("txBox", "1")])?;
     close_elem(w, "p:cNvSpPr")?;
     empty_elem(w, "p:nvPr", &[])?;
@@ -23,14 +27,22 @@ pub fn emit(w: &mut XmlWriter, tb: &TextBox, sp_id: u32) -> Result<(), PptxWrite
     // spPr (position + geometry)
     open_elem(w, "p:spPr", &[])?;
     open_elem(w, "a:xfrm", &[])?;
-    empty_elem(w, "a:off", &[
-        ("x", &tb.frame.x_emu.to_string()),
-        ("y", &tb.frame.y_emu.to_string()),
-    ])?;
-    empty_elem(w, "a:ext", &[
-        ("cx", &tb.frame.w_emu.to_string()),
-        ("cy", &tb.frame.h_emu.to_string()),
-    ])?;
+    empty_elem(
+        w,
+        "a:off",
+        &[
+            ("x", &tb.frame.x_emu.to_string()),
+            ("y", &tb.frame.y_emu.to_string()),
+        ],
+    )?;
+    empty_elem(
+        w,
+        "a:ext",
+        &[
+            ("cx", &tb.frame.w_emu.to_string()),
+            ("cy", &tb.frame.h_emu.to_string()),
+        ],
+    )?;
     close_elem(w, "a:xfrm")?;
     open_elem(w, "a:prstGeom", &[("prst", "rect")])?;
     empty_elem(w, "a:avLst", &[])?;
@@ -40,7 +52,11 @@ pub fn emit(w: &mut XmlWriter, tb: &TextBox, sp_id: u32) -> Result<(), PptxWrite
 
     // txBody — the actual text
     open_elem(w, "p:txBody", &[])?;
-    let wrap_val = if tb.style.allow_wrap { "square" } else { "none" };
+    let wrap_val = if tb.style.allow_wrap {
+        "square"
+    } else {
+        "none"
+    };
     empty_elem(w, "a:bodyPr", &[("wrap", wrap_val), ("rtlCol", "0")])?;
     empty_elem(w, "a:lstStyle", &[])?;
     for line in tb.content.split('\n') {
@@ -52,11 +68,7 @@ pub fn emit(w: &mut XmlWriter, tb: &TextBox, sp_id: u32) -> Result<(), PptxWrite
     Ok(())
 }
 
-fn emit_paragraph(
-    w: &mut XmlWriter,
-    text: &str,
-    style: &TextStyle,
-) -> Result<(), PptxWriteError> {
+fn emit_paragraph(w: &mut XmlWriter, text: &str, style: &TextStyle) -> Result<(), PptxWriteError> {
     open_elem(w, "a:p", &[])?;
     let align_val = match style.align {
         TextAlign::Left => "l",
@@ -99,7 +111,8 @@ fn emit_paragraph(
     if spc != 0 {
         rpr_attrs.push(("spc", spc.to_string()));
     }
-    let rpr_attrs_ref: Vec<(&str, &str)> = rpr_attrs.iter().map(|(k, v)| (*k, v.as_str())).collect();
+    let rpr_attrs_ref: Vec<(&str, &str)> =
+        rpr_attrs.iter().map(|(k, v)| (*k, v.as_str())).collect();
     open_elem(w, "a:rPr", &rpr_attrs_ref)?;
 
     open_elem(w, "a:solidFill", &[])?;
@@ -125,9 +138,12 @@ fn emit_paragraph(
 
 #[cfg(test)]
 mod tests {
+    use super::{
+        super::xml::{into_bytes, new_writer},
+        emit,
+    };
     use crate::element::{TextBox, TextStyle};
     use crate::geometry::Frame;
-    use super::{emit, super::xml::{new_writer, into_bytes}};
 
     fn render_textbox(tb: &TextBox) -> String {
         let mut w = new_writer();

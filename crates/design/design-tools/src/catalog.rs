@@ -32,7 +32,9 @@ pub struct StaticSkillCatalog {
 }
 
 impl StaticSkillCatalog {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn insert(&mut self, id: impl Into<String>, skill: DesignSkill) -> &mut Self {
         self.skills.insert(id.into(), Arc::new(skill));

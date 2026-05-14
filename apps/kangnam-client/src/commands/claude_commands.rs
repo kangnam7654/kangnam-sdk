@@ -1,6 +1,6 @@
+use serde::Serialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use serde::Serialize;
 
 use super::path_guard::validate_single_component;
 
@@ -93,10 +93,18 @@ fn list_dir_files(dir: &PathBuf) -> Vec<SkillFileInfo> {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_file() {
-                let filename = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                let filename = path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
                 let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
                 let is_main = filename == "SKILL.md" || filename == "index.md";
-                files.push(SkillFileInfo { filename, size, is_main });
+                files.push(SkillFileInfo {
+                    filename,
+                    size,
+                    is_main,
+                });
             }
         }
     }
@@ -107,17 +115,31 @@ fn list_dir_files(dir: &PathBuf) -> Vec<SkillFileInfo> {
     files
 }
 
-fn scan_skill_directory(dir: &PathBuf, seen: &mut std::collections::HashSet<String>, commands: &mut Vec<ClaudeCommandInfo>) {
-    if !dir.exists() { return; }
+fn scan_skill_directory(
+    dir: &PathBuf,
+    seen: &mut std::collections::HashSet<String>,
+    commands: &mut Vec<ClaudeCommandInfo>,
+) {
+    if !dir.exists() {
+        return;
+    }
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() {
                 let skill_md = path.join("SKILL.md");
-                let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-                if seen.contains(&name) { continue; }
+                let name = path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
+                if seen.contains(&name) {
+                    continue;
+                }
                 // Skip workspace/iteration directories (not skills)
-                if name.ends_with("-workspace") { continue; }
+                if name.ends_with("-workspace") {
+                    continue;
+                }
                 let description = if skill_md.exists() {
                     let content = std::fs::read_to_string(&skill_md).unwrap_or_default();
                     let (fm, _) = parse_frontmatter(&content);
@@ -126,10 +148,20 @@ fn scan_skill_directory(dir: &PathBuf, seen: &mut std::collections::HashSet<Stri
                     continue; // No SKILL.md = not a valid skill
                 };
                 seen.insert(name.clone());
-                commands.push(ClaudeCommandInfo { name, description, is_directory: true });
+                commands.push(ClaudeCommandInfo {
+                    name,
+                    description,
+                    is_directory: true,
+                });
             } else if path.extension().map_or(false, |ext| ext == "md") && path.is_file() {
-                let name = path.file_stem().unwrap_or_default().to_string_lossy().to_string();
-                if seen.contains(&name) { continue; }
+                let name = path
+                    .file_stem()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
+                if seen.contains(&name) {
+                    continue;
+                }
                 let content = std::fs::read_to_string(&path).unwrap_or_default();
                 let (fm, _) = parse_frontmatter(&content);
                 seen.insert(name.clone());
@@ -171,7 +203,9 @@ pub fn read_claude_command(name: String) -> Result<Option<ClaudeCommandFull>, St
 
     if path.is_dir() {
         let skill_md = path.join("SKILL.md");
-        if !skill_md.exists() { return Ok(None); }
+        if !skill_md.exists() {
+            return Ok(None);
+        }
         let content = std::fs::read_to_string(&skill_md).map_err(|e| e.to_string())?;
         let (fm, body) = parse_frontmatter(&content);
         let refs = list_dir_files(&path);
@@ -245,7 +279,9 @@ pub fn delete_claude_command(name: String) -> Result<(), String> {
 pub fn fork_plugin_skill(plugin_path: String, skill_name: String) -> Result<(), String> {
     validate_single_component(&skill_name, "skill name")?;
     let src_dir = PathBuf::from(&plugin_path).join("skills").join(&skill_name);
-    let dst_dir = claude_skills_dir().ok_or("No home directory")?.join(&skill_name);
+    let dst_dir = claude_skills_dir()
+        .ok_or("No home directory")?
+        .join(&skill_name);
 
     if !src_dir.exists() {
         return Err(format!("Plugin skill not found at: {}", src_dir.display()));
@@ -281,8 +317,7 @@ pub fn list_skill_refs(name: String) -> Result<Vec<SkillFileInfo>, String> {
 pub fn read_skill_ref(name: String, filename: String) -> Result<String, String> {
     validate_single_component(&name, "skill name")?;
     validate_single_component(&filename, "filename")?;
-    let skill_path = find_skill_path(&name)
-        .ok_or_else(|| format!("Skill '{}' not found", name))?;
+    let skill_path = find_skill_path(&name).ok_or_else(|| format!("Skill '{}' not found", name))?;
     if !skill_path.is_dir() {
         return Err("Skill is not a directory".to_string());
     }
@@ -294,8 +329,7 @@ pub fn read_skill_ref(name: String, filename: String) -> Result<String, String> 
 pub fn write_skill_ref(name: String, filename: String, content: String) -> Result<(), String> {
     validate_single_component(&name, "skill name")?;
     validate_single_component(&filename, "filename")?;
-    let skill_path = find_skill_path(&name)
-        .ok_or_else(|| format!("Skill '{}' not found", name))?;
+    let skill_path = find_skill_path(&name).ok_or_else(|| format!("Skill '{}' not found", name))?;
     if !skill_path.is_dir() {
         return Err("Cannot add ref to single-file skill".to_string());
     }
@@ -310,9 +344,10 @@ pub fn delete_skill_ref(name: String, filename: String) -> Result<(), String> {
     if filename == "SKILL.md" || filename == "index.md" {
         return Err("Cannot delete main skill file".to_string());
     }
-    let skill_path = find_skill_path(&name)
-        .ok_or_else(|| format!("Skill '{}' not found", name))?;
-    if !skill_path.is_dir() { return Ok(()); }
+    let skill_path = find_skill_path(&name).ok_or_else(|| format!("Skill '{}' not found", name))?;
+    if !skill_path.is_dir() {
+        return Ok(());
+    }
     let path = skill_path.join(&filename);
     if path.exists() {
         std::fs::remove_file(&path).map_err(|e| e.to_string())?;
@@ -336,8 +371,7 @@ pub struct SnapshotInfo {
 #[tauri::command]
 pub fn snapshot_skill(name: String) -> Result<String, String> {
     validate_single_component(&name, "skill name")?;
-    let skill_path = find_skill_path(&name)
-        .ok_or_else(|| format!("Skill '{}' not found", name))?;
+    let skill_path = find_skill_path(&name).ok_or_else(|| format!("Skill '{}' not found", name))?;
 
     let content = if skill_path.is_dir() {
         let skill_md = skill_path.join("SKILL.md");
@@ -366,17 +400,27 @@ pub fn list_skill_snapshots(name: String) -> Result<Vec<SnapshotInfo>, String> {
     validate_single_component(&name, "skill name")?;
     let snap_dir = snapshots_dir("skills").ok_or("No home directory")?;
     let item_dir = snap_dir.join(&name);
-    if !item_dir.exists() { return Ok(vec![]); }
+    if !item_dir.exists() {
+        return Ok(vec![]);
+    }
 
     let mut snapshots = Vec::new();
     for entry in std::fs::read_dir(&item_dir).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
         if path.is_file() {
-            let filename = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+            let filename = path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
             let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
             let timestamp = filename.trim_end_matches(".md").parse::<u64>().unwrap_or(0);
-            snapshots.push(SnapshotInfo { filename, timestamp, size });
+            snapshots.push(SnapshotInfo {
+                filename,
+                timestamp,
+                size,
+            });
         }
     }
     snapshots.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
@@ -397,7 +441,14 @@ mod tests {
     #[test]
     fn rejects_traversal_in_ref_filenames() {
         assert!(read_skill_ref("skill".to_string(), "../secret.md".to_string()).is_err());
-        assert!(write_skill_ref("skill".to_string(), "refs/a.md".to_string(), "x".to_string()).is_err());
+        assert!(
+            write_skill_ref(
+                "skill".to_string(),
+                "refs/a.md".to_string(),
+                "x".to_string()
+            )
+            .is_err()
+        );
         assert!(delete_skill_ref("skill".to_string(), "/tmp/a.md".to_string()).is_err());
     }
 }

@@ -188,8 +188,8 @@ crate::locked_true!(
     /// extra fields beyond the `ok` flag, so the `ok` field itself uses
     /// this locked-true marker (vs the standalone [`crate::common::OkResponse`]
     /// envelope used when `{ ok: true }` is the entire response body).
-    pub struct ConnectorExecuteOk
-    ; field_name = "ok"
+    pub struct ConnectorExecuteOk;
+    field_name = "ok"
 );
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -400,7 +400,10 @@ mod tests {
     #[test]
     fn connect_auth_kind_snake_case() {
         for (slug, kind) in [
-            ("redirect_required", ConnectorConnectAuthKind::RedirectRequired),
+            (
+                "redirect_required",
+                ConnectorConnectAuthKind::RedirectRequired,
+            ),
             ("pending", ConnectorConnectAuthKind::Pending),
             ("connected", ConnectorConnectAuthKind::Connected),
         ] {

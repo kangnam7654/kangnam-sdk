@@ -104,15 +104,16 @@ pub(crate) fn build_geom_shape_xml(
 /// [`TextBox`](crate::element::TextBox).
 ///
 /// Ported from dear-jeongbin `build_free_text_box_xml` (export_pptx_ooxml.rs:1401-1509).
-pub(crate) fn build_free_text_sp_xml(
-    sp_id: usize,
-    tb: &crate::element::TextBox,
-) -> String {
+pub(crate) fn build_free_text_sp_xml(sp_id: usize, tb: &crate::element::TextBox) -> String {
     use crate::element::TextAlign;
 
     let style = &tb.style;
     let sz_100ths = (style.font_size_pt * 100.0).round() as i64;
-    let b_attr = if style.font_weight >= 700 { r#" b="1""# } else { "" };
+    let b_attr = if style.font_weight >= 700 {
+        r#" b="1""#
+    } else {
+        ""
+    };
     let i_attr = if style.italic { r#" i="1""# } else { "" };
     let spc_val = (style.letter_spacing_pt * 100.0) as i64;
     let spc_attr = if spc_val != 0 {
@@ -228,11 +229,7 @@ pub(crate) fn build_free_text_sp_xml(
 /// OOXML expresses the corner radius as a percentage of the shape's smaller
 /// dimension in 1/100_000ths, capped at 50% (= 50_000). Bug fixed in v0.3.5
 /// (was `× 50_000`, producing half the requested radius).
-pub(crate) fn prst_geom_xml(
-    kind: &crate::element::ShapeKind,
-    w_emu: i64,
-    h_emu: i64,
-) -> String {
+pub(crate) fn prst_geom_xml(kind: &crate::element::ShapeKind, w_emu: i64, h_emu: i64) -> String {
     use crate::element::ShapeKind;
     match kind {
         ShapeKind::Rect => r#"<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>"#.to_string(),
@@ -242,9 +239,7 @@ pub(crate) fn prst_geom_xml(
                 r#"<a:prstGeom prst="roundRect"><a:avLst><a:gd name="adj" fmla="val {adj}"/></a:avLst></a:prstGeom>"#,
             )
         }
-        ShapeKind::Ellipse => {
-            r#"<a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>"#.to_string()
-        }
+        ShapeKind::Ellipse => r#"<a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>"#.to_string(),
         ShapeKind::Line => {
             // TODO(v0.3.5): verify Line round-trip in PowerPoint, may need <p:cxnSp>
             r#"<a:prstGeom prst="line"><a:avLst/></a:prstGeom>"#.to_string()

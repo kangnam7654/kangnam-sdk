@@ -15,16 +15,16 @@
 //! [p]: https://github.com/nexu-io/open-design/blob/main/src/artifacts/parser.ts
 //! [qf]: https://github.com/nexu-io/open-design/blob/main/src/artifacts/question-form.ts
 
+pub mod export;
+pub mod lint;
 pub mod parser;
 pub mod question_form;
-pub mod lint;
 pub mod srcdoc;
-pub mod export;
 
+pub use export::{Asset, export_html, export_html_inline, export_markdown, export_zip};
+pub use lint::{LintFinding, LintSeverity, lint_artifact};
 pub use parser::{ArtifactEvent, ArtifactKind, ArtifactParser};
 pub use question_form::{
-    parse_question_form, FormResponse, QuestionForm, QuestionFormError, QuestionType,
+    FormResponse, QuestionForm, QuestionFormError, QuestionType, parse_question_form,
 };
-pub use lint::{lint_artifact, LintFinding, LintSeverity};
-pub use srcdoc::{wrap_srcdoc, SrcdocOpts};
-pub use export::{export_html, export_html_inline, export_markdown, export_zip, Asset};
+pub use srcdoc::{SrcdocOpts, wrap_srcdoc};

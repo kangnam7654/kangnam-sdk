@@ -6,7 +6,7 @@
 use kangnam_design_doc_slide::slide::{
     Background as SdBackground, Frame as SdFrame, ImageFit as SdFit, SlideDoc, SlideElement,
 };
-use kangnam_design_export_pptx::{from_deck, write_deck_to_bytes, PptxElement};
+use kangnam_design_export_pptx::{PptxElement, from_deck, write_deck_to_bytes};
 
 // 1×1 transparent PNG (encoded as base64).
 const PNG_1X1: &str =
@@ -18,7 +18,12 @@ fn build_slide_with_image_data_uri() -> SlideDoc {
     doc.height_px = 720;
     doc.elements.push(SlideElement::Image {
         id: "i1".into(),
-        frame: SdFrame { x: 100.0, y: 100.0, w: 200.0, h: 200.0 },
+        frame: SdFrame {
+            x: 100.0,
+            y: 100.0,
+            w: 200.0,
+            h: 200.0,
+        },
         src: format!("data:image/png;base64,{PNG_1X1}"),
         fit: SdFit::Contain,
     });
@@ -29,7 +34,10 @@ fn build_slide_with_image_data_uri() -> SlideDoc {
 fn data_uri_image_becomes_pptx_image_element() {
     let doc = build_slide_with_image_data_uri();
     use kangnam_design_doc_slide::deck::Deck;
-    let deck = Deck { id: "test".into(), slides: vec![doc] };
+    let deck = Deck {
+        id: "test".into(),
+        slides: vec![doc],
+    };
     let pptx_deck = from_deck(&deck).expect("convert");
     let elements = &pptx_deck.slides[0].elements;
     assert_eq!(elements.len(), 1, "exactly one element");
@@ -48,12 +56,20 @@ fn http_image_falls_back_to_transparent_rect() {
     doc.height_px = 720;
     doc.elements.push(SlideElement::Image {
         id: "i1".into(),
-        frame: SdFrame { x: 0.0, y: 0.0, w: 100.0, h: 100.0 },
+        frame: SdFrame {
+            x: 0.0,
+            y: 0.0,
+            w: 100.0,
+            h: 100.0,
+        },
         src: "https://example.com/cover.png".into(),
         fit: SdFit::Cover,
     });
     use kangnam_design_doc_slide::deck::Deck;
-    let deck = Deck { id: "test".into(), slides: vec![doc] };
+    let deck = Deck {
+        id: "test".into(),
+        slides: vec![doc],
+    };
     let pptx_deck = from_deck(&deck).expect("convert");
     match &pptx_deck.slides[0].elements[0] {
         PptxElement::Shape(_) => {}
@@ -70,7 +86,10 @@ fn background_image_becomes_full_bleed_image_element() {
         src: format!("data:image/png;base64,{PNG_1X1}"),
     };
     use kangnam_design_doc_slide::deck::Deck;
-    let deck = Deck { id: "test".into(), slides: vec![doc] };
+    let deck = Deck {
+        id: "test".into(),
+        slides: vec![doc],
+    };
     let pptx_deck = from_deck(&deck).expect("convert");
     let slide = &pptx_deck.slides[0];
     // First element should be the full-bleed background image.
@@ -90,7 +109,10 @@ fn background_image_becomes_full_bleed_image_element() {
 fn pptx_with_data_uri_image_writes_successfully() {
     let doc = build_slide_with_image_data_uri();
     use kangnam_design_doc_slide::deck::Deck;
-    let deck = Deck { id: "test".into(), slides: vec![doc] };
+    let deck = Deck {
+        id: "test".into(),
+        slides: vec![doc],
+    };
     let pptx_deck = from_deck(&deck).expect("convert");
     let bytes = write_deck_to_bytes(&pptx_deck).expect("write");
     assert!(bytes.starts_with(b"PK"), "valid zip");

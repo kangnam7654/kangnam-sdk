@@ -15,7 +15,7 @@
 use async_trait::async_trait;
 use kangnam_harness_runtime::{AgentTool, ToolCtx, ToolResult};
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 pub struct TweaksTool;
 
@@ -28,7 +28,9 @@ struct TweakEdit {
 
 #[async_trait]
 impl AgentTool for TweaksTool {
-    fn name(&self) -> &str { "tweaks" }
+    fn name(&self) -> &str {
+        "tweaks"
+    }
 
     fn parameters(&self) -> Value {
         json!({
@@ -55,19 +57,34 @@ impl AgentTool for TweaksTool {
         let edits: Vec<TweakEdit> = match params.get("edits") {
             Some(arr) => match serde_json::from_value(arr.clone()) {
                 Ok(v) => v,
-                Err(e) => return ToolResult::Failed { error: format!("invalid edits: {e}") },
+                Err(e) => {
+                    return ToolResult::Failed {
+                        error: format!("invalid edits: {e}"),
+                    };
+                }
             },
-            None => return ToolResult::Failed { error: "missing `edits`".into() },
+            None => {
+                return ToolResult::Failed {
+                    error: "missing `edits`".into(),
+                };
+            }
         };
         let mut applied = 0usize;
         for edit in &edits {
             let path = match ctx.resolve_path(&edit.path) {
                 Some(p) => p,
-                None => return ToolResult::Failed {
-                    error: "tweaks requires a working directory".into(),
-                },
+                None => {
+                    return ToolResult::Failed {
+                        error: "tweaks requires a working directory".into(),
+                    };
+                }
             };
-            if let Err(e) = ctx.capabilities.fs.str_replace(&path, &edit.anchor, &edit.replacement).await {
+            if let Err(e) = ctx
+                .capabilities
+                .fs
+                .str_replace(&path, &edit.anchor, &edit.replacement)
+                .await
+            {
                 return ToolResult::Failed {
                     error: format!("str_replace failed for {}: {e}", edit.path),
                 };

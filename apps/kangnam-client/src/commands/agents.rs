@@ -1,6 +1,6 @@
+use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
-use serde::Serialize;
 use tauri::State;
 
 use crate::db::agents::{self, Agent};
@@ -65,9 +65,13 @@ fn parse_frontmatter(content: &str) -> (HashMap<String, String>, String) {
 /// Find the refs subdirectory for an agent (refs/ or references/)
 fn agent_refs_dir(agent_dir: &std::path::Path) -> Option<std::path::PathBuf> {
     let refs = agent_dir.join("refs");
-    if refs.is_dir() { return Some(refs); }
+    if refs.is_dir() {
+        return Some(refs);
+    }
     let references = agent_dir.join("references");
-    if references.is_dir() { return Some(references); }
+    if references.is_dir() {
+        return Some(references);
+    }
     None
 }
 
@@ -79,9 +83,17 @@ fn list_agent_ref_files(agent_dir: &std::path::Path) -> Vec<AgentFileInfo> {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_file() {
-                    let filename = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                    let filename = path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
                     let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
-                    files.push(AgentFileInfo { filename, size, is_main: false });
+                    files.push(AgentFileInfo {
+                        filename,
+                        size,
+                        is_main: false,
+                    });
                 }
             }
         }
@@ -102,7 +114,11 @@ pub fn list_claude_agents() -> Result<Vec<ClaudeAgentInfo>, String> {
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
         if path.extension().map_or(false, |ext| ext == "md") && path.is_file() {
-            let name = path.file_stem().unwrap_or_default().to_string_lossy().to_string();
+            let name = path
+                .file_stem()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
             let content = std::fs::read_to_string(&path).unwrap_or_default();
             let (fm, _) = parse_frontmatter(&content);
             let has_refs_dir = dir.join(&name).is_dir();
@@ -132,7 +148,11 @@ pub fn read_claude_agent(name: String) -> Result<Option<ClaudeAgentFull>, String
     // Check for companion directory with refs
     let agent_dir = dir.join(&name);
     let has_dir = agent_dir.is_dir();
-    let refs = if has_dir { list_agent_ref_files(&agent_dir) } else { vec![] };
+    let refs = if has_dir {
+        list_agent_ref_files(&agent_dir)
+    } else {
+        vec![]
+    };
     Ok(Some(ClaudeAgentFull {
         name: fm.get("name").cloned().unwrap_or_else(|| name),
         description: fm.get("description").cloned().unwrap_or_default(),
@@ -231,8 +251,7 @@ pub fn write_agent_ref(name: String, filename: String, content: String) -> Resul
     let dir = claude_agents_dir().ok_or("No home directory")?;
     let agent_dir = dir.join(&name);
     // Use existing refs dir, or create refs/ by default
-    let refs_dir = agent_refs_dir(&agent_dir)
-        .unwrap_or_else(|| agent_dir.join("refs"));
+    let refs_dir = agent_refs_dir(&agent_dir).unwrap_or_else(|| agent_dir.join("refs"));
     std::fs::create_dir_all(&refs_dir).map_err(|e| e.to_string())?;
     std::fs::write(refs_dir.join(&filename), &content).map_err(|e| e.to_string())?;
     Ok(())
@@ -296,17 +315,27 @@ pub fn list_agent_snapshots(name: String) -> Result<Vec<AgentSnapshotInfo>, Stri
     validate_single_component(&name, "agent name")?;
     let snap_dir = agent_snapshots_dir().ok_or("No home directory")?;
     let item_dir = snap_dir.join(&name);
-    if !item_dir.exists() { return Ok(vec![]); }
+    if !item_dir.exists() {
+        return Ok(vec![]);
+    }
 
     let mut snapshots = Vec::new();
     for entry in std::fs::read_dir(&item_dir).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
         if path.is_file() {
-            let filename = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+            let filename = path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
             let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
             let timestamp = filename.trim_end_matches(".md").parse::<u64>().unwrap_or(0);
-            snapshots.push(AgentSnapshotInfo { filename, timestamp, size });
+            snapshots.push(AgentSnapshotInfo {
+                filename,
+                timestamp,
+                size,
+            });
         }
     }
     snapshots.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
@@ -339,8 +368,13 @@ pub fn agents_create(
 ) -> Result<Agent, String> {
     let conn = state.db.lock().unwrap_or_else(|e| e.into_inner());
     agents::create_agent(
-        &conn, &name, &description, &instructions,
-        model.as_deref(), allowed_tools, max_turns.unwrap_or(10),
+        &conn,
+        &name,
+        &description,
+        &instructions,
+        model.as_deref(),
+        allowed_tools,
+        max_turns.unwrap_or(10),
     )
     .map_err(|e| e.to_string())
 }
@@ -358,8 +392,14 @@ pub fn agents_update(
 ) -> Result<(), String> {
     let conn = state.db.lock().unwrap_or_else(|e| e.into_inner());
     agents::update_agent(
-        &conn, &id, &name, &description, &instructions,
-        model.as_deref(), allowed_tools, max_turns.unwrap_or(10),
+        &conn,
+        &id,
+        &name,
+        &description,
+        &instructions,
+        model.as_deref(),
+        allowed_tools,
+        max_turns.unwrap_or(10),
     )
     .map_err(|e| e.to_string())
 }
@@ -378,20 +418,29 @@ mod tests {
     #[test]
     fn rejects_traversal_in_agent_names() {
         assert!(read_claude_agent("../outside".to_string()).is_err());
-        assert!(write_claude_agent(
-            "nested/name".to_string(),
-            "desc".to_string(),
-            "body".to_string(),
-            None,
-        )
-        .is_err());
+        assert!(
+            write_claude_agent(
+                "nested/name".to_string(),
+                "desc".to_string(),
+                "body".to_string(),
+                None,
+            )
+            .is_err()
+        );
         assert!(delete_claude_agent("/tmp/agent".to_string()).is_err());
     }
 
     #[test]
     fn rejects_traversal_in_agent_ref_filenames() {
         assert!(read_agent_ref("agent".to_string(), "../secret.md".to_string()).is_err());
-        assert!(write_agent_ref("agent".to_string(), "refs/a.md".to_string(), "x".to_string()).is_err());
+        assert!(
+            write_agent_ref(
+                "agent".to_string(),
+                "refs/a.md".to_string(),
+                "x".to_string()
+            )
+            .is_err()
+        );
         assert!(delete_agent_ref("agent".to_string(), "/tmp/a.md".to_string()).is_err());
     }
 }

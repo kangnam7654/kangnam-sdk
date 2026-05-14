@@ -15,9 +15,7 @@ pub(crate) const CT_FONT: &str = "application/x-fontdata";
 
 /// Set of file extensions already declared in `[Content_Types].xml` as
 /// `<Default Extension="..."/>`. Used to avoid duplicate Default entries.
-pub(crate) fn parse_declared_extensions(
-    entries: &[(String, Vec<u8>)],
-) -> Result<HashSet<String>> {
+pub(crate) fn parse_declared_extensions(entries: &[(String, Vec<u8>)]) -> Result<HashSet<String>> {
     let ct = entries
         .iter()
         .find(|(n, _)| n == "[Content_Types].xml")

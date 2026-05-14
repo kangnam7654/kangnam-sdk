@@ -8,87 +8,173 @@ use super::xml::{close_elem, empty_elem, into_bytes, new_writer, open_elem, writ
 pub fn build(deck: &PptxDeck) -> Result<Vec<u8>, PptxWriteError> {
     let mut w = new_writer();
     write_decl(&mut w)?;
-    open_elem(&mut w, "Types", &[
-        ("xmlns", "http://schemas.openxmlformats.org/package/2006/content-types"),
-    ])?;
+    open_elem(
+        &mut w,
+        "Types",
+        &[(
+            "xmlns",
+            "http://schemas.openxmlformats.org/package/2006/content-types",
+        )],
+    )?;
 
     // Default extensions: rels, xml, and any image types present in the deck.
-    empty_elem(&mut w, "Default", &[
-        ("Extension", "rels"),
-        ("ContentType", "application/vnd.openxmlformats-package.relationships+xml"),
-    ])?;
-    empty_elem(&mut w, "Default", &[
-        ("Extension", "xml"),
-        ("ContentType", "application/xml"),
-    ])?;
+    empty_elem(
+        &mut w,
+        "Default",
+        &[
+            ("Extension", "rels"),
+            (
+                "ContentType",
+                "application/vnd.openxmlformats-package.relationships+xml",
+            ),
+        ],
+    )?;
+    empty_elem(
+        &mut w,
+        "Default",
+        &[("Extension", "xml"), ("ContentType", "application/xml")],
+    )?;
     let mut used = collect_image_mimes(deck);
     used.sort_by_key(|m| m.ext());
     used.dedup();
     for mime in used {
-        empty_elem(&mut w, "Default", &[
-            ("Extension", mime.ext()),
-            ("ContentType", mime.content_type()),
-        ])?;
+        empty_elem(
+            &mut w,
+            "Default",
+            &[
+                ("Extension", mime.ext()),
+                ("ContentType", mime.content_type()),
+            ],
+        )?;
     }
 
     // Overrides: presentation.xml, theme, master, layout, slides, core props.
-    empty_elem(&mut w, "Override", &[
-        ("PartName", "/ppt/presentation.xml"),
-        ("ContentType", "application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"),
-    ])?;
-    empty_elem(&mut w, "Override", &[
-        ("PartName", "/ppt/theme/theme1.xml"),
-        ("ContentType", "application/vnd.openxmlformats-officedocument.theme+xml"),
-    ])?;
-    empty_elem(&mut w, "Override", &[
-        ("PartName", "/ppt/slideMasters/slideMaster1.xml"),
-        ("ContentType", "application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"),
-    ])?;
-    empty_elem(&mut w, "Override", &[
-        ("PartName", "/ppt/slideLayouts/slideLayout1.xml"),
-        ("ContentType", "application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"),
-    ])?;
+    empty_elem(
+        &mut w,
+        "Override",
+        &[
+            ("PartName", "/ppt/presentation.xml"),
+            (
+                "ContentType",
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml",
+            ),
+        ],
+    )?;
+    empty_elem(
+        &mut w,
+        "Override",
+        &[
+            ("PartName", "/ppt/theme/theme1.xml"),
+            (
+                "ContentType",
+                "application/vnd.openxmlformats-officedocument.theme+xml",
+            ),
+        ],
+    )?;
+    empty_elem(
+        &mut w,
+        "Override",
+        &[
+            ("PartName", "/ppt/slideMasters/slideMaster1.xml"),
+            (
+                "ContentType",
+                "application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml",
+            ),
+        ],
+    )?;
+    empty_elem(
+        &mut w,
+        "Override",
+        &[
+            ("PartName", "/ppt/slideLayouts/slideLayout1.xml"),
+            (
+                "ContentType",
+                "application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml",
+            ),
+        ],
+    )?;
     for i in 1..=deck.slides.len() {
         let path = format!("/ppt/slides/slide{i}.xml");
-        empty_elem(&mut w, "Override", &[
-            ("PartName", &path),
-            ("ContentType", "application/vnd.openxmlformats-officedocument.presentationml.slide+xml"),
-        ])?;
+        empty_elem(
+            &mut w,
+            "Override",
+            &[
+                ("PartName", &path),
+                (
+                    "ContentType",
+                    "application/vnd.openxmlformats-officedocument.presentationml.slide+xml",
+                ),
+            ],
+        )?;
     }
     // Notes overrides — only emit when at least one slide has notes.
     let any_notes = deck.slides.iter().any(|s| s.speaker_notes.is_some());
     if any_notes {
-        empty_elem(&mut w, "Override", &[
-            ("PartName", "/ppt/notesMasters/notesMaster1.xml"),
-            ("ContentType", "application/vnd.openxmlformats-officedocument.presentationml.notesMaster+xml"),
-        ])?;
+        empty_elem(
+            &mut w,
+            "Override",
+            &[
+                ("PartName", "/ppt/notesMasters/notesMaster1.xml"),
+                (
+                    "ContentType",
+                    "application/vnd.openxmlformats-officedocument.presentationml.notesMaster+xml",
+                ),
+            ],
+        )?;
         for (i, s) in deck.slides.iter().enumerate() {
-            if s.speaker_notes.is_none() { continue; }
+            if s.speaker_notes.is_none() {
+                continue;
+            }
             let path = format!("/ppt/notesSlides/notesSlide{}.xml", i + 1);
-            empty_elem(&mut w, "Override", &[
-                ("PartName", &path),
-                ("ContentType", "application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml"),
-            ])?;
+            empty_elem(
+                &mut w,
+                "Override",
+                &[
+                    ("PartName", &path),
+                    (
+                        "ContentType",
+                        "application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml",
+                    ),
+                ],
+            )?;
         }
     }
-    empty_elem(&mut w, "Override", &[
-        ("PartName", "/docProps/core.xml"),
-        ("ContentType", "application/vnd.openxmlformats-package.core-properties+xml"),
-    ])?;
-    empty_elem(&mut w, "Override", &[
-        ("PartName", "/docProps/app.xml"),
-        ("ContentType", "application/vnd.openxmlformats-officedocument.extended-properties+xml"),
-    ])?;
+    empty_elem(
+        &mut w,
+        "Override",
+        &[
+            ("PartName", "/docProps/core.xml"),
+            (
+                "ContentType",
+                "application/vnd.openxmlformats-package.core-properties+xml",
+            ),
+        ],
+    )?;
+    empty_elem(
+        &mut w,
+        "Override",
+        &[
+            ("PartName", "/docProps/app.xml"),
+            (
+                "ContentType",
+                "application/vnd.openxmlformats-officedocument.extended-properties+xml",
+            ),
+        ],
+    )?;
 
     close_elem(&mut w, "Types")?;
     Ok(into_bytes(w))
 }
 
 fn collect_image_mimes(deck: &PptxDeck) -> Vec<ImageMime> {
-    deck.slides.iter().flat_map(|s| s.elements.iter()).filter_map(|e| match e {
-        PptxElement::Image(img) => Some(img.mime),
-        _ => None,
-    }).collect()
+    deck.slides
+        .iter()
+        .flat_map(|s| s.elements.iter())
+        .filter_map(|e| match e {
+            PptxElement::Image(img) => Some(img.mime),
+            _ => None,
+        })
+        .collect()
 }
 
 #[cfg(test)]

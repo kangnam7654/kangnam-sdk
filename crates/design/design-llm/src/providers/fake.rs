@@ -58,16 +58,12 @@ impl AiClient for FakeAiClient {
         match self.program.clone() {
             Program::Chunks(chunks) => {
                 let full_text: String = chunks.concat();
-                let mut items: Vec<Result<AiChunk, AiError>> = chunks
-                    .into_iter()
-                    .map(|c| Ok(AiChunk::Delta(c)))
-                    .collect();
+                let mut items: Vec<Result<AiChunk, AiError>> =
+                    chunks.into_iter().map(|c| Ok(AiChunk::Delta(c))).collect();
                 items.push(Ok(AiChunk::Done { full_text }));
                 stream::iter(items).boxed()
             }
-            Program::Failure(msg) => {
-                stream::iter(vec![Err(AiError::Protocol(msg))]).boxed()
-            }
+            Program::Failure(msg) => stream::iter(vec![Err(AiError::Protocol(msg))]).boxed(),
         }
     }
 }

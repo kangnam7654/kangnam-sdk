@@ -8,7 +8,9 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::api::comments::{PreviewCommentMember, PreviewCommentPosition, PreviewCommentSelectionKind};
+use crate::api::comments::{
+    PreviewCommentMember, PreviewCommentPosition, PreviewCommentSelectionKind,
+};
 use crate::api::files::ProjectFile;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

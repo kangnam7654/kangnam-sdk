@@ -21,9 +21,7 @@ use rusqlite::Connection;
 use tokio::sync::Mutex as AsyncMutex;
 
 use kangnam_chat_agent::CliManager;
-use kangnam_chat_rpc::{
-    MessageGuard, PendingPermissions, PendingPreviews, PendingQuestionForms,
-};
+use kangnam_chat_rpc::{MessageGuard, PendingPermissions, PendingPreviews, PendingQuestionForms};
 
 pub mod auth;
 pub mod broadcast;

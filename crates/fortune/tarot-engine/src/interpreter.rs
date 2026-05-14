@@ -18,10 +18,7 @@ pub fn interpret(reading: &mut TarotReading) -> Vec<String> {
 ///
 /// `category` 후보: "love" | "career" | "wealth" | "health" | "general".
 /// 마이너 카드(22~77)는 카테고리와 무관하게 항상 일반 톤 fallback.
-pub fn interpret_with_category(
-    reading: &mut TarotReading,
-    category: Option<&str>,
-) -> Vec<String> {
+pub fn interpret_with_category(reading: &mut TarotReading, category: Option<&str>) -> Vec<String> {
     let mut basics: Vec<String> = Vec::with_capacity(reading.cards.len());
 
     for drawn in &reading.cards {
@@ -223,7 +220,10 @@ mod tests {
             }
             let basic_a = interpret_with_category(&mut a, Some("love"));
             let basic_b = interpret_with_category(&mut b, Some("career"));
-            assert_eq!(a.cards[0].card_id, b.cards[0].card_id, "same seed, same card");
+            assert_eq!(
+                a.cards[0].card_id, b.cards[0].card_id,
+                "same seed, same card"
+            );
             assert_ne!(
                 basic_a[0], basic_b[0],
                 "same major card with different categories must differ — got identical: {}",
@@ -241,7 +241,10 @@ mod tests {
         let mut r2 = make_reading(SpreadType::OneCard, "fallback_test");
         let basic_default = interpret(&mut r1);
         let basic_none = interpret_with_category(&mut r2, None);
-        assert_eq!(basic_default, basic_none, "category=None == default interpret");
+        assert_eq!(
+            basic_default, basic_none,
+            "category=None == default interpret"
+        );
     }
 
     /// 알 수 없는 카테고리 — fallback to default 일반 톤.

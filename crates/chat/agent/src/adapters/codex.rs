@@ -237,7 +237,10 @@ mod tests {
 
     #[test]
     fn reasoning_effort_accepts_known_values_only() {
-        assert_eq!(normalize_reasoning_effort(Some("low")).as_deref(), Some("low"));
+        assert_eq!(
+            normalize_reasoning_effort(Some("low")).as_deref(),
+            Some("low")
+        );
         assert_eq!(
             normalize_reasoning_effort(Some("medium")).as_deref(),
             Some("medium")

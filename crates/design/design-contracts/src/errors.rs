@@ -293,10 +293,7 @@ mod tests {
 
     #[test]
     fn create_api_error_response_wraps_envelope() {
-        let r = create_api_error_response(create_api_error(
-            ApiErrorCode::Forbidden,
-            "no.",
-        ));
+        let r = create_api_error_response(create_api_error(ApiErrorCode::Forbidden, "no."));
         let s = serde_json::to_string(&r).unwrap();
         assert_eq!(s, r#"{"error":{"code":"FORBIDDEN","message":"no."}}"#);
     }
@@ -328,7 +325,10 @@ mod tests {
             message: "transient".into(),
             error: None,
         };
-        assert_eq!(serde_json::to_string(&p).unwrap(), r#"{"message":"transient"}"#);
+        assert_eq!(
+            serde_json::to_string(&p).unwrap(),
+            r#"{"message":"transient"}"#
+        );
         // With envelope.
         let p2 = SseErrorPayload {
             message: "fatal".into(),

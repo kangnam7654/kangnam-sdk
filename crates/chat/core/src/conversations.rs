@@ -6,7 +6,7 @@
 
 #![allow(dead_code)]
 
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use uuid::Uuid;
 
 // Re-export the domain types from the shared module so the legacy
@@ -264,7 +264,10 @@ mod tests {
     fn test_messages() {
         let conn = setup_test_db();
         let conv = create_conversation(&conn, "codex", None).unwrap();
-        add_message(&conn, &conv.id, "user", "Hello", None, None, None, None, None).unwrap();
+        add_message(
+            &conn, &conv.id, "user", "Hello", None, None, None, None, None,
+        )
+        .unwrap();
         let msgs = get_messages(&conn, &conv.id).unwrap();
         assert_eq!(msgs.len(), 1);
         assert_eq!(msgs[0].content, "Hello");
@@ -274,7 +277,10 @@ mod tests {
     fn test_delete_cascades() {
         let conn = setup_test_db();
         let conv = create_conversation(&conn, "codex", None).unwrap();
-        add_message(&conn, &conv.id, "user", "test", None, None, None, None, None).unwrap();
+        add_message(
+            &conn, &conv.id, "user", "test", None, None, None, None, None,
+        )
+        .unwrap();
         delete_conversation(&conn, &conv.id).unwrap();
         assert_eq!(list_conversations(&conn).unwrap().len(), 0);
         assert_eq!(get_messages(&conn, &conv.id).unwrap().len(), 0);
@@ -294,7 +300,18 @@ mod tests {
     fn test_search() {
         let conn = setup_test_db();
         let conv = create_conversation(&conn, "codex", None).unwrap();
-        add_message(&conn, &conv.id, "user", "Hello world", None, None, None, None, None).unwrap();
+        add_message(
+            &conn,
+            &conv.id,
+            "user",
+            "Hello world",
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
         assert_eq!(search_messages(&conn, "Hello").unwrap().len(), 1);
         assert_eq!(search_messages(&conn, "nope").unwrap().len(), 0);
         assert_eq!(search_messages(&conn, "  ").unwrap().len(), 0);
@@ -305,7 +322,10 @@ mod tests {
         let conn = setup_test_db();
         let conv = create_conversation(&conn, "codex", None).unwrap();
         update_title(&conn, &conv.id, "New Title").unwrap();
-        assert_eq!(get_conversation(&conn, &conv.id).unwrap().title, "New Title");
+        assert_eq!(
+            get_conversation(&conn, &conv.id).unwrap().title,
+            "New Title"
+        );
     }
 
     #[test]

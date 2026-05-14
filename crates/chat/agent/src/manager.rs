@@ -549,7 +549,10 @@ mod tests {
             parse_effort_command(" /effort medium ").as_deref(),
             Some("medium")
         );
-        assert_eq!(parse_effort_command("/effort high").as_deref(), Some("high"));
+        assert_eq!(
+            parse_effort_command("/effort high").as_deref(),
+            Some("high")
+        );
         assert_eq!(
             parse_effort_command("/effort xhigh").as_deref(),
             Some("xhigh")

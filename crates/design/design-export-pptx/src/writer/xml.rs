@@ -2,8 +2,8 @@
 
 use std::io::Cursor;
 
-use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::Writer;
+use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
 
 use crate::error::PptxWriteError;
 
@@ -14,8 +14,12 @@ pub fn new_writer() -> XmlWriter {
 }
 
 pub fn write_decl(w: &mut XmlWriter) -> Result<(), PptxWriteError> {
-    w.write_event(Event::Decl(BytesDecl::new("1.0", Some("UTF-8"), Some("yes"))))
-        .map_err(|e| PptxWriteError::Xml(e.to_string()))?;
+    w.write_event(Event::Decl(BytesDecl::new(
+        "1.0",
+        Some("UTF-8"),
+        Some("yes"),
+    )))
+    .map_err(|e| PptxWriteError::Xml(e.to_string()))?;
     Ok(())
 }
 
@@ -26,7 +30,9 @@ pub fn empty_elem(
     attrs: &[(&str, &str)],
 ) -> Result<(), PptxWriteError> {
     let mut start = BytesStart::new(name);
-    for (k, v) in attrs { start.push_attribute((*k, *v)); }
+    for (k, v) in attrs {
+        start.push_attribute((*k, *v));
+    }
     w.write_event(Event::Empty(start))
         .map_err(|e| PptxWriteError::Xml(e.to_string()))?;
     Ok(())
@@ -39,7 +45,9 @@ pub fn open_elem(
     attrs: &[(&str, &str)],
 ) -> Result<(), PptxWriteError> {
     let mut start = BytesStart::new(name);
-    for (k, v) in attrs { start.push_attribute((*k, *v)); }
+    for (k, v) in attrs {
+        start.push_attribute((*k, *v));
+    }
     w.write_event(Event::Start(start))
         .map_err(|e| PptxWriteError::Xml(e.to_string()))?;
     Ok(())
@@ -64,10 +72,7 @@ pub fn into_bytes(w: XmlWriter) -> Vec<u8> {
 /// Write a pre-built XML fragment verbatim into the writer's output buffer.
 /// Used when building a fragment via string formatting is simpler than calling
 /// the individual elem helpers (e.g. for gradient / fill XML).
-pub fn write_raw_fragment(
-    w: &mut XmlWriter,
-    fragment: &str,
-) -> Result<(), PptxWriteError> {
+pub fn write_raw_fragment(w: &mut XmlWriter, fragment: &str) -> Result<(), PptxWriteError> {
     use std::io::Write as IoWrite;
     w.get_mut()
         .write_all(fragment.as_bytes())

@@ -45,10 +45,8 @@ impl BroadcastSink {
 
 impl AgentEventSink for BroadcastSink {
     fn emit_message(&self, msg: UnifiedMessage) {
-        let n = JsonRpcNotification::new(
-            "cli.stream",
-            serde_json::to_value(&msg).unwrap_or_default(),
-        );
+        let n =
+            JsonRpcNotification::new("cli.stream", serde_json::to_value(&msg).unwrap_or_default());
         let _ = self.stream.send(n);
     }
 

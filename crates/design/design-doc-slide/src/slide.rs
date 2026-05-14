@@ -37,14 +37,24 @@ impl SlideDoc {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Background {
-    Color { color: String },
-    Gradient { from: String, to: String, angle_deg: f32 },
-    Image { src: String },
+    Color {
+        color: String,
+    },
+    Gradient {
+        from: String,
+        to: String,
+        angle_deg: f32,
+    },
+    Image {
+        src: String,
+    },
 }
 
 impl Background {
     pub fn solid(color: impl Into<String>) -> Self {
-        Self::Color { color: color.into() }
+        Self::Color {
+            color: color.into(),
+        }
     }
 }
 
@@ -176,14 +186,22 @@ pub enum ShapeKind {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Fill {
-    Solid { color: String },
-    Gradient { from: String, to: String, angle_deg: f32 },
+    Solid {
+        color: String,
+    },
+    Gradient {
+        from: String,
+        to: String,
+        angle_deg: f32,
+    },
     None,
 }
 
 impl Fill {
     pub fn solid(color: impl Into<String>) -> Self {
-        Self::Solid { color: color.into() }
+        Self::Solid {
+            color: color.into(),
+        }
     }
 }
 
@@ -208,7 +226,12 @@ mod tests {
     fn sample_text_element() -> SlideElement {
         SlideElement::Text {
             id: "title".into(),
-            frame: Frame { x: 80.0, y: 80.0, w: 1120.0, h: 120.0 },
+            frame: Frame {
+                x: 80.0,
+                y: 80.0,
+                w: 1120.0,
+                h: 120.0,
+            },
             content: "안녕, Canvas".into(),
             style: TextStyle {
                 font_size_px: 64.0,
@@ -232,7 +255,12 @@ mod tests {
         doc.elements.push(sample_text_element());
         doc.elements.push(SlideElement::Shape {
             id: "accent".into(),
-            frame: Frame { x: 0.0, y: 700.0, w: 1280.0, h: 20.0 },
+            frame: Frame {
+                x: 0.0,
+                y: 700.0,
+                w: 1280.0,
+                h: 20.0,
+            },
             shape: ShapeKind::Rect,
             fill: Fill::solid("#3b82f6"),
             stroke: None,
@@ -250,7 +278,12 @@ mod tests {
 
         let shape = SlideElement::Shape {
             id: "bar".into(),
-            frame: Frame { x: 0.0, y: 0.0, w: 10.0, h: 10.0 },
+            frame: Frame {
+                x: 0.0,
+                y: 0.0,
+                w: 10.0,
+                h: 10.0,
+            },
             shape: ShapeKind::Circle,
             fill: Fill::None,
             stroke: None,
@@ -259,7 +292,12 @@ mod tests {
 
         let image = SlideElement::Image {
             id: "logo".into(),
-            frame: Frame { x: 0.0, y: 0.0, w: 100.0, h: 100.0 },
+            frame: Frame {
+                x: 0.0,
+                y: 0.0,
+                w: 100.0,
+                h: 100.0,
+            },
             src: "/img.png".into(),
             fit: ImageFit::Contain,
         };
@@ -292,7 +330,10 @@ mod tests {
 
         let parsed: SlideDoc = serde_json::from_value(json).unwrap();
         assert_eq!(parsed.title.as_deref(), Some("표지"));
-        assert_eq!(parsed.speaker_notes.as_deref(), Some("이 슬라이드는 첫 화면입니다."));
+        assert_eq!(
+            parsed.speaker_notes.as_deref(),
+            Some("이 슬라이드는 첫 화면입니다.")
+        );
     }
 
     #[test]
@@ -339,7 +380,10 @@ mod tests {
         });
         let parsed: SlideDoc = serde_json::from_value(legacy).unwrap();
         assert!(parsed.title.is_none(), "legacy JSON yields None title");
-        assert!(parsed.speaker_notes.is_none(), "legacy JSON yields None speaker_notes");
+        assert!(
+            parsed.speaker_notes.is_none(),
+            "legacy JSON yields None speaker_notes"
+        );
     }
 
     #[test]
@@ -348,7 +392,12 @@ mod tests {
         // `SlideDoc::empty` and most call sites — verify it produces the
         // tagged `Color` variant rather than e.g. an Image with a hex src.
         let bg = Background::solid("#ff00aa");
-        assert_eq!(bg, Background::Color { color: "#ff00aa".into() });
+        assert_eq!(
+            bg,
+            Background::Color {
+                color: "#ff00aa".into()
+            }
+        );
         let json = serde_json::to_value(&bg).unwrap();
         assert_eq!(json["kind"], "color");
         assert_eq!(json["color"], "#ff00aa");

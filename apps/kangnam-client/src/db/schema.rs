@@ -33,7 +33,8 @@ pub fn run_migrations(conn: &mut Connection) -> Result<()> {
     )?;
 
     // Migration: add pinned column
-    let _ = tx.execute_batch("ALTER TABLE conversations ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0");
+    let _ =
+        tx.execute_batch("ALTER TABLE conversations ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0");
 
     // Migration: add attachments column to messages
     let _ = tx.execute_batch("ALTER TABLE messages ADD COLUMN attachments TEXT");
@@ -43,11 +44,14 @@ pub fn run_migrations(conn: &mut Connection) -> Result<()> {
     let _ = tx.execute_batch("ALTER TABLE messages ADD COLUMN tool_args TEXT");
 
     // Migration: add message_type column
-    let _ = tx.execute_batch("ALTER TABLE messages ADD COLUMN message_type TEXT NOT NULL DEFAULT 'text'");
+    let _ = tx
+        .execute_batch("ALTER TABLE messages ADD COLUMN message_type TEXT NOT NULL DEFAULT 'text'");
 
     // Migration: rename provider → cli_provider in conversations
     // SQLite does not support RENAME COLUMN before 3.25.0; use ADD + UPDATE pattern
-    let _ = tx.execute_batch("ALTER TABLE conversations ADD COLUMN cli_provider TEXT NOT NULL DEFAULT 'claude'");
+    let _ = tx.execute_batch(
+        "ALTER TABLE conversations ADD COLUMN cli_provider TEXT NOT NULL DEFAULT 'claude'",
+    );
     let _ = tx.execute_batch("UPDATE conversations SET cli_provider = provider WHERE cli_provider = 'claude' AND provider != ''");
     // Migration: drop legacy provider column (NOT NULL without default blocks new inserts)
     let _ = tx.execute_batch("ALTER TABLE conversations DROP COLUMN provider");
@@ -104,22 +108,20 @@ pub fn run_migrations(conn: &mut Connection) -> Result<()> {
     let _ = tx.execute_batch("ALTER TABLE prompts ADD COLUMN description TEXT NOT NULL DEFAULT ''");
     let _ = tx.execute_batch("ALTER TABLE prompts ADD COLUMN argument_hint TEXT");
     let _ = tx.execute_batch("ALTER TABLE prompts ADD COLUMN model TEXT");
-    let _ = tx.execute_batch("ALTER TABLE prompts ADD COLUMN user_invocable INTEGER NOT NULL DEFAULT 1");
+    let _ = tx
+        .execute_batch("ALTER TABLE prompts ADD COLUMN user_invocable INTEGER NOT NULL DEFAULT 1");
 
     // ADR-008 Phase 0c: unify with kangnam-harness-core::Skill so the
     // `prompts` table can also serve as the canonical skill store. New
     // columns capture harness-core fields (trigger, scope) and the
     // open-design `od:` frontmatter extras as JSON. Existing rows default to
     // `auto`/empty/`user`/null which match harness-core defaults.
-    let _ = tx.execute_batch(
-        "ALTER TABLE prompts ADD COLUMN trigger_mode TEXT NOT NULL DEFAULT 'auto'",
-    );
+    let _ = tx
+        .execute_batch("ALTER TABLE prompts ADD COLUMN trigger_mode TEXT NOT NULL DEFAULT 'auto'");
     let _ = tx.execute_batch(
         "ALTER TABLE prompts ADD COLUMN trigger_keywords TEXT NOT NULL DEFAULT '[]'",
     );
-    let _ = tx.execute_batch(
-        "ALTER TABLE prompts ADD COLUMN scope TEXT NOT NULL DEFAULT 'user'",
-    );
+    let _ = tx.execute_batch("ALTER TABLE prompts ADD COLUMN scope TEXT NOT NULL DEFAULT 'user'");
     let _ = tx.execute_batch(
         "ALTER TABLE prompts ADD COLUMN frontmatter_extras TEXT NOT NULL DEFAULT 'null'",
     );
@@ -294,12 +296,19 @@ fn seed_preset_skills(conn: &Connection) {
 
     // Remove stale builtin skills no longer in presets
     if !preset_ids.is_empty() {
-        let placeholders: Vec<String> = preset_ids.iter().enumerate().map(|(i, _)| format!("?{}", i + 1)).collect();
+        let placeholders: Vec<String> = preset_ids
+            .iter()
+            .enumerate()
+            .map(|(i, _)| format!("?{}", i + 1))
+            .collect();
         let sql = format!(
             "DELETE FROM prompts WHERE id LIKE 'builtin-%' AND id NOT IN ({})",
             placeholders.join(", ")
         );
-        let params: Vec<&dyn rusqlite::types::ToSql> = preset_ids.iter().map(|id| id as &dyn rusqlite::types::ToSql).collect();
+        let params: Vec<&dyn rusqlite::types::ToSql> = preset_ids
+            .iter()
+            .map(|id| id as &dyn rusqlite::types::ToSql)
+            .collect();
         conn.execute(&sql, params.as_slice()).ok();
     }
 
@@ -321,8 +330,14 @@ fn seed_preset_skills(conn: &Connection) {
 
         if !exists {
             let name = skill.get("name").and_then(|v| v.as_str()).unwrap_or("");
-            let description = skill.get("description").and_then(|v| v.as_str()).unwrap_or("");
-            let instructions = skill.get("instructions").and_then(|v| v.as_str()).unwrap_or("");
+            let description = skill
+                .get("description")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let instructions = skill
+                .get("instructions")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             let sort_order = skill.get("sortOrder").and_then(|v| v.as_i64()).unwrap_or(0);
 
             conn.execute(
@@ -355,7 +370,8 @@ fn seed_preset_skills(conn: &Connection) {
                     conn.execute(
                         "UPDATE skill_references SET name = ?1, content = ?2 WHERE id = ?3",
                         rusqlite::params![ref_name, ref_content, ref_id],
-                    ).ok();
+                    )
+                    .ok();
                 } else {
                     conn.execute(
                         "INSERT INTO skill_references (id, skill_id, name, content, sort_order) VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -388,12 +404,19 @@ fn seed_preset_agents(conn: &Connection) {
 
     // Remove stale builtin agents no longer in presets
     if !preset_ids.is_empty() {
-        let placeholders: Vec<String> = preset_ids.iter().enumerate().map(|(i, _)| format!("?{}", i + 1)).collect();
+        let placeholders: Vec<String> = preset_ids
+            .iter()
+            .enumerate()
+            .map(|(i, _)| format!("?{}", i + 1))
+            .collect();
         let sql = format!(
             "DELETE FROM agents WHERE id LIKE 'builtin-%' AND id NOT IN ({})",
             placeholders.join(", ")
         );
-        let params: Vec<&dyn rusqlite::types::ToSql> = preset_ids.iter().map(|id| id as &dyn rusqlite::types::ToSql).collect();
+        let params: Vec<&dyn rusqlite::types::ToSql> = preset_ids
+            .iter()
+            .map(|id| id as &dyn rusqlite::types::ToSql)
+            .collect();
         conn.execute(&sql, params.as_slice()).ok();
     }
 
@@ -414,10 +437,18 @@ fn seed_preset_agents(conn: &Connection) {
 
         if !exists {
             let name = agent.get("name").and_then(|v| v.as_str()).unwrap_or("");
-            let description = agent.get("description").and_then(|v| v.as_str()).unwrap_or("");
-            let instructions = agent.get("instructions").and_then(|v| v.as_str()).unwrap_or("");
+            let description = agent
+                .get("description")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let instructions = agent
+                .get("instructions")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             let model = agent.get("model").and_then(|v| v.as_str());
-            let allowed_tools = agent.get("allowedTools").and_then(|v| serde_json::to_string(v).ok());
+            let allowed_tools = agent
+                .get("allowedTools")
+                .and_then(|v| serde_json::to_string(v).ok());
             let max_turns = agent.get("maxTurns").and_then(|v| v.as_i64()).unwrap_or(10);
             let sort_order = agent.get("sortOrder").and_then(|v| v.as_i64()).unwrap_or(0);
 

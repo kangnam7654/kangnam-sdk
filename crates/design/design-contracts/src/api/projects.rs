@@ -488,7 +488,10 @@ mod tests {
             serde_json::to_string(&ProjectKind::Prototype).unwrap(),
             "\"prototype\""
         );
-        assert_eq!(serde_json::to_string(&ProjectKind::Audio).unwrap(), "\"audio\"");
+        assert_eq!(
+            serde_json::to_string(&ProjectKind::Audio).unwrap(),
+            "\"audio\""
+        );
     }
 
     #[test]
@@ -706,13 +709,25 @@ mod tests {
     #[test]
     fn preflight_warning_codes_kebab_case() {
         for (slug, code) in [
-            ("broken-reference", DeployPreflightWarningCode::BrokenReference),
-            ("invalid-reference", DeployPreflightWarningCode::InvalidReference),
+            (
+                "broken-reference",
+                DeployPreflightWarningCode::BrokenReference,
+            ),
+            (
+                "invalid-reference",
+                DeployPreflightWarningCode::InvalidReference,
+            ),
             ("large-asset", DeployPreflightWarningCode::LargeAsset),
             ("large-bundle", DeployPreflightWarningCode::LargeBundle),
             ("large-html", DeployPreflightWarningCode::LargeHtml),
-            ("external-script", DeployPreflightWarningCode::ExternalScript),
-            ("external-stylesheet", DeployPreflightWarningCode::ExternalStylesheet),
+            (
+                "external-script",
+                DeployPreflightWarningCode::ExternalScript,
+            ),
+            (
+                "external-stylesheet",
+                DeployPreflightWarningCode::ExternalStylesheet,
+            ),
             ("no-doctype", DeployPreflightWarningCode::NoDoctype),
             ("no-viewport", DeployPreflightWarningCode::NoViewport),
         ] {

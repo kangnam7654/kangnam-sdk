@@ -24,7 +24,7 @@ pub struct TextBox {
 pub struct TextStyle {
     pub font_family: String,
     pub font_size_pt: f32,
-    pub font_weight: u32,   // 400 = normal, 700 = bold
+    pub font_weight: u32, // 400 = normal, 700 = bold
     pub color: Color,
     pub align: TextAlign,
     pub line_height: f32,
@@ -62,7 +62,12 @@ impl Default for TextStyle {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
-pub enum TextAlign { Left, Center, Right, Justify }
+pub enum TextAlign {
+    Left,
+    Center,
+    Right,
+    Justify,
+}
 
 /// Outer drop shadow effect (CSS `box-shadow` equivalent for OOXML shapes).
 ///
@@ -153,7 +158,13 @@ impl ShapeBox {
     /// // sb.shadow = Some(…);  // add shadow if needed
     /// ```
     pub fn new(frame: Frame, shape: ShapeKind, fill: Fill, stroke: Option<Stroke>) -> Self {
-        Self { frame, shape, fill, stroke, shadow: None }
+        Self {
+            frame,
+            shape,
+            fill,
+            stroke,
+            shadow: None,
+        }
     }
 }
 
@@ -176,20 +187,33 @@ pub struct ImageBox {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
-pub enum ImageMime { Png, Jpeg }
+pub enum ImageMime {
+    Png,
+    Jpeg,
+}
 
 impl ImageMime {
     pub fn ext(self) -> &'static str {
-        match self { Self::Png => "png", Self::Jpeg => "jpg" }
+        match self {
+            Self::Png => "png",
+            Self::Jpeg => "jpg",
+        }
     }
     pub fn content_type(self) -> &'static str {
-        match self { Self::Png => "image/png", Self::Jpeg => "image/jpeg" }
+        match self {
+            Self::Png => "image/png",
+            Self::Jpeg => "image/jpeg",
+        }
     }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
-pub enum ImageFit { Cover, Contain, Fill }
+pub enum ImageFit {
+    Cover,
+    Contain,
+    Fill,
+}
 
 #[cfg(test)]
 mod tests {

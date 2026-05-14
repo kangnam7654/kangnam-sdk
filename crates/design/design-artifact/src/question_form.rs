@@ -35,7 +35,11 @@ pub struct Question {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub options: Vec<String>,
     /// For `checkbox` only.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "maxSelections")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "maxSelections"
+    )]
     pub max_selections: Option<u32>,
     /// For `direction-cards`. Each card is a free-form JSON object so we
     /// don't have to model every visual detail in the type system.

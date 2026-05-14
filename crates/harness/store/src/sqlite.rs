@@ -10,8 +10,8 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use kangnam_harness_core::{Agent, Hook, HookEvent, Permission, Scope, Skill, Tool};
-use rusqlite::{params, Connection};
-use serde::{de::DeserializeOwned, Serialize};
+use rusqlite::{Connection, params};
+use serde::{Serialize, de::DeserializeOwned};
 
 use crate::{HarnessStore, Result, StoreError};
 
@@ -135,11 +135,7 @@ fn list_blobs<T: DeserializeOwned>(
         .collect()
 }
 
-fn get_blob<T: DeserializeOwned>(
-    conn: &Connection,
-    table: &str,
-    id: &str,
-) -> Result<Option<T>> {
+fn get_blob<T: DeserializeOwned>(conn: &Connection, table: &str, id: &str) -> Result<Option<T>> {
     let sql = format!("SELECT data FROM {table} WHERE id = ?1");
     let mut stmt = conn.prepare(&sql)?;
     let mut rows = stmt.query(params![id])?;
@@ -202,7 +198,8 @@ impl HarnessStore for SqliteStore {
         scope: Option<Scope>,
     ) -> Result<Vec<Hook>> {
         let conn = self.conn.lock().expect("store mutex poisoned");
-        let event_str = event.map(|e| serde_json::to_value(e))
+        let event_str = event
+            .map(|e| serde_json::to_value(e))
             .transpose()?
             .and_then(|v| v.as_str().map(str::to_owned));
         let scope_param = scope.map(scope_str);
@@ -210,7 +207,8 @@ impl HarnessStore for SqliteStore {
         let (sql, params_vec): (String, Vec<Box<dyn rusqlite::ToSql>>) =
             match (&event_str, scope_param) {
                 (Some(e), Some(s)) => (
-                    "SELECT data FROM harness_hooks WHERE event = ?1 AND scope = ?2 ORDER BY id".into(),
+                    "SELECT data FROM harness_hooks WHERE event = ?1 AND scope = ?2 ORDER BY id"
+                        .into(),
                     vec![Box::new(e.clone()), Box::new(s.to_string())],
                 ),
                 (Some(e), None) => (
@@ -221,15 +219,14 @@ impl HarnessStore for SqliteStore {
                     "SELECT data FROM harness_hooks WHERE scope = ?1 ORDER BY id".into(),
                     vec![Box::new(s.to_string())],
                 ),
-                (None, None) => (
-                    "SELECT data FROM harness_hooks ORDER BY id".into(),
-                    vec![],
-                ),
+                (None, None) => ("SELECT data FROM harness_hooks ORDER BY id".into(), vec![]),
             };
 
         let mut stmt = conn.prepare(&sql)?;
-        let param_refs: Vec<&dyn rusqlite::ToSql> =
-            params_vec.iter().map(|p| p.as_ref() as &dyn rusqlite::ToSql).collect();
+        let param_refs: Vec<&dyn rusqlite::ToSql> = params_vec
+            .iter()
+            .map(|p| p.as_ref() as &dyn rusqlite::ToSql)
+            .collect();
         let rows: Vec<String> = stmt
             .query_map(param_refs.as_slice(), |row| row.get(0))?
             .collect::<std::result::Result<_, _>>()?;

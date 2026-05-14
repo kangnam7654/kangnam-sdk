@@ -36,13 +36,17 @@ pub struct SrcdocOpts {
 /// Wrap an artifact body for sandboxed iframe rendering.
 pub fn wrap_srcdoc(body: &str, opts: &SrcdocOpts) -> String {
     let trimmed = body.trim_start();
-    let already_full =
-        trimmed.starts_with("<!doctype") || trimmed.starts_with("<!DOCTYPE") || trimmed.starts_with("<html");
+    let already_full = trimmed.starts_with("<!doctype")
+        || trimmed.starts_with("<!DOCTYPE")
+        || trimmed.starts_with("<html");
     if opts.passthrough_full_documents && already_full {
         return body.to_string();
     }
 
-    let channel = opts.error_channel.as_deref().unwrap_or("design-artifact-iframe");
+    let channel = opts
+        .error_channel
+        .as_deref()
+        .unwrap_or("design-artifact-iframe");
     let base_tag = match opts.base_href.as_deref() {
         Some(href) => format!("<base href=\"{}\">", html_escape_attr(href)),
         None => String::new(),

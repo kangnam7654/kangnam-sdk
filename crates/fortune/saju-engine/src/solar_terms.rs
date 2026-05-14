@@ -73,13 +73,13 @@ pub fn effective_year_for_pillar(
     let ts = kst.from_local_datetime(&dt).single()?.timestamp();
 
     // 해당 년도의 입춘(term_idx=0) 절입 시각 찾기.
-    let ipchun = data::SOLAR_TERMS_KST
-        .iter()
-        .find(|(_, idx)| *idx == 0u8 && {
+    let ipchun = data::SOLAR_TERMS_KST.iter().find(|(_, idx)| {
+        *idx == 0u8 && {
             // 정확한 매칭: 해당 year의 입춘 entry — 단순히 첫 입춘이 아님.
             // 데이터는 1900~2100 정렬이라 year별 1번씩 존재. naive하게 year 기준 매칭.
             true
-        });
+        }
+    });
     let _ = ipchun;
 
     // year별 입춘 timestamp 정확히 찾기 — KST 변환된 datetime의 year 비교
@@ -116,7 +116,9 @@ mod tests {
 
     /// 月支 index → 한글 (검증 가독성용)
     fn idx_to_branch(i: usize) -> &'static str {
-        const NAMES: [&str; 12] = ["인", "묘", "진", "사", "오", "미", "신", "유", "술", "해", "자", "축"];
+        const NAMES: [&str; 12] = [
+            "인", "묘", "진", "사", "오", "미", "신", "유", "술", "해", "자", "축",
+        ];
         NAMES[i]
     }
 
@@ -171,18 +173,11 @@ mod tests {
             let dt = chrono::DateTime::from_timestamp(ts, 0)
                 .unwrap()
                 .with_timezone(&kst);
-            by_year
-                .entry(dt.year())
-                .or_default()
-                .push(idx);
+            by_year.entry(dt.year()).or_default().push(idx);
         }
         for year in 1950..=2050 {
             let count = by_year.get(&year).map(|v| v.len()).unwrap_or(0);
-            assert_eq!(
-                count, 24,
-                "year {} has {} terms (expected 24)",
-                year, count
-            );
+            assert_eq!(count, 24, "year {} has {} terms (expected 24)", year, count);
         }
     }
 

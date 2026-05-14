@@ -572,7 +572,7 @@ impl CodexLocalProvider {
             message: format!("failed to wait for codex CLI: {e}"),
         })?;
 
-        cost += estimate_codex_cost(input_tokens, output_tokens);
+        cost += crate::pricing::estimate_codex_cost(input_tokens as u32, output_tokens as u32);
 
         if !exit_status.success() {
             let stderr = cmd
@@ -765,7 +765,7 @@ impl CodexLocalProvider {
             .map(|h| h.join().unwrap_or_default())
             .unwrap_or_default();
 
-        cost += estimate_codex_cost(input_tokens, output_tokens);
+        cost += crate::pricing::estimate_codex_cost(input_tokens as u32, output_tokens as u32);
 
         if !exit_status.success() {
             let err_source = if !error_msg.is_empty() {

@@ -15,11 +15,9 @@ use async_trait::async_trait;
 use serde_json::{Value, json};
 use tokio::sync::oneshot;
 
-use kangnam_harness_llm_bridge::mcp::{
-    ClientInfo, InMemoryTransport, McpClient, McpError,
-};
-use kangnam_harness_llm_bridge::test_util::{MockLlmProvider, Step};
 use kangnam_harness_llm_bridge::LlmAgent;
+use kangnam_harness_llm_bridge::mcp::{ClientInfo, InMemoryTransport, McpClient, McpError};
+use kangnam_harness_llm_bridge::test_util::{MockLlmProvider, Step};
 use kangnam_harness_runtime::{
     DefaultCapabilities, FsCallbacks, ImageCallbacks, InteractionBridge, ToolCtx, ToolError,
     WebCallbacks,
@@ -159,7 +157,10 @@ async fn call_tool_flattens_text_blocks() {
         })),
     );
     let client = McpClient::from_in_memory(transport);
-    let result = client.call_tool("multiply", json!({"a": 6, "b": 7})).await.unwrap();
+    let result = client
+        .call_tool("multiply", json!({"a": 6, "b": 7}))
+        .await
+        .unwrap();
     assert!(!result.is_error);
     assert_eq!(result.flatten_text(), "result: 42");
 }

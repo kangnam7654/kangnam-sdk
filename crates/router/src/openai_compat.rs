@@ -127,8 +127,8 @@ impl OpenAICompatProvider {
                         // not a raw JSON object. Stringify here so the
                         // wire format is correct for LM Studio / OpenAI
                         // / vLLM / llama.cpp servers.
-                        let args_str = serde_json::to_string(arguments)
-                            .unwrap_or_else(|_| "{}".to_string());
+                        let args_str =
+                            serde_json::to_string(arguments).unwrap_or_else(|_| "{}".to_string());
                         tool_calls_array.push(json!({
                             "id": id,
                             "type": "function",
@@ -584,6 +584,29 @@ impl OpenAICompatProvider {
 }
 
 impl LlmProviderDyn for OpenAICompatProvider {
+    fn provider_key(&self) -> &'static str {
+        "openai_compat"
+    }
+
+    fn capabilities(&self) -> crate::ProviderCapabilities {
+        crate::ProviderCapabilities {
+            kind: crate::ProviderKind::OpenAiCompatible,
+            usage_support: crate::UsageSupport::FinalOnly,
+            supports_streaming: true,
+            supports_tool_calling: true,
+            supports_parallel_tool_calls: true,
+            supports_image_input: true,
+            supports_image_url: true,
+            supports_reasoning_effort: false,
+            supports_thinking_budget: false,
+            supports_prompt_cache: false,
+            supports_model_listing: true,
+            supports_web_search: false,
+            supports_local_read: false,
+            estimates_cost: false,
+        }
+    }
+
     fn render_dyn(
         &self,
         system_prompt: &str,

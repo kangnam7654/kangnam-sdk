@@ -1,7 +1,9 @@
 //! Integration tests for ClaudeProvider against a mocked HTTP server.
 
 use futures::StreamExt;
-use kangnam_router::{ChatMessage, LlmError, LlmProviderDyn, LlmStreamEvent, claude::ClaudeProvider};
+use kangnam_router::{
+    ChatMessage, LlmError, LlmProviderDyn, LlmStreamEvent, claude::ClaudeProvider,
+};
 use serde_json::json;
 use wiremock::{
     Mock, MockServer, ResponseTemplate,

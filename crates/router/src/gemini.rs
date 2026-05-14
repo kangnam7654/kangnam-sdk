@@ -56,12 +56,9 @@ const GEMINI_MODELS_URL: &str = "https://generativelanguage.googleapis.com/v1bet
 /// `cloudaicompanionProject`) returns 500 for non-FREE-tier accounts.
 /// gemini-cli does this dance on every cold start; we mirror it here.
 /// See `packages/core/src/code_assist/setup.ts` in google-gemini/gemini-cli.
-const CODE_ASSIST_LOAD_URL: &str =
-    "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist";
-const CODE_ASSIST_ONBOARD_URL: &str =
-    "https://cloudcode-pa.googleapis.com/v1internal:onboardUser";
-const CODE_ASSIST_OPERATION_URL_PREFIX: &str =
-    "https://cloudcode-pa.googleapis.com/v1internal/";
+const CODE_ASSIST_LOAD_URL: &str = "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist";
+const CODE_ASSIST_ONBOARD_URL: &str = "https://cloudcode-pa.googleapis.com/v1internal:onboardUser";
+const CODE_ASSIST_OPERATION_URL_PREFIX: &str = "https://cloudcode-pa.googleapis.com/v1internal/";
 const REQUEST_TIMEOUT_SECS: u64 = 60;
 const MAX_OUTPUT_TOKENS: u32 = 1024;
 const ONBOARD_POLL_INTERVAL_SECS: u64 = 2;
@@ -819,6 +816,29 @@ impl GeminiProvider {
 }
 
 impl LlmProviderDyn for GeminiProvider {
+    fn provider_key(&self) -> &'static str {
+        "gemini"
+    }
+
+    fn capabilities(&self) -> crate::ProviderCapabilities {
+        crate::ProviderCapabilities {
+            kind: crate::ProviderKind::Http,
+            usage_support: crate::UsageSupport::Streaming,
+            supports_streaming: true,
+            supports_tool_calling: true,
+            supports_parallel_tool_calls: true,
+            supports_image_input: true,
+            supports_image_url: false,
+            supports_reasoning_effort: false,
+            supports_thinking_budget: true,
+            supports_prompt_cache: false,
+            supports_model_listing: true,
+            supports_web_search: true, // gemini might support google search groundings
+            supports_local_read: false,
+            estimates_cost: false,
+        }
+    }
+
     fn render_dyn(
         &self,
         system_prompt: &str,

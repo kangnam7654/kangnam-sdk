@@ -45,6 +45,19 @@ Requires Rust 1.85+ (edition 2024) and a tokio runtime.
 
 Unknown provider keys fall back to `dummy`.
 
+### Provider Capabilities
+
+The router normalizes provider features into a queryable `ProviderCapabilities` struct.
+
+| Key | Tool Calling | Streaming | Usage/Cost | Vision | Reasoning Effort | Model List | Local Read | Web Search |
+|---|---|---|---|---|---|---|---|---|
+| `claude` | Yes | Yes (Streaming) | Yes / Yes | Yes | No | Yes | No | No |
+| `codex` | Yes | Yes (FinalOnly) | Yes / Yes | Yes | Yes | Yes | No | No |
+| `gemini` | Yes | Yes (Streaming) | Yes / No | Yes | No | Yes | No | Yes |
+| `openai_compat` | Yes | Yes (FinalOnly) | Yes / No | Yes | No | Yes | No | No |
+| `copilot` | No | Yes (None) | No / No | No | No | No | No | No |
+| `*_local` (CLIs)| No | Yes (varies) | varies | No | No | No | Yes | No |
+
 ## Quick Start
 
 ```rust

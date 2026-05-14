@@ -304,7 +304,10 @@ impl InMemoryTransport {
     }
 
     pub fn observed(&self) -> Vec<ObservedRequest> {
-        self.observed.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.observed
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 }
 

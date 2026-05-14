@@ -117,8 +117,8 @@ impl CodexProvider {
                     } => {
                         // Responses API: function calls are top-level input items
                         // with stringified `arguments` (matches OpenAI Chat Completions).
-                        let args_str = serde_json::to_string(arguments)
-                            .unwrap_or_else(|_| "{}".to_string());
+                        let args_str =
+                            serde_json::to_string(arguments).unwrap_or_else(|_| "{}".to_string());
                         out.push(json!({
                             "type": "function_call",
                             "call_id": id,
@@ -214,6 +214,29 @@ impl CodexProvider {
 }
 
 impl LlmProviderDyn for CodexProvider {
+    fn provider_key(&self) -> &'static str {
+        "codex"
+    }
+
+    fn capabilities(&self) -> crate::ProviderCapabilities {
+        crate::ProviderCapabilities {
+            kind: crate::ProviderKind::Http,
+            usage_support: crate::UsageSupport::FinalOnly,
+            supports_streaming: true,
+            supports_tool_calling: true,
+            supports_parallel_tool_calls: true,
+            supports_image_input: true,
+            supports_image_url: true,
+            supports_reasoning_effort: true,
+            supports_thinking_budget: false,
+            supports_prompt_cache: false,
+            supports_model_listing: true,
+            supports_web_search: false,
+            supports_local_read: false,
+            estimates_cost: true,
+        }
+    }
+
     fn render_dyn(
         &self,
         system_prompt: &str,

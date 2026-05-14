@@ -53,6 +53,98 @@ pub mod dummy;
 pub mod gemini;
 pub mod gemini_local;
 pub mod openai_compat;
+pub mod pricing;
+
+/// The kind of provider backend.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProviderKind {
+    /// Native HTTP API (e.g. Anthropic, OpenAI, Gemini).
+    Http,
+    /// OpenAI-compatible HTTP API.
+    OpenAiCompatible,
+    /// Local CLI tool (e.g. `claude`, `gh copilot`).
+    LocalCli,
+    /// Test dummy / unknown fallback.
+    Dummy,
+}
+
+/// How the provider reports token usage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UsageSupport {
+    /// Usage is never reported.
+    None,
+    /// Usage is only reported on the final response object.
+    FinalOnly,
+    /// Usage is streamed in chunks and reported on the final response object.
+    Streaming,
+}
+
+/// Comprehensive capability registry for an LLM provider.
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProviderCapabilities {
+    pub kind: ProviderKind,
+    pub usage_support: UsageSupport,
+    pub supports_streaming: bool,
+    pub supports_tool_calling: bool,
+    pub supports_parallel_tool_calls: bool,
+    pub supports_image_input: bool,
+    pub supports_image_url: bool,
+    pub supports_reasoning_effort: bool,
+    pub supports_thinking_budget: bool,
+    pub supports_prompt_cache: bool,
+    pub supports_model_listing: bool,
+    pub supports_web_search: bool,
+    pub supports_local_read: bool,
+    pub estimates_cost: bool,
+}
+
+impl ProviderCapabilities {
+    /// Safe defaults for an unknown provider.
+    pub fn dummy() -> Self {
+        Self {
+            kind: ProviderKind::Dummy,
+            usage_support: UsageSupport::None,
+            supports_streaming: false,
+            supports_tool_calling: false,
+            supports_parallel_tool_calls: false,
+            supports_image_input: false,
+            supports_image_url: false,
+            supports_reasoning_effort: false,
+            supports_thinking_budget: false,
+            supports_prompt_cache: false,
+            supports_model_listing: false,
+            supports_web_search: false,
+            supports_local_read: false,
+            estimates_cost: false,
+        }
+    }
+}
+
+/// Consolidated usage and cost information.
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct LlmUsage {
+    pub input_tokens: u32,
+    pub output_tokens: u32,
+    pub cache_creation_input_tokens: u32,
+    pub cache_read_input_tokens: u32,
+    pub estimated_cost_usd: f64,
+}
+
+impl LlmUsage {
+    /// Adds another usage struct to this one.
+    pub fn add(&mut self, other: &Self) {
+        self.input_tokens = self.input_tokens.saturating_add(other.input_tokens);
+        self.output_tokens = self.output_tokens.saturating_add(other.output_tokens);
+        self.cache_creation_input_tokens = self
+            .cache_creation_input_tokens
+            .saturating_add(other.cache_creation_input_tokens);
+        self.cache_read_input_tokens = self
+            .cache_read_input_tokens
+            .saturating_add(other.cache_read_input_tokens);
+        self.estimated_cost_usd += other.estimated_cost_usd;
+    }
+}
 
 use futures::stream::BoxStream;
 use serde::{Deserialize, Serialize};
@@ -572,6 +664,19 @@ pub struct LlmResponse {
     pub cache_read_input_tokens: Option<u32>,
 }
 
+impl LlmResponse {
+    /// Returns the consolidated usage and cost for this response.
+    pub fn usage(&self) -> LlmUsage {
+        LlmUsage {
+            input_tokens: self.input_tokens.unwrap_or(0),
+            output_tokens: self.output_tokens.unwrap_or(0),
+            cache_creation_input_tokens: self.cache_creation_input_tokens.unwrap_or(0),
+            cache_read_input_tokens: self.cache_read_input_tokens.unwrap_or(0),
+            estimated_cost_usd: self.estimated_cost_usd,
+        }
+    }
+}
+
 /// Event emitted by [`LlmProviderDyn::chat_stream_dyn`] and
 /// [`LlmProviderDyn::chat_stream_with_options_dyn`].
 ///
@@ -702,6 +807,16 @@ pub trait LlmProviderDyn: Send + Sync {
         None
     }
 
+    /// Returns the provider key (e.g., "claude", "openai_compat").
+    fn provider_key(&self) -> &'static str {
+        "unknown"
+    }
+
+    /// Returns the capabilities of this provider.
+    fn capabilities(&self) -> ProviderCapabilities {
+        ProviderCapabilities::dummy()
+    }
+
     fn render_dyn(
         &self,
         system_prompt: &str,
@@ -820,6 +935,24 @@ pub fn registered_providers() -> Vec<&'static str> {
     let mut keys: Vec<_> = REGISTRY.keys().copied().collect();
     keys.sort();
     keys
+}
+
+/// Returns the capabilities of a specific registered provider.
+pub fn provider_capabilities(provider_key: &str) -> ProviderCapabilities {
+    if let Some(factory) = REGISTRY.get(provider_key) {
+        if let Ok(provider) = factory("dummy", "dummy", "dummy") {
+            return provider.capabilities();
+        }
+    }
+    ProviderCapabilities::dummy()
+}
+
+/// List the capabilities of all registered providers.
+pub fn registered_provider_capabilities() -> Vec<ProviderCapabilities> {
+    registered_providers()
+        .into_iter()
+        .map(provider_capabilities)
+        .collect()
 }
 
 #[cfg(test)]

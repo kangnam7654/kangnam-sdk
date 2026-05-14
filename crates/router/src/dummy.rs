@@ -8,6 +8,14 @@ use super::{LlmProviderDyn, LlmResponse, LlmStreamEvent};
 pub struct DummyLlmProvider;
 
 impl LlmProviderDyn for DummyLlmProvider {
+    fn provider_key(&self) -> &'static str {
+        "dummy"
+    }
+
+    fn capabilities(&self) -> crate::ProviderCapabilities {
+        crate::ProviderCapabilities::dummy()
+    }
+
     fn render_dyn(
         &self,
         _system_prompt: &str,

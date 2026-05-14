@@ -115,10 +115,7 @@ impl McpClient {
     /// list and log a `tracing::warn!` if the server signals more
     /// pages. Round 24 will pull additional pages.
     pub async fn list_tools(&self) -> Result<Vec<McpTool>, McpError> {
-        let result = self
-            .transport
-            .request("tools/list", json!({}))
-            .await?;
+        let result = self.transport.request("tools/list", json!({})).await?;
 
         if result
             .get("nextCursor")

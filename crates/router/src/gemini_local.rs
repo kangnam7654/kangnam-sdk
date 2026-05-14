@@ -43,6 +43,29 @@ impl GeminiLocalProvider {
 }
 
 impl LlmProviderDyn for GeminiLocalProvider {
+    fn provider_key(&self) -> &'static str {
+        "gemini_local"
+    }
+
+    fn capabilities(&self) -> crate::ProviderCapabilities {
+        crate::ProviderCapabilities {
+            kind: crate::ProviderKind::LocalCli,
+            usage_support: crate::UsageSupport::None,
+            supports_streaming: true,
+            supports_tool_calling: false,
+            supports_parallel_tool_calls: false,
+            supports_image_input: false,
+            supports_image_url: false,
+            supports_reasoning_effort: false,
+            supports_thinking_budget: false,
+            supports_prompt_cache: false,
+            supports_model_listing: false,
+            supports_web_search: false,
+            supports_local_read: true,
+            estimates_cost: false,
+        }
+    }
+
     fn render_dyn(
         &self,
         system_prompt: &str,

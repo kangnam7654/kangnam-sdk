@@ -133,8 +133,7 @@ impl MockLlmProvider {
         if steps.is_empty() {
             return Err(LlmError::Network {
                 provider: "mock".into(),
-                msg: "MockLlmProvider script exhausted — bridge looped longer than expected"
-                    .into(),
+                msg: "MockLlmProvider script exhausted — bridge looped longer than expected".into(),
             });
         }
         let step = steps.remove(0);
@@ -147,13 +146,24 @@ impl MockLlmProvider {
 }
 
 impl LlmProviderDyn for MockLlmProvider {
+    fn provider_key(&self) -> &'static str {
+        "mock"
+    }
+
+    fn capabilities(&self) -> kangnam_router::ProviderCapabilities {
+        let mut capabilities = kangnam_router::ProviderCapabilities::dummy();
+        capabilities.usage_support = kangnam_router::UsageSupport::FinalOnly;
+        capabilities.supports_tool_calling = true;
+        capabilities.supports_parallel_tool_calls = true;
+        capabilities
+    }
+
     fn render_dyn(
         &self,
         _system_prompt: &str,
         _user_input: &str,
         _result_json: &Value,
-    ) -> Pin<Box<dyn std::future::Future<Output = Result<LlmResponse, LlmError>> + Send + '_>>
-    {
+    ) -> Pin<Box<dyn std::future::Future<Output = Result<LlmResponse, LlmError>> + Send + '_>> {
         Box::pin(async move {
             Err(LlmError::Network {
                 provider: "mock".into(),
@@ -168,8 +178,7 @@ impl LlmProviderDyn for MockLlmProvider {
         system_prompt: &str,
         messages: &[ChatMessage],
         _result_json: &Value,
-    ) -> Pin<Box<dyn std::future::Future<Output = Result<LlmResponse, LlmError>> + Send + '_>>
-    {
+    ) -> Pin<Box<dyn std::future::Future<Output = Result<LlmResponse, LlmError>> + Send + '_>> {
         // Lifetimes follow the trait's elided form: only `&self` outlives the
         // returned future. Snapshot the inputs into owned data so the future
         // doesn't borrow `system_prompt` / `messages`.
@@ -245,12 +254,7 @@ mod tests {
     async fn mock_provider_errors_when_script_exhausted() {
         let mock = MockLlmProvider::new(vec![]);
         let err = mock
-            .chat_with_options_dyn(
-                "",
-                &[],
-                &LlmRequestOptions::default(),
-                &json!({}),
-            )
+            .chat_with_options_dyn("", &[], &LlmRequestOptions::default(), &json!({}))
             .await
             .unwrap_err();
         assert!(matches!(err, LlmError::Network { .. }));

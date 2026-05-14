@@ -103,6 +103,9 @@ pub enum BridgeError {
     #[error("provider error: {0}")]
     Llm(#[from] LlmError),
 
+    #[error("provider does not support a required feature: {0}")]
+    UnsupportedProviderFeature(String),
+
     #[error("model invoked unknown tool '{name}' (registered: {registered:?})")]
     UnknownTool {
         name: String,
@@ -170,6 +173,8 @@ pub struct AgentRun {
     /// Number of model round-trips performed (1 = no tool calls; 2+ =
     /// at least one tool-call iteration).
     pub iterations: u32,
+    /// Total accumulated token usage and cost across all iterations.
+    pub total_usage: kangnam_router::LlmUsage,
 }
 
 /// Adapter wrapping an `AgentTool` with its model-facing description.
@@ -304,6 +309,13 @@ impl<C: Send + Sync + 'static> LlmAgent<C> {
         &self,
         mut messages: Vec<ChatMessage>,
     ) -> Result<AgentRun, BridgeError> {
+        if !self.tools.is_empty() && !self.provider.capabilities().supports_tool_calling {
+            return Err(BridgeError::UnsupportedProviderFeature(format!(
+                "provider '{}' does not support tool calling",
+                self.provider.provider_key()
+            )));
+        }
+
         if messages.is_empty() {
             return Err(BridgeError::InvalidMessages(
                 "message history must not be empty".into(),
@@ -315,6 +327,7 @@ impl<C: Send + Sync + 'static> LlmAgent<C> {
             ));
         }
         let mut tool_invocations: Vec<ToolInvocation> = Vec::new();
+        let mut total_usage = kangnam_router::LlmUsage::default();
 
         // Inject tool advertisements into options each call (clone so
         // caller-provided options remain unchanged across iterations).
@@ -362,6 +375,8 @@ impl<C: Send + Sync + 'static> LlmAgent<C> {
                 )
                 .await?;
 
+            total_usage.add(&resp.usage());
+
             if resp.tool_calls.is_empty() {
                 // Terminal answer — record as a plain assistant turn
                 // and return.
@@ -372,6 +387,7 @@ impl<C: Send + Sync + 'static> LlmAgent<C> {
                     final_text,
                     tool_invocations,
                     iterations: iter + 1,
+                    total_usage,
                 });
             }
 

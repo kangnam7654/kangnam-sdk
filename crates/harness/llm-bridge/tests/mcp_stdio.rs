@@ -79,7 +79,10 @@ async fn stdio_unknown_tool_returns_server_error() {
         .await
         .unwrap();
 
-    let err = client.call_tool("nonexistent", json!({})).await.unwrap_err();
+    let err = client
+        .call_tool("nonexistent", json!({}))
+        .await
+        .unwrap_err();
     match err {
         McpError::Server { code, message, .. } => {
             assert_eq!(code, -32602);
@@ -123,6 +126,9 @@ async fn stdio_concurrent_requests_do_not_interleave() {
     }
     assert_eq!(got.len(), 8);
     for i in 0..8 {
-        assert_eq!(got.get(&i).map(|s| s.as_str()), Some(format!("turn {i}").as_str()));
+        assert_eq!(
+            got.get(&i).map(|s| s.as_str()),
+            Some(format!("turn {i}").as_str())
+        );
     }
 }

@@ -167,8 +167,8 @@ impl CopilotProvider {
                         name,
                         arguments,
                     } => {
-                        let args_str = serde_json::to_string(arguments)
-                            .unwrap_or_else(|_| "{}".to_string());
+                        let args_str =
+                            serde_json::to_string(arguments).unwrap_or_else(|_| "{}".to_string());
                         tool_calls_array.push(json!({
                             "id": id,
                             "type": "function",
@@ -314,6 +314,29 @@ impl CopilotProvider {
 }
 
 impl LlmProviderDyn for CopilotProvider {
+    fn provider_key(&self) -> &'static str {
+        "copilot"
+    }
+
+    fn capabilities(&self) -> crate::ProviderCapabilities {
+        crate::ProviderCapabilities {
+            kind: crate::ProviderKind::Http,
+            usage_support: crate::UsageSupport::None,
+            supports_streaming: true,
+            supports_tool_calling: false, // experimental
+            supports_parallel_tool_calls: false,
+            supports_image_input: false,
+            supports_image_url: false,
+            supports_reasoning_effort: false,
+            supports_thinking_budget: false,
+            supports_prompt_cache: false,
+            supports_model_listing: false,
+            supports_web_search: false,
+            supports_local_read: false,
+            estimates_cost: false,
+        }
+    }
+
     fn render_dyn(
         &self,
         system_prompt: &str,

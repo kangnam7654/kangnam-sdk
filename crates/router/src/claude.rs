@@ -215,16 +215,6 @@ impl ClaudeProvider {
         }
     }
 
-    fn estimate_cost(model: &str, input_tokens: u32, output_tokens: u32) -> f64 {
-        let (input_rate, output_rate) = match model {
-            m if m.contains("haiku") => (0.25, 1.25),
-            m if m.contains("sonnet") => (3.0, 15.0),
-            m if m.contains("opus") => (15.0, 75.0),
-            _ => (3.0, 15.0),
-        };
-        (input_tokens as f64 * input_rate + output_tokens as f64 * output_rate) / 1_000_000.0
-    }
-
     fn build_messages(messages: &[ChatMessage]) -> Vec<ClaudeMessage> {
         messages
             .iter()
@@ -811,7 +801,7 @@ impl ClaudeProvider {
                                                 .saturating_sub(last_emitted_output_tokens);
                                             if delta >= 50 {
                                                 let estimated_cost_usd =
-                                                    ClaudeProvider::estimate_cost(
+                                                    crate::pricing::estimate_claude_cost(
                                                         &actual_model,
                                                         input_tokens,
                                                         output_tokens,
@@ -840,7 +830,7 @@ impl ClaudeProvider {
                                     }
                                 }
                                 Some("message_stop") => {
-                                    let cost = ClaudeProvider::estimate_cost(
+                                    let cost = crate::pricing::estimate_claude_cost(
                                         &actual_model,
                                         input_tokens,
                                         output_tokens,
@@ -919,6 +909,29 @@ fn claude_http_error(
 }
 
 impl LlmProviderDyn for ClaudeProvider {
+    fn provider_key(&self) -> &'static str {
+        "claude"
+    }
+
+    fn capabilities(&self) -> crate::ProviderCapabilities {
+        crate::ProviderCapabilities {
+            kind: crate::ProviderKind::Http,
+            usage_support: crate::UsageSupport::Streaming,
+            supports_streaming: true,
+            supports_tool_calling: true,
+            supports_parallel_tool_calls: true,
+            supports_image_input: true,
+            supports_image_url: false,
+            supports_reasoning_effort: false,
+            supports_thinking_budget: true,
+            supports_prompt_cache: true,
+            supports_model_listing: true,
+            supports_web_search: false,
+            supports_local_read: false,
+            estimates_cost: true,
+        }
+    }
+
     fn render_dyn(
         &self,
         system_prompt: &str,
@@ -1200,7 +1213,7 @@ impl ClaudeProvider {
                         _ => {}
                     }
                 }
-                let cost = Self::estimate_cost(
+                let cost = crate::pricing::estimate_claude_cost(
                     &fallback_parsed.model,
                     fallback_parsed.usage.input_tokens,
                     fallback_parsed.usage.output_tokens,
@@ -1258,7 +1271,7 @@ impl ClaudeProvider {
             }
         }
 
-        let cost = Self::estimate_cost(
+        let cost = crate::pricing::estimate_claude_cost(
             &claude_resp.model,
             claude_resp.usage.input_tokens,
             claude_resp.usage.output_tokens,

@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- Support lunar birth-date normalization for saju readings.
+- Include precision metadata, daily pillar influences, and current daeun context in `daily_detail`.
+- Use precise solar-term distance for daeun start-age calculation when data is available.
+
 ## [0.1.0] - 2026-04-21
 
 ### Added

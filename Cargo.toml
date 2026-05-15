@@ -12,7 +12,7 @@ members = [
 exclude = ["crates/design/canvas-sdk-target"]
 
 [workspace.package]
-version = "0.3.0"
+version = "0.3.1"
 edition = "2024"
 rust-version = "1.85"
 authors = ["Kangnam Kim <kangnam7654@naver.com>"]
@@ -40,6 +40,7 @@ zip = { version = "2", default-features = false, features = ["deflate"] }
 base64 = "0.22"
 rand = "0.8"
 sha2 = "0.10"
+rs-klc = "0.2.0"
 
 # ── design-family shared deps (4+ design crates each) ──
 async-stream = "0.3"

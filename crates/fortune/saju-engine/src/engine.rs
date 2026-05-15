@@ -1,6 +1,6 @@
 use crate::{
-    self as saju, branches, daeun, daily, gongmang, interpretation, interpreter, lucky, monthly,
-    natal_categories, shinsal, ten_gods, types::*,
+    self as saju, branches, calendar, daeun, daily, elements, gongmang, interpretation,
+    interpreter, lucky, monthly, natal_categories, shinsal, ten_gods, types::*,
 };
 use chrono::{Datelike, NaiveDate};
 use serde_json::{Value, json};
@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 pub struct SajuEngine;
 
 /// 엔진 버전. 캐시 무효화 기준으로 사용된다.
-pub const SAJU_ENGINE_VERSION: &str = "saju-v1.3";
+pub const SAJU_ENGINE_VERSION: &str = "saju-v1.4";
 
 /// Public reading type keys supported by the saju engine.
 pub const SAJU_READING_TYPES: [&str; 19] = [
@@ -119,6 +119,184 @@ fn daily_detail_lead(detail: &daily::DailyDetailFortune) -> Value {
     })
 }
 
+fn normalize_gender(value: Option<&str>) -> Option<&'static str> {
+    match value.unwrap_or("").trim().to_ascii_lowercase().as_str() {
+        "m" | "male" | "man" | "남" | "남성" => Some("male"),
+        "f" | "female" | "woman" | "여" | "여성" => Some("female"),
+        _ => None,
+    }
+}
+
+fn relation_adjustment(relation: elements::ElementRelation) -> i32 {
+    match relation {
+        elements::ElementRelation::Generated => 9,
+        elements::ElementRelation::Same => 4,
+        elements::ElementRelation::Controls => 2,
+        elements::ElementRelation::Generates => -3,
+        elements::ElementRelation::Controlled => -8,
+    }
+}
+
+fn clamp_score(score: i32) -> i32 {
+    score.clamp(30, 98)
+}
+
+fn pillar_influence_score(pillar: Pillar, today: Pillar) -> i32 {
+    let stem_relation = elements::relation(pillar.stem.element(), today.stem.element());
+    let branch_relation = elements::relation(pillar.branch.element(), today.branch.element());
+    clamp_score(70 + relation_adjustment(stem_relation) + relation_adjustment(branch_relation) / 2)
+}
+
+fn pillar_influence_json(position: &str, pillar: Pillar, today: Pillar) -> Value {
+    let stem_relation = elements::relation(pillar.stem.element(), today.stem.element());
+    let branch_relation = elements::relation(pillar.branch.element(), today.branch.element());
+    json!({
+        "position": position,
+        "pillar": format!("{}", pillar),
+        "score": pillar_influence_score(pillar, today),
+        "stem_relation": stem_relation.korean(),
+        "branch_relation": branch_relation.korean(),
+    })
+}
+
+fn branch_relation_summary(
+    user_pillars: &FourPillars,
+    today: Pillar,
+    has_birth_time: bool,
+) -> Value {
+    let mut natal = vec![
+        user_pillars.year.branch,
+        user_pillars.month.branch,
+        user_pillars.day.branch,
+    ];
+    if has_birth_time {
+        natal.push(user_pillars.hour.branch);
+    }
+    let analysis = branches::analyze(&natal, &[today.branch]);
+    let adjustment = (analysis.yukhap_count as i32 * 4) + (analysis.samhap_count as i32 * 3)
+        - (analysis.sangchung_count as i32 * 6)
+        - (analysis.sanghyeong_count as i32 * 3);
+
+    json!({
+        "target_branch": today.branch.korean(),
+        "samhap_count": analysis.samhap_count,
+        "yukhap_count": analysis.yukhap_count,
+        "clash_count": analysis.sangchung_count,
+        "punishment_count": analysis.sanghyeong_count,
+        "adjustment": adjustment.clamp(-12, 12),
+    })
+}
+
+fn current_daeun_context(
+    user_pillars: &FourPillars,
+    birth_year: i32,
+    birth_month: u32,
+    birth_day: u32,
+    birth_hour: u32,
+    birth_minute: u32,
+    gender: Option<&str>,
+) -> (Option<Value>, i32) {
+    let Some(gender) = gender else {
+        return (None, 0);
+    };
+    let periods = daeun::calculate_daeun_with_time(
+        user_pillars,
+        birth_year,
+        birth_month,
+        birth_day,
+        birth_hour,
+        birth_minute,
+        gender,
+    );
+    let Some(period) = periods.iter().find(|p| p.is_current) else {
+        return (None, 0);
+    };
+    let adjustment = ((period.score - 70) / 4).clamp(-10, 8);
+    (
+        Some(json!({
+            "start_age": period.start_age,
+            "end_age": period.end_age,
+            "pillar": format!("{}{}", period.stem, period.branch),
+            "stem": period.stem,
+            "branch": period.branch,
+            "element": period.element,
+            "score": period.score,
+            "adjustment": adjustment,
+            "description": period.description,
+        })),
+        adjustment,
+    )
+}
+
+fn daily_v2_context(
+    user_pillars: &FourPillars,
+    today: Pillar,
+    has_birth_time: bool,
+    birth_year: i32,
+    birth_month: u32,
+    birth_day: u32,
+    birth_hour: u32,
+    birth_minute: u32,
+    gender: Option<&str>,
+) -> (Value, Option<Value>, i32, i32) {
+    let mut weighted_total = 0_i32;
+    let mut weight_sum = 0_i32;
+    let positions = [
+        ("year", user_pillars.year, 20),
+        ("month", user_pillars.month, 25),
+        ("day", user_pillars.day, 40),
+    ];
+    let mut pillars_json = Vec::new();
+    for (position, pillar, weight) in positions {
+        let score = pillar_influence_score(pillar, today);
+        weighted_total += score * weight;
+        weight_sum += weight;
+        pillars_json.push(pillar_influence_json(position, pillar, today));
+    }
+    if has_birth_time {
+        let score = pillar_influence_score(user_pillars.hour, today);
+        weighted_total += score * 15;
+        weight_sum += 15;
+        pillars_json.push(pillar_influence_json("hour", user_pillars.hour, today));
+    }
+
+    let natal_score = if weight_sum == 0 {
+        70
+    } else {
+        weighted_total / weight_sum
+    };
+    let branch_summary = branch_relation_summary(user_pillars, today, has_birth_time);
+    let branch_adjustment = branch_summary
+        .get("adjustment")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0) as i32;
+    let (daeun_json, daeun_adjustment) = current_daeun_context(
+        user_pillars,
+        birth_year,
+        birth_month,
+        birth_day,
+        birth_hour,
+        birth_minute,
+        gender,
+    );
+    let total_adjustment =
+        ((natal_score - 70) / 3 + branch_adjustment + daeun_adjustment).clamp(-18, 18);
+
+    (
+        json!({
+            "today_pillar": format!("{}", today),
+            "natal_score": natal_score,
+            "pillars": pillars_json,
+            "branch_relations": branch_summary,
+            "daeun_adjustment": daeun_adjustment,
+            "total_adjustment": total_adjustment,
+        }),
+        daeun_json,
+        total_adjustment,
+        daeun_adjustment,
+    )
+}
+
 fn saju_lead(
     comp: &interpretation::Interpretation,
     balance_text: &str,
@@ -149,9 +327,21 @@ fn saju_lead(
 }
 
 impl SajuEngine {
-    /// birth_date ("YYYY-MM-DD"), birth_time ("HH:MM" or "HH") 파싱
-    /// 반환: (year, month, day, hour, minute, has_birth_time)
-    fn parse_birth_data(input: &Value) -> Option<(i32, u32, u32, u32, u32, bool)> {
+    fn is_lunar_leap_month(input: &Value) -> bool {
+        input
+            .get("is_lunar_leap_month")
+            .or_else(|| input.get("lunar_leap_month"))
+            .or_else(|| {
+                input
+                    .get("options")
+                    .and_then(|o| o.get("is_lunar_leap_month"))
+            })
+            .or_else(|| input.get("options").and_then(|o| o.get("lunar_leap_month")))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+    }
+
+    fn parse_normalized_birth_date(input: &Value) -> Option<calendar::NormalizedBirthDate> {
         let birth_date = input.get("birth_date").and_then(|v| v.as_str())?;
         let parts: Vec<&str> = birth_date.split('-').collect();
         if parts.len() != 3 {
@@ -161,7 +351,21 @@ impl SajuEngine {
         let year: i32 = parts[0].parse().ok()?;
         let month: u32 = parts[1].parse().ok()?;
         let day: u32 = parts[2].parse().ok()?;
-        NaiveDate::from_ymd_opt(year, month, day)?;
+        let calendar_type = input.get("calendar_type").and_then(|v| v.as_str());
+        calendar::normalize_birth_date(
+            year,
+            month,
+            day,
+            calendar_type,
+            Self::is_lunar_leap_month(input),
+        )
+    }
+
+    /// birth_date ("YYYY-MM-DD"), birth_time ("HH:MM" or "HH") 파싱
+    /// 반환: (year, month, day, hour, minute, has_birth_time)
+    fn parse_birth_data(input: &Value) -> Option<(i32, u32, u32, u32, u32, bool)> {
+        let birth = Self::parse_normalized_birth_date(input)?;
+        NaiveDate::from_ymd_opt(birth.solar_year, birth.solar_month, birth.solar_day)?;
 
         let parsed = match input
             .get("birth_time")
@@ -177,7 +381,14 @@ impl SajuEngine {
         // 시간 미상이면 오시(정오) 기본값
         let (hour, minute) = parsed.unwrap_or((12, 0));
 
-        Some((year, month, day, hour, minute, has_birth_time))
+        Some((
+            birth.solar_year,
+            birth.solar_month,
+            birth.solar_day,
+            hour,
+            minute,
+            has_birth_time,
+        ))
     }
 
     fn generate_daily(&self, input: &Value, version: &str) -> (Value, String) {
@@ -233,6 +444,35 @@ impl SajuEngine {
         let user_pillars = saju::calculate_four_pillars_precise(year, month, day, hour, minute);
         let detail = daily::calculate_daily_detail(&user_pillars, has_birth_time);
         let lead = daily_detail_lead(&detail);
+        let birth = Self::parse_normalized_birth_date(input).expect("birth data parsed above");
+        let gender = normalize_gender(input.get("gender").and_then(|v| v.as_str()));
+        let (daily_influences, current_daeun, score_delta, _daeun_delta) = daily_v2_context(
+            &user_pillars,
+            detail.base.today_pillar,
+            has_birth_time,
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            gender,
+        );
+        let mut missing_inputs = Vec::new();
+        if !has_birth_time {
+            missing_inputs.push("birth_time");
+        }
+        if gender.is_none() {
+            missing_inputs.push("gender");
+        }
+
+        let overall_score = clamp_score(detail.base.scores.overall + score_delta);
+        let love_score = clamp_score(detail.base.scores.love + score_delta);
+        let career_score = clamp_score(detail.base.scores.career + score_delta);
+        let health_score = clamp_score(detail.base.scores.health + score_delta / 2);
+        let wealth_score = clamp_score(detail.category_details.wealth.score + score_delta);
+        let study_score = clamp_score(detail.category_details.study.score + score_delta / 2);
+        let travel_score = clamp_score(detail.category_details.travel.score + score_delta / 2);
+        let relations_score = clamp_score(detail.category_details.relations.score + score_delta);
 
         // v0.0.3 — 일간 + 가장 부족 오행 두 갈래 행운 아이템 (web /today 무료 노출용).
         let lk = lucky::analyze(&user_pillars, has_birth_time);
@@ -256,23 +496,35 @@ impl SajuEngine {
             "day_master": format!("{} {}", detail.base.day_master.korean(), detail.base.day_master.element().korean()),
             "relation": detail.base.relation.korean(),
             "scores": {
-                "overall": detail.base.scores.overall,
-                "love": detail.base.scores.love,
-                "career": detail.base.scores.career,
-                "health": detail.base.scores.health,
-                "wealth": detail.category_details.wealth.score,
+                "overall": overall_score,
+                "love": love_score,
+                "career": career_score,
+                "health": health_score,
+                "wealth": wealth_score,
             },
             "advice": detail.base.advice,
             "caution": detail.base.caution,
             "lead": lead,
+            "precision": {
+                "level": if has_birth_time && gender.is_some() { "full" } else { "partial" },
+                "birth_time_status": if has_birth_time { "known" } else { "unknown" },
+                "daeun_status": if gender.is_some() { "included" } else { "omitted" },
+                "calendar_type": birth.calendar_type(),
+                "normalized_birth_date": birth.solar_date_string(),
+                "is_lunar_converted": birth.was_converted(),
+                "is_lunar_leap_month": birth.is_lunar_leap_month,
+            },
+            "missing_inputs": missing_inputs,
+            "daily_influences": daily_influences,
+            "current_daeun": current_daeun,
             "category_details": {
-                "love": { "score": detail.category_details.love.score, "advice": detail.category_details.love.advice },
-                "career": { "score": detail.category_details.career.score, "advice": detail.category_details.career.advice },
-                "health": { "score": detail.category_details.health.score, "advice": detail.category_details.health.advice },
-                "wealth": { "score": detail.category_details.wealth.score, "advice": detail.category_details.wealth.advice },
-                "study": { "score": detail.category_details.study.score, "advice": detail.category_details.study.advice },
-                "travel": { "score": detail.category_details.travel.score, "advice": detail.category_details.travel.advice },
-                "relations": { "score": detail.category_details.relations.score, "advice": detail.category_details.relations.advice },
+                "love": { "score": love_score, "advice": detail.category_details.love.advice },
+                "career": { "score": career_score, "advice": detail.category_details.career.advice },
+                "health": { "score": health_score, "advice": detail.category_details.health.advice },
+                "wealth": { "score": wealth_score, "advice": detail.category_details.wealth.advice },
+                "study": { "score": study_score, "advice": detail.category_details.study.advice },
+                "travel": { "score": travel_score, "advice": detail.category_details.travel.advice },
+                "relations": { "score": relations_score, "advice": detail.category_details.relations.advice },
             },
             "hourly_fortunes": hourly,
             "lucky_items": {
@@ -667,8 +919,15 @@ impl SajuEngine {
             birth_minute,
         );
 
-        let periods =
-            daeun::calculate_daeun(&user_pillars, birth_year, birth_month, birth_day, gender);
+        let periods = daeun::calculate_daeun_with_time(
+            &user_pillars,
+            birth_year,
+            birth_month,
+            birth_day,
+            birth_hour,
+            birth_minute,
+            gender,
+        );
 
         let current_period_index: Option<usize> = periods.iter().position(|p| p.is_current);
 
@@ -1376,6 +1635,7 @@ mod content_depth_tests {
             "birth_date": "1990-05-15",
             "birth_time": "14:00",
             "gender": "male",
+            "calendar_type": "solar",
         })
     }
 
@@ -1478,6 +1738,86 @@ mod content_depth_tests {
                 .and_then(|v| v.as_str())
                 .is_some_and(|v| v.contains("실제 행동"))
         );
+    }
+
+    #[test]
+    fn daily_detail_v2_includes_precision_influences_and_daeun() {
+        let (result, _version) = SajuEngine.generate("daily_detail", &saju_input_with_time());
+
+        assert_eq!(result["precision"]["level"], "full");
+        assert_eq!(result["precision"]["birth_time_status"], "known");
+        assert_eq!(result["precision"]["daeun_status"], "included");
+        assert!(
+            result["missing_inputs"]
+                .as_array()
+                .is_some_and(|items| items.is_empty())
+        );
+        assert!(result.get("daily_influences").is_some());
+        assert!(
+            result["daily_influences"]["pillars"]
+                .as_array()
+                .is_some_and(|items| items.iter().any(|item| item["position"] == "hour"))
+        );
+        assert!(result.get("current_daeun").is_some());
+        assert!(
+            result["scores"]["overall"]
+                .as_i64()
+                .is_some_and(|s| (30..=98).contains(&s))
+        );
+    }
+
+    #[test]
+    fn daily_detail_without_birth_time_marks_partial_and_excludes_hour() {
+        let (result, _version) = SajuEngine.generate(
+            "daily_detail",
+            &json!({
+                "birth_date": "1990-05-15",
+                "gender": "male",
+                "calendar_type": "solar",
+            }),
+        );
+
+        assert_eq!(result["precision"]["level"], "partial");
+        assert_eq!(result["precision"]["birth_time_status"], "unknown");
+        assert!(
+            result["missing_inputs"]
+                .as_array()
+                .is_some_and(|items| items.iter().any(|item| item == "birth_time"))
+        );
+        assert!(
+            result["daily_influences"]["pillars"]
+                .as_array()
+                .is_some_and(|items| !items.iter().any(|item| item["position"] == "hour"))
+        );
+    }
+
+    #[test]
+    fn daily_detail_gender_changes_daeun_context() {
+        let male_input = saju_input_with_time();
+        let mut female_input = saju_input_with_time();
+        female_input["gender"] = json!("female");
+
+        let (male, _version) = SajuEngine.generate("daily_detail", &male_input);
+        let (female, _version) = SajuEngine.generate("daily_detail", &female_input);
+
+        assert_ne!(male["current_daeun"], female["current_daeun"]);
+    }
+
+    #[test]
+    fn daily_detail_lunar_input_is_converted_to_solar_birth_date() {
+        let (result, _version) = SajuEngine.generate(
+            "daily_detail",
+            &json!({
+                "birth_date": "2022-06-12",
+                "birth_time": "14:00",
+                "gender": "male",
+                "calendar_type": "lunar",
+            }),
+        );
+
+        assert_eq!(result["precision"]["calendar_type"], "lunar");
+        assert_eq!(result["precision"]["normalized_birth_date"], "2022-07-10");
+        assert_eq!(result["precision"]["is_lunar_converted"], true);
     }
 
     #[test]

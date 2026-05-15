@@ -56,6 +56,42 @@ pub fn precise_month_index(
     Some(precise_month_index_kst(ts))
 }
 
+fn timestamp_kst(year: i32, month: u32, day: u32, hour: u32, minute: u32) -> Option<i64> {
+    let kst = FixedOffset::east_opt(9 * 3600).unwrap();
+    let dt = NaiveDate::from_ymd_opt(year, month, day)?.and_hms_opt(hour, minute, 0)?;
+    Some(kst.from_local_datetime(&dt).single()?.timestamp())
+}
+
+/// 출생 시각 기준 다음/이전 24절기까지의 일수.
+///
+/// 대운 시작 나이 계산에서 쓰는 값이다. `forward=true`면 출생 후 다음 절기,
+/// `forward=false`면 출생 전 이전 절기를 찾는다. KST 기준이며 1900~2100
+/// 정밀 절기 테이블 범위 밖이면 `None`.
+pub fn adjacent_solar_term_days(
+    year: i32,
+    month: u32,
+    day: u32,
+    hour: u32,
+    minute: u32,
+    forward: bool,
+) -> Option<i32> {
+    if !(1900..=2100).contains(&year) {
+        return None;
+    }
+    let ts = timestamp_kst(year, month, day, hour, minute)?;
+    let idx = data::SOLAR_TERMS_KST.partition_point(|&(term_ts, _)| term_ts <= ts);
+    let term_ts = if forward {
+        data::SOLAR_TERMS_KST.get(idx).map(|(term_ts, _)| *term_ts)
+    } else {
+        idx.checked_sub(1)
+            .and_then(|prev| data::SOLAR_TERMS_KST.get(prev))
+            .map(|(term_ts, _)| *term_ts)
+    }?;
+    let seconds = if forward { term_ts - ts } else { ts - term_ts };
+    let days = ((seconds + 86_399) / 86_400).max(1);
+    i32::try_from(days).ok()
+}
+
 /// 입춘 절입 시각 기준 정확한 효력 년도 결정. 입춘 이전이면 전년도.
 /// 1900~2100 범위 밖이면 `None`.
 pub fn effective_year_for_pillar(

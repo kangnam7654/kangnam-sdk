@@ -1,4 +1,5 @@
 use super::elements::{self, ElementRelation};
+use super::solar_terms;
 use super::types::{Branch, FourPillars, Pillar, Polarity, Stem};
 use chrono::Datelike;
 
@@ -21,16 +22,33 @@ pub struct DaeunPeriod {
 ///   - 음남(陰男) 또는 양녀(陽女) → 역행(backward): 출생 월주에서 뒤로
 ///
 /// 대운 시작 나이(起大運):
-///   - 절기까지 남은 날을 정확히 계산하면 복잡하므로
-///     출생 월(1-12)을 기준으로 간략 계산:
-///     start_age ≈ (월 내 절기 위치) / 3 → 정수 (최소 1, 최대 9)
-///   - 실제로는 출생 후 다음/이전 절기까지 일수 ÷ 3 = 대운 시작 나이(년)
-///     여기서는 birth_month 기반 근사값 사용 (외부 크레이트 없음 조건)
+///   - 순행이면 출생 후 다음 절기까지의 일수, 역행이면 이전 절기부터 지난 일수
+///   - 일수 ÷ 3을 시작 나이로 환산하고 최소 1세로 보정
 pub fn calculate_daeun(
     user_pillars: &FourPillars,
     birth_year: i32,
     birth_month: u32,
     birth_day: u32,
+    gender: &str, // "M" or "F"
+) -> Vec<DaeunPeriod> {
+    calculate_daeun_with_time(
+        user_pillars,
+        birth_year,
+        birth_month,
+        birth_day,
+        12,
+        0,
+        gender,
+    )
+}
+
+pub fn calculate_daeun_with_time(
+    user_pillars: &FourPillars,
+    birth_year: i32,
+    birth_month: u32,
+    birth_day: u32,
+    birth_hour: u32,
+    birth_minute: u32,
     gender: &str, // "M" or "F"
 ) -> Vec<DaeunPeriod> {
     let is_male = gender.eq_ignore_ascii_case("M") || gender.eq_ignore_ascii_case("male");
@@ -39,24 +57,18 @@ pub fn calculate_daeun(
     // 순행: 양남 또는 음녀
     let forward = (is_male && year_stem_is_yang) || (!is_male && !year_stem_is_yang);
 
-    // 대운 시작 나이 근사 계산
-    // 절기는 월 초(보통 4~8일)에 위치. 출생일이 절기 이후라면
-    // 다음 절기까지 약 30일 - (birth_day - 절기일) 남음.
-    // 절기일을 월별 고정값으로 근사: 각 월의 절기는 약 5일로 설정.
-    let jieqi_day: u32 = 5;
-    let days_to_jieqi: i32 = if forward {
-        // 다음 절기까지 남은 날 (순행이면 다음 절기가 기준)
-        let next_jieqi_day =
-            days_in_month(birth_year, birth_month + 1) as i32 - birth_day as i32 + jieqi_day as i32;
-        next_jieqi_day.max(1)
-    } else {
-        // 이전 절기부터 지난 날 (역행이면 이전 절기가 기준)
-        let days_since = birth_day as i32 - jieqi_day as i32;
-        days_since.max(1)
-    };
+    let days_to_jieqi = solar_terms::adjacent_solar_term_days(
+        birth_year,
+        birth_month,
+        birth_day,
+        birth_hour,
+        birth_minute,
+        forward,
+    )
+    .unwrap_or_else(|| fallback_days_to_jieqi(birth_year, birth_month, birth_day, forward));
 
     // 대운 시작 나이: 날수 ÷ 3, 최소 1, 최대 9
-    let start_age = (days_to_jieqi / 3).clamp(1, 9);
+    let start_age = ((days_to_jieqi + 2) / 3).clamp(1, 9);
 
     // 출생 월주 인덱스 (천간+지지 조합의 60갑자 순번)
     // 월주에서 순행/역행으로 10년마다 한 간지씩 이동
@@ -113,7 +125,18 @@ pub fn calculate_daeun(
         .collect()
 }
 
-/// 월의 일수 (윤년 무관 근사 — 절기 계산용 보조 함수)
+fn fallback_days_to_jieqi(birth_year: i32, birth_month: u32, birth_day: u32, forward: bool) -> i32 {
+    let jieqi_day: u32 = 5;
+    if forward {
+        let next_jieqi_day =
+            days_in_month(birth_year, birth_month + 1) as i32 - birth_day as i32 + jieqi_day as i32;
+        next_jieqi_day.max(1)
+    } else {
+        (birth_day as i32 - jieqi_day as i32).max(1)
+    }
+}
+
+/// 월의 일수 (정밀 절기 테이블 범위 밖 fallback용)
 fn days_in_month(year: i32, month: u32) -> u32 {
     let m = ((month - 1) % 12) + 1;
     match m {
@@ -319,6 +342,26 @@ mod tests {
         // 다른 사람이므로 첫 번째 대운 천간이 다를 수 있음 (최소한 컴파일·실행 확인)
         assert_eq!(m_periods.len(), 8);
         assert_eq!(f_periods.len(), 8);
+    }
+
+    #[test]
+    fn same_chart_gender_changes_daeun_direction() {
+        let (pillars, by, bm, bd) = test_pillars_male();
+        let male = calculate_daeun(&pillars, by, bm, bd, "male");
+        let female = calculate_daeun(&pillars, by, bm, bd, "female");
+
+        assert_ne!(male[0].stem, female[0].stem);
+        assert_ne!(male[0].branch, female[0].branch);
+    }
+
+    #[test]
+    fn start_age_uses_precise_solar_term_distance() {
+        let (pillars, by, bm, bd) = test_pillars_male();
+        let days = crate::solar_terms::adjacent_solar_term_days(by, bm, bd, 12, 0, true).unwrap();
+        let expected = ((days + 2) / 3).clamp(1, 9);
+        let periods = calculate_daeun_with_time(&pillars, by, bm, bd, 12, 0, "male");
+
+        assert_eq!(periods[0].start_age, expected);
     }
 
     #[test]

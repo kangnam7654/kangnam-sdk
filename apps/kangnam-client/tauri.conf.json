@@ -1,10 +1,10 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicedoct0r/tauri-schema/refs/heads/latest/schema.json",
   "productName": "Kangnam Client",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "identifier": "com.kangnam.client",
   "build": {
-    "frontendDist": "../dist",
+    "frontendDist": "../../dist",
     "devUrl": "http://localhost:5173",
     "beforeDevCommand": "npm run tauri:dev:frontend",
     "beforeBuildCommand": "npm run tauri:build:frontend"

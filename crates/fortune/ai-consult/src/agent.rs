@@ -6,6 +6,7 @@ use kangnam_harness_llm_bridge::LlmAgent;
 use kangnam_harness_runtime::ToolCtx;
 use kangnam_router::{
     ChatMessage, LlmError, LlmProviderDyn, LlmRequestOptions, LlmResponse, LlmStreamEvent,
+    ProviderCapabilities,
 };
 use serde_json::Value;
 
@@ -102,6 +103,14 @@ impl AiConsultSession {
 struct SharedProvider(Arc<dyn LlmProviderDyn>);
 
 impl LlmProviderDyn for SharedProvider {
+    fn provider_key(&self) -> &'static str {
+        self.0.provider_key()
+    }
+
+    fn capabilities(&self) -> ProviderCapabilities {
+        self.0.capabilities()
+    }
+
     fn context_window_tokens(&self) -> Option<usize> {
         self.0.context_window_tokens()
     }

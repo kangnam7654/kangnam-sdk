@@ -49,7 +49,7 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri
+          workspaces: apps/kangnam-client
           cache-on-failure: true
 
       # Linux: install system deps for Tauri

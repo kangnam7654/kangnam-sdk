@@ -1,8 +1,8 @@
 //! Natal-category readings derived from the core saju result.
 //!
-//! These are interpretation composers, so they belong in `saju-engine`.
-//! Application backends should call `SajuEngine::generate("saju_wealth", input)`
-//! instead of rebuilding category narratives from SDK JSON.
+//! These are legacy compatibility composers for existing SDK reading types.
+//! New application backends should build user-facing category narratives from
+//! structured saju facts rather than parsing these strings.
 
 use serde_json::{Value, json};
 

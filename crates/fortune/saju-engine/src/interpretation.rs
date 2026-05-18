@@ -1,3 +1,5 @@
+//! Legacy compatibility prose for natal saju reports.
+//!
 //! 사주 종합 해석 — 일간·오행·십신을 합성해 5개 영역(본성·관계·일·돈·보완책)
 //! 단락과 1줄 헤드라인을 만들어낸다.
 //!
@@ -10,9 +12,11 @@
 //! count 분기) — 정밀한 격국·용신 판단은 다른 모듈(daeun/shinsal 등)에 두고
 //! 여기서는 일반 사용자가 한 화면에서 자기 사주를 "읽을 수 있게" 하는 게 목표.
 //!
-//! 출력은 `Interpretation` (Serialize) — engine.rs 의 `generate_saju()` 에서
-//! 그대로 result_json 에 박힌다. 키는 `interpretation.headline` /
-//! `interpretation.sections[].{key,title,body}`.
+//! 출력은 `Interpretation` (Serialize) — engine.rs 의 `generate_saju()` 호환
+//! 레이어에서 result_json 에 박힌다. 키는 `interpretation.headline` /
+//! `interpretation.sections[].{key,title,body}`. 새 서비스 레이어는 이 문장을
+//! 파싱하지 말고 `saju_core`, `signals`, `evidence` 같은 구조화 필드를 근거로
+//! 사용자 설명을 조립해야 한다.
 
 use crate::types::{ElementBalance, FourPillars, Stem, TenGod};
 use serde::{Deserialize, Serialize};

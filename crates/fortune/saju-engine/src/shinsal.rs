@@ -196,11 +196,21 @@ pub struct Shinsal {
     pub modern_take: &'static str,
 }
 
+/// 발현된 신살의 계산 결과. 사용자-facing 통변은 포함하지 않는다.
+#[derive(Debug, Clone, Serialize)]
+pub struct ShinsalFacts {
+    pub kind: ShinsalKind,
+    /// 사주 원국에서 신살이 자리한 기둥들 (1개 이상).
+    pub positions: Vec<ShinsalPosition>,
+    /// 단순화된 강도 = positions.len(). 1=잠재, 2=중, 3+=강.
+    pub intensity: u8,
+}
+
 /// 사주 원국에서 14종 신살 발현 여부를 판정.
 ///
 /// `has_birth_time = false` 이면 시주를 검사 대상에서 제외.
 /// 결과 Vec은 발현된 신살만 포함 (intensity ≥ 1). 순서는 enum 정의 순(12신살 순서 → 백호 → 천을귀인).
-pub fn analyze(pillars: &FourPillars, has_birth_time: bool) -> Vec<Shinsal> {
+pub fn calculate(pillars: &FourPillars, has_birth_time: bool) -> Vec<ShinsalFacts> {
     let mut out = Vec::new();
 
     // ── 12신살 전종 (년지 기준) ──────────────────────
@@ -228,11 +238,10 @@ pub fn analyze(pillars: &FourPillars, has_birth_time: bool) -> Vec<Shinsal> {
         let target = Branch::ALL[(kk + idx_offset) % 12];
         let positions = scan_branch_positions(pillars, target, has_birth_time);
         if !positions.is_empty() {
-            out.push(Shinsal {
+            out.push(ShinsalFacts {
                 kind,
                 intensity: positions.len() as u8,
                 positions,
-                modern_take: kind.modern_take(),
             });
         }
     }
@@ -240,11 +249,10 @@ pub fn analyze(pillars: &FourPillars, has_birth_time: bool) -> Vec<Shinsal> {
     // ── 백호살 ──────────────────────
     let baekho_positions = scan_baekho_positions(pillars, has_birth_time);
     if !baekho_positions.is_empty() {
-        out.push(Shinsal {
+        out.push(ShinsalFacts {
             kind: ShinsalKind::Baekho,
             intensity: baekho_positions.len() as u8,
             positions: baekho_positions,
-            modern_take: ShinsalKind::Baekho.modern_take(),
         });
     }
 
@@ -257,15 +265,30 @@ pub fn analyze(pillars: &FourPillars, has_birth_time: bool) -> Vec<Shinsal> {
     cheoneul_positions.sort_by_key(|p| *p as u8);
     cheoneul_positions.dedup();
     if !cheoneul_positions.is_empty() {
-        out.push(Shinsal {
+        out.push(ShinsalFacts {
             kind: ShinsalKind::Cheoneul,
             intensity: cheoneul_positions.len() as u8,
             positions: cheoneul_positions,
-            modern_take: ShinsalKind::Cheoneul.modern_take(),
         });
     }
 
     out
+}
+
+pub fn with_modern_take(facts: &ShinsalFacts) -> Shinsal {
+    Shinsal {
+        kind: facts.kind,
+        positions: facts.positions.clone(),
+        intensity: facts.intensity,
+        modern_take: facts.kind.modern_take(),
+    }
+}
+
+pub fn analyze(pillars: &FourPillars, has_birth_time: bool) -> Vec<Shinsal> {
+    calculate(pillars, has_birth_time)
+        .iter()
+        .map(with_modern_take)
+        .collect()
 }
 
 /// 년지가 속한 삼합의 겁살(劫殺) 위치 = 12신살 인덱스 0의 자리.

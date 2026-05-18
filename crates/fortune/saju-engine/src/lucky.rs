@@ -68,8 +68,17 @@ pub struct LuckyItems {
     pub interpretation: String,
 }
 
-/// 일간 + 오행 균형으로 행운 아이템 도출.
-pub fn analyze(pillars: &FourPillars, has_birth_time: bool) -> LuckyItems {
+/// 일간 + 오행 균형으로 도출한 행운 아이템 계산값. 통변 카피는 포함하지 않는다.
+#[derive(Debug, Clone, Serialize)]
+pub struct LuckyCoreItems {
+    /// 일간 오행 기반 — 자아·본질 색.
+    pub primary: LuckyTriple,
+    /// 가장 부족한 오행 기반 — 균형 회복 색. 진짜 용신은 v0.1.x.
+    pub supplementary: LuckyTriple,
+}
+
+/// 일간 + 오행 균형으로 행운 아이템 계산값만 도출.
+pub fn calculate(pillars: &FourPillars, has_birth_time: bool) -> LuckyCoreItems {
     let primary_elem = pillars.day.stem.element();
     let balance = ElementBalance::from_pillars_with_hour(pillars, has_birth_time);
     let supplementary_elem = balance.weakest();
@@ -77,13 +86,25 @@ pub fn analyze(pillars: &FourPillars, has_birth_time: bool) -> LuckyItems {
     let primary = LuckyTriple::for_element(primary_elem);
     let supplementary = LuckyTriple::for_element(supplementary_elem);
 
-    let interpretation = compose_interpretation(&primary, &supplementary);
-
-    LuckyItems {
+    LuckyCoreItems {
         primary,
         supplementary,
+    }
+}
+
+pub fn with_interpretation(core: &LuckyCoreItems) -> LuckyItems {
+    let interpretation = compose_interpretation(&core.primary, &core.supplementary);
+
+    LuckyItems {
+        primary: core.primary.clone(),
+        supplementary: core.supplementary.clone(),
         interpretation,
     }
+}
+
+/// 일간 + 오행 균형으로 행운 아이템과 legacy 통변을 함께 도출.
+pub fn analyze(pillars: &FourPillars, has_birth_time: bool) -> LuckyItems {
+    with_interpretation(&calculate(pillars, has_birth_time))
 }
 
 fn compose_interpretation(primary: &LuckyTriple, supplementary: &LuckyTriple) -> String {

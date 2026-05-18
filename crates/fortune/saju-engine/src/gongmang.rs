@@ -64,10 +64,25 @@ pub struct Gongmang {
     pub interpretation: String,
 }
 
+/// 공망 계산값. 사용자-facing 통변은 포함하지 않는다.
+#[derive(Debug, Clone, Serialize)]
+pub struct GongmangFacts {
+    /// 일주가 속한 60갑자 그룹 인덱스 (0 = 갑자순, 5 = 갑인순).
+    pub group_index: u8,
+    /// 그룹 이름 (예: "갑자순(甲子旬)").
+    pub group_name: &'static str,
+    /// 그룹의 공망 지지 2개.
+    pub empty_branches: [Branch; 2],
+    /// 사주 원국에서 공망 지지가 자리한 기둥 (일주 제외).
+    pub affected_palaces: Vec<Palace>,
+    /// 공망 지지의 본기 천간 기준 십성 (일간과의 상대 관계).
+    pub affected_ten_gods: Vec<TenGod>,
+}
+
 /// 일주(`pillars.day`)에서 공망을 산출하고 사주 원국과 비교하여 통변 생성.
 ///
 /// `has_birth_time = false` 이면 시주를 비교 대상에서 제외 (출생 시각 미상 케이스).
-pub fn analyze(pillars: &FourPillars, has_birth_time: bool) -> Gongmang {
+pub fn calculate(pillars: &FourPillars, has_birth_time: bool) -> GongmangFacts {
     let day = pillars.day;
     let group_index = group_index_of(day);
     let empty = empty_branches_for_group(group_index);
@@ -90,17 +105,39 @@ pub fn analyze(pillars: &FourPillars, has_birth_time: bool) -> Gongmang {
         .collect();
 
     let group_name = group_name(group_index);
-    let interpretation =
-        compose_interpretation(group_name, &empty, &affected_palaces, &affected_ten_gods);
 
-    Gongmang {
+    GongmangFacts {
         group_index,
         group_name,
         empty_branches: empty,
         affected_palaces,
         affected_ten_gods,
+    }
+}
+
+pub fn with_interpretation(facts: &GongmangFacts) -> Gongmang {
+    let interpretation = compose_interpretation(
+        facts.group_name,
+        &facts.empty_branches,
+        &facts.affected_palaces,
+        &facts.affected_ten_gods,
+    );
+
+    Gongmang {
+        group_index: facts.group_index,
+        group_name: facts.group_name,
+        empty_branches: facts.empty_branches,
+        affected_palaces: facts.affected_palaces.clone(),
+        affected_ten_gods: facts.affected_ten_gods.clone(),
         interpretation,
     }
+}
+
+/// 일주(`pillars.day`)에서 공망을 산출하고 사주 원국과 비교하여 legacy 통변 생성.
+///
+/// `has_birth_time = false` 이면 시주를 비교 대상에서 제외 (출생 시각 미상 케이스).
+pub fn analyze(pillars: &FourPillars, has_birth_time: bool) -> Gongmang {
+    with_interpretation(&calculate(pillars, has_birth_time))
 }
 
 /// 일주가 60갑자 어느 그룹(순, 旬)에 속하는지.

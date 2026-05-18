@@ -1,8 +1,10 @@
 //! Korean four-pillars (사주팔자) astrology computation engine.
 //!
 //! Pure-computation library: given a birth date/time, returns typed values
-//! (`FourPillars`, `ElementBalance`, `TenGod`, …) plus Korean interpretation
-//! text. No IO, no rendering, no database.
+//! (`FourPillars`, `ElementBalance`, `TenGod`, …). The legacy
+//! `SajuEngine::generate("saju", ...)` compatibility payload still includes
+//! Korean interpretation text, but calculation-first consumers should use the
+//! core saju fields instead. No IO, no rendering, no database.
 //!
 //! # Example
 //!
@@ -27,7 +29,7 @@
 //! - [`elements`] — Five-element relations (생/극, generating/controlling).
 //! - [`ten_gods`] — Ten-gods (십신) derivation and analysis.
 //! - [`branches`] — Earthly-branch relations (삼합/육합/상충/상형).
-//! - [`interpreter`] — Korean interpretation text generators.
+//! - [`interpreter`] — legacy Korean interpretation text generators.
 //! - [`daily`] — Daily fortune calculation (including `daily_detail`).
 //! - [`monthly`] — Monthly fortune over a whole year.
 //! - [`daeun`] — Great-luck (대운) 10-year period calculation.
@@ -64,6 +66,9 @@ pub use api::{
     SajuEngineRequest, SajuEngineResponse, generate_daily_saju, generate_saju_compatibility,
     generate_saju_profile, generate_saju_reading, parse_birth_input, parse_birth_time,
 };
-pub use engine::{SAJU_ENGINE_VERSION, SAJU_READING_TYPES, SajuEngine, is_valid_reading_type};
+pub use engine::{
+    SAJU_CORE_SCHEMA_VERSION, SAJU_ENGINE_VERSION, SAJU_READING_TYPES, SajuEngine,
+    is_valid_reading_type,
+};
 pub use pillars::{calculate_four_pillars, calculate_four_pillars_precise};
 pub use types::{Branch, Element, ElementBalance, FourPillars, Pillar, Polarity, Stem, TenGod};

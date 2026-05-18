@@ -8,7 +8,13 @@ use serde_json::{Value, json};
 pub struct SajuEngine;
 
 /// 엔진 버전. 캐시 무효화 기준으로 사용된다.
-pub const SAJU_ENGINE_VERSION: &str = "saju-v1.5";
+pub const SAJU_ENGINE_VERSION: &str = "saju-v1.6";
+
+/// Calculation-first saju schema. This path intentionally excludes prose
+/// fields so app/backend layers can compose their own user-facing explanation.
+pub const SAJU_CORE_SCHEMA_VERSION: &str = "saju_core_v1";
+
+const SAJU_LEGACY_PROSE_VERSION: &str = "saju_legacy_prose_v1";
 
 /// Public reading type keys supported by the saju engine.
 pub const SAJU_READING_TYPES: [&str; 18] = [
@@ -57,6 +63,24 @@ impl SajuEngine {
             "daeun" => self.generate_daeun(input, &version),
             _ => self.generate_fallback(reading_type, input, &version),
         }
+    }
+
+    /// Returns calculation-first natal saju facts without compatibility prose.
+    ///
+    /// `generate("saju", input)` keeps the historical response shape. New
+    /// service layers should prefer this core payload, or the `saju_core`
+    /// snapshot embedded in the compatibility response, when building their own
+    /// user-facing interpretation.
+    pub fn generate_saju_core(&self, input: &Value) -> (Value, String) {
+        let version = SAJU_ENGINE_VERSION.to_string();
+        let Some(core) = Self::build_saju_core_context(input) else {
+            return (
+                json!({"error": "사주 분석에는 생년월일시 정보가 필요합니다."}),
+                version,
+            );
+        };
+
+        (saju_core_json(&core), version)
     }
 }
 
@@ -309,6 +333,454 @@ fn approximate_daeun_start_date(
         .unwrap_or_else(|| format!("{target_year:04}-01-01"))
 }
 
+struct SajuCoreContext {
+    birth_year: i32,
+    birth_month: u32,
+    birth_day: u32,
+    birth_hour: u32,
+    birth_minute: u32,
+    has_birth_time: bool,
+    pillars: FourPillars,
+    day_master: Stem,
+    balance: ElementBalance,
+    ten_gods: Vec<(&'static str, TenGod)>,
+    gongmang: gongmang::GongmangFacts,
+    shinsal: Vec<shinsal::ShinsalFacts>,
+    lucky: lucky::LuckyCoreItems,
+    gender: String,
+    normalized_gender: Option<&'static str>,
+    birth: calendar::NormalizedBirthDate,
+}
+
+const ELEMENT_ORDER: [Element; 5] = [
+    Element::Wood,
+    Element::Fire,
+    Element::Earth,
+    Element::Metal,
+    Element::Water,
+];
+
+const TEN_GOD_ORDER: [TenGod; 10] = [
+    TenGod::Bigyeon,
+    TenGod::Geupjae,
+    TenGod::Sikshin,
+    TenGod::Sanggwan,
+    TenGod::Pyeonjae,
+    TenGod::Jeongjae,
+    TenGod::Pyeongwan,
+    TenGod::Jeonggwan,
+    TenGod::Pyeonin,
+    TenGod::Jeongin,
+];
+
+fn saju_core_json(core: &SajuCoreContext) -> Value {
+    let (four_pillars, four_pillars_detail) =
+        four_pillars_core_json(&core.pillars, core.has_birth_time);
+
+    json!({
+        "schema_version": SAJU_CORE_SCHEMA_VERSION,
+        "four_pillars": four_pillars,
+        "four_pillars_detail": four_pillars_detail,
+        "has_birth_time": core.has_birth_time,
+        "day_master": day_master_core_json(core.day_master),
+        "element_balance": element_balance_core_json(&core.balance),
+        "dominant_element": element_summary_json(&core.balance, dominant_element_for(&core.balance)),
+        "weakest_element": element_summary_json(&core.balance, weakest_element_for(&core.balance)),
+        "ten_gods": ten_gods_positions_json(&core.ten_gods),
+        "ten_gods_summary": ten_gods_summary_core_json(&core.ten_gods),
+        "gender": core.gender,
+        "calculation_basis": calculation_basis_json(core),
+        "daeun_summary": daeun_summary_core_json(core),
+        "gongmang": gongmang_core_json(&core.gongmang),
+        "shinsal": core.shinsal.iter().map(shinsal_core_json).collect::<Vec<_>>(),
+        "lucky": lucky_core_json(&core.lucky),
+        "signals": saju_signals_json(core),
+        "evidence": saju_evidence_json(core),
+    })
+}
+
+fn four_pillars_core_json(pillars: &FourPillars, has_birth_time: bool) -> (Value, Value) {
+    let mut four_pillars = json!({
+        "year": format!("{}", pillars.year),
+        "month": format!("{}", pillars.month),
+        "day": format!("{}", pillars.day),
+    });
+    let mut four_pillars_detail = json!({
+        "year": {"stem": day_master_info(pillars.year.stem), "branch": branch_info(pillars.year.branch)},
+        "month": {"stem": day_master_info(pillars.month.stem), "branch": branch_info(pillars.month.branch)},
+        "day": {"stem": day_master_info(pillars.day.stem), "branch": branch_info(pillars.day.branch)},
+    });
+
+    if has_birth_time {
+        four_pillars
+            .as_object_mut()
+            .unwrap()
+            .insert("hour".into(), json!(format!("{}", pillars.hour)));
+        four_pillars_detail.as_object_mut().unwrap().insert(
+            "hour".into(),
+            json!({"stem": day_master_info(pillars.hour.stem), "branch": branch_info(pillars.hour.branch)}),
+        );
+    }
+
+    (four_pillars, four_pillars_detail)
+}
+
+fn calculation_basis_json(core: &SajuCoreContext) -> Value {
+    json!({
+        "calendar_type": core.birth.calendar_type(),
+        "normalized_birth_date": core.birth.solar_date_string(),
+        "is_lunar_converted": core.birth.was_converted(),
+        "is_lunar_leap_month": core.birth.is_lunar_leap_month,
+        "birth_time_status": if core.has_birth_time { "known" } else { "unknown" },
+        "timezone": "KST",
+    })
+}
+
+fn day_master_core_json(day_master: Stem) -> Value {
+    json!({
+        "stem": day_master.korean(),
+        "hanja": day_master.hanja(),
+        "element": day_master.element().korean(),
+        "polarity": day_master.polarity().korean(),
+    })
+}
+
+fn element_balance_core_json(balance: &ElementBalance) -> Value {
+    json!({
+        "wood": balance.wood,
+        "fire": balance.fire,
+        "earth": balance.earth,
+        "metal": balance.metal,
+        "water": balance.water,
+        "total_count": balance.wood + balance.fire + balance.earth + balance.metal + balance.water,
+        "counts": ELEMENT_ORDER
+            .iter()
+            .map(|element| element_summary_json(balance, *element))
+            .collect::<Vec<_>>(),
+        "dominant_element": element_summary_json(balance, dominant_element_for(balance)),
+        "weakest_element": element_summary_json(balance, weakest_element_for(balance)),
+    })
+}
+
+fn element_key(element: Element) -> &'static str {
+    match element {
+        Element::Wood => "wood",
+        Element::Fire => "fire",
+        Element::Earth => "earth",
+        Element::Metal => "metal",
+        Element::Water => "water",
+    }
+}
+
+fn element_count(balance: &ElementBalance, element: Element) -> u8 {
+    match element {
+        Element::Wood => balance.wood,
+        Element::Fire => balance.fire,
+        Element::Earth => balance.earth,
+        Element::Metal => balance.metal,
+        Element::Water => balance.water,
+    }
+}
+
+fn element_summary_json(balance: &ElementBalance, element: Element) -> Value {
+    json!({
+        "key": element_key(element),
+        "element": element.korean(),
+        "count": element_count(balance, element),
+    })
+}
+
+fn dominant_element_for(balance: &ElementBalance) -> Element {
+    let mut best = Element::Wood;
+    let mut best_count = element_count(balance, best);
+    for element in ELEMENT_ORDER.into_iter().skip(1) {
+        let count = element_count(balance, element);
+        if count > best_count {
+            best = element;
+            best_count = count;
+        }
+    }
+    best
+}
+
+fn weakest_element_for(balance: &ElementBalance) -> Element {
+    let mut weakest = Element::Wood;
+    let mut weakest_count = element_count(balance, weakest);
+    for element in ELEMENT_ORDER.into_iter().skip(1) {
+        let count = element_count(balance, element);
+        if count < weakest_count {
+            weakest = element;
+            weakest_count = count;
+        }
+    }
+    weakest
+}
+
+fn ten_gods_positions_json(gods: &[(&'static str, TenGod)]) -> Vec<Value> {
+    gods.iter()
+        .map(|(position, god)| json!({"position": position, "god": god.korean()}))
+        .collect()
+}
+
+fn ten_god_count(gods: &[(&'static str, TenGod)], target: TenGod) -> usize {
+    gods.iter().filter(|(_, god)| *god == target).count()
+}
+
+fn strongest_ten_god(gods: &[(&'static str, TenGod)]) -> Option<(TenGod, usize)> {
+    let mut strongest = None;
+    for god in TEN_GOD_ORDER {
+        let count = ten_god_count(gods, god);
+        if count == 0 {
+            continue;
+        }
+        if strongest
+            .map(|(_, strongest_count)| count > strongest_count)
+            .unwrap_or(true)
+        {
+            strongest = Some((god, count));
+        }
+    }
+    strongest
+}
+
+fn ten_gods_summary_core_json(gods: &[(&'static str, TenGod)]) -> Value {
+    let counts = TEN_GOD_ORDER
+        .iter()
+        .map(|god| json!({"god": god.korean(), "count": ten_god_count(gods, *god)}))
+        .collect::<Vec<_>>();
+    let prominent = TEN_GOD_ORDER
+        .iter()
+        .filter_map(|god| {
+            let count = ten_god_count(gods, *god);
+            (count > 0).then(|| json!({"god": god.korean(), "count": count}))
+        })
+        .collect::<Vec<_>>();
+    let missing = TEN_GOD_ORDER
+        .iter()
+        .filter(|god| ten_god_count(gods, **god) == 0)
+        .map(|god| json!({"god": god.korean()}))
+        .collect::<Vec<_>>();
+    let strongest =
+        strongest_ten_god(gods).map(|(god, count)| json!({"god": god.korean(), "count": count}));
+
+    json!({
+        "source": "heavenly_stems",
+        "includes_day_master_self": true,
+        "positions": ten_gods_positions_json(gods),
+        "counts": counts,
+        "prominent": prominent,
+        "missing": missing,
+        "strongest": strongest,
+    })
+}
+
+fn daeun_period_core_json(period: &daeun::DaeunPeriod, day_master: Stem) -> Value {
+    let ten_god =
+        stem_from_korean(&period.stem).map(|stem| ten_gods::derive_ten_god(day_master, stem));
+    json!({
+        "start_age": period.start_age,
+        "end_age": period.end_age,
+        "pillar": format!("{}{}", period.stem, period.branch),
+        "stem": period.stem,
+        "branch": period.branch,
+        "element": period.element,
+        "ten_god": ten_god.map(|god| god.korean()),
+        "score": period.score,
+        "is_current": period.is_current,
+    })
+}
+
+fn daeun_summary_core_json(core: &SajuCoreContext) -> Value {
+    let Some(gender) = core.normalized_gender else {
+        return json!({
+            "available": false,
+            "missing_inputs": ["gender"],
+        });
+    };
+    let periods = daeun::calculate_daeun_with_time(
+        &core.pillars,
+        core.birth_year,
+        core.birth_month,
+        core.birth_day,
+        core.birth_hour,
+        core.birth_minute,
+        gender,
+    );
+    let current_index = periods.iter().position(|p| p.is_current);
+    let current = current_index.and_then(|idx| periods.get(idx));
+    let next = current_index.and_then(|idx| periods.get(idx + 1));
+    let start_age = periods.first().map(|p| p.start_age);
+
+    json!({
+        "available": true,
+        "start_age": start_age,
+        "daeun_start": start_age.map(|age| json!({
+            "age": age,
+            "approximate_start_year": core.birth_year + age,
+            "approximate_start_date": approximate_daeun_start_date(core.birth_year, core.birth_month, core.birth_day, age),
+        })),
+        "current_period_index": current_index,
+        "current": current.map(|p| daeun_period_core_json(p, core.day_master)),
+        "next": next.map(|p| daeun_period_core_json(p, core.day_master)),
+        "periods": periods.iter().map(|p| daeun_period_core_json(p, core.day_master)).collect::<Vec<_>>(),
+    })
+}
+
+fn gongmang_palace_key(palace: gongmang::Palace) -> &'static str {
+    match palace {
+        gongmang::Palace::Year => "year",
+        gongmang::Palace::Month => "month",
+        gongmang::Palace::Hour => "hour",
+    }
+}
+
+fn gongmang_core_json(g: &gongmang::GongmangFacts) -> Value {
+    json!({
+        "group_index": g.group_index,
+        "group_name": g.group_name,
+        "empty_branches": g.empty_branches.iter().map(|b| branch_info(*b)).collect::<Vec<_>>(),
+        "affected_palaces": g.affected_palaces.iter().map(|p| gongmang_palace_key(*p)).collect::<Vec<_>>(),
+        "affected_ten_gods": g.affected_ten_gods.iter().map(|t| t.korean()).collect::<Vec<_>>(),
+    })
+}
+
+fn shinsal_kind_labels(kind: shinsal::ShinsalKind) -> (&'static str, &'static str) {
+    match kind {
+        shinsal::ShinsalKind::Geop => ("geop", "겁살"),
+        shinsal::ShinsalKind::Jae => ("jae", "재살"),
+        shinsal::ShinsalKind::Cheon => ("cheon", "천살"),
+        shinsal::ShinsalKind::Ji => ("ji", "지살"),
+        shinsal::ShinsalKind::Dohwa => ("dohwa", "도화살"),
+        shinsal::ShinsalKind::Wol => ("wol", "월살"),
+        shinsal::ShinsalKind::Mangsin => ("mangsin", "망신살"),
+        shinsal::ShinsalKind::Jangseong => ("jangseong", "장성살"),
+        shinsal::ShinsalKind::Banan => ("banan", "반안살"),
+        shinsal::ShinsalKind::Yeokma => ("yeokma", "역마살"),
+        shinsal::ShinsalKind::Yukae => ("yukae", "육해살"),
+        shinsal::ShinsalKind::Hwagae => ("hwagae", "화개살"),
+        shinsal::ShinsalKind::Baekho => ("baekho", "백호살"),
+        shinsal::ShinsalKind::Cheoneul => ("cheoneul", "천을귀인"),
+    }
+}
+
+fn shinsal_position_key(position: shinsal::ShinsalPosition) -> &'static str {
+    match position {
+        shinsal::ShinsalPosition::Year => "year",
+        shinsal::ShinsalPosition::Month => "month",
+        shinsal::ShinsalPosition::Day => "day",
+        shinsal::ShinsalPosition::Hour => "hour",
+    }
+}
+
+fn shinsal_core_json(s: &shinsal::ShinsalFacts) -> Value {
+    let (kind_slug, kind_korean) = shinsal_kind_labels(s.kind);
+    json!({
+        "kind": kind_slug,
+        "kind_korean": kind_korean,
+        "positions": s.positions.iter().map(|p| shinsal_position_key(*p)).collect::<Vec<_>>(),
+        "intensity": s.intensity,
+    })
+}
+
+fn lucky_core_json(l: &lucky::LuckyCoreItems) -> Value {
+    json!({
+        "primary": lucky_triple_to_json(&l.primary),
+        "supplementary": lucky_triple_to_json(&l.supplementary),
+    })
+}
+
+fn saju_signals_json(core: &SajuCoreContext) -> Vec<Value> {
+    let dominant = dominant_element_for(&core.balance);
+    let weakest = weakest_element_for(&core.balance);
+    let mut signals = vec![
+        json!({
+            "kind": "day_master",
+            "stem": core.day_master.korean(),
+            "element": core.day_master.element().korean(),
+            "polarity": core.day_master.polarity().korean(),
+            "evidence": ["four_pillars.day.stem"],
+        }),
+        json!({
+            "kind": "dominant_element",
+            "element": dominant.korean(),
+            "count": element_count(&core.balance, dominant),
+            "evidence": ["element_balance.counts"],
+        }),
+        json!({
+            "kind": "weakest_element",
+            "element": weakest.korean(),
+            "count": element_count(&core.balance, weakest),
+            "evidence": ["element_balance.counts"],
+        }),
+    ];
+
+    if let Some((god, count)) = strongest_ten_god(&core.ten_gods) {
+        signals.push(json!({
+            "kind": "strongest_ten_god",
+            "god": god.korean(),
+            "count": count,
+            "evidence": ["ten_gods_summary.counts"],
+        }));
+    }
+
+    signals.push(json!({
+        "kind": "gongmang",
+        "group_index": core.gongmang.group_index,
+        "empty_branches": core.gongmang.empty_branches.iter().map(|b| b.korean()).collect::<Vec<_>>(),
+        "affected_palaces": core.gongmang.affected_palaces.iter().map(|p| gongmang_palace_key(*p)).collect::<Vec<_>>(),
+        "evidence": ["four_pillars.day", "gongmang.empty_branches"],
+    }));
+
+    signals
+}
+
+fn saju_evidence_json(core: &SajuCoreContext) -> Vec<Value> {
+    let mut evidence = vec![
+        json!({
+            "kind": "birth",
+            "calendar_type": core.birth.calendar_type(),
+            "normalized_birth_date": core.birth.solar_date_string(),
+            "birth_time_status": if core.has_birth_time { "known" } else { "unknown" },
+        }),
+        pillar_evidence_json("year", core.pillars.year),
+        pillar_evidence_json("month", core.pillars.month),
+        pillar_evidence_json("day", core.pillars.day),
+    ];
+
+    if core.has_birth_time {
+        evidence.push(pillar_evidence_json("hour", core.pillars.hour));
+    }
+
+    for element in ELEMENT_ORDER {
+        evidence.push(json!({
+            "kind": "element_count",
+            "element": element.korean(),
+            "key": element_key(element),
+            "count": element_count(&core.balance, element),
+        }));
+    }
+
+    for (position, god) in &core.ten_gods {
+        evidence.push(json!({
+            "kind": "ten_god",
+            "position": position,
+            "god": god.korean(),
+        }));
+    }
+
+    evidence
+}
+
+fn pillar_evidence_json(position: &str, pillar: Pillar) -> Value {
+    json!({
+        "kind": "pillar",
+        "position": position,
+        "pillar": format!("{}", pillar),
+        "stem": day_master_info(pillar.stem),
+        "branch": branch_info(pillar.branch),
+    })
+}
+
 fn daily_v2_context(
     user_pillars: &FourPillars,
     today: Pillar,
@@ -402,6 +874,77 @@ fn saju_lead(
     })
 }
 
+fn attach_legacy_saju_prose(result: &mut Value, core: &SajuCoreContext) {
+    let personality = interpreter::personality(core.day_master);
+    let balance_text = interpreter::element_balance_analysis(&core.balance);
+    let gods_text = interpreter::ten_gods_outlook(&core.pillars, core.has_birth_time);
+    let comp = interpretation::compose_detail(&core.pillars, &core.balance, &core.ten_gods);
+    let interpretation_value = interpretation::to_json(&comp);
+    let lucky_with_prose = lucky::with_interpretation(&core.lucky);
+    let gongmang_with_prose = gongmang::with_interpretation(&core.gongmang);
+    let shinsal_with_prose = core
+        .shinsal
+        .iter()
+        .map(shinsal::with_modern_take)
+        .collect::<Vec<_>>();
+    let lead = saju_lead(&comp, &balance_text, &lucky_with_prose, core.day_master);
+
+    let Some(obj) = result.as_object_mut() else {
+        return;
+    };
+
+    if let Some(balance) = obj
+        .get_mut("element_balance")
+        .and_then(|value| value.as_object_mut())
+    {
+        balance.insert("analysis".into(), json!(balance_text));
+    }
+
+    obj.insert("personality".into(), json!(personality));
+    obj.insert("fortune_outlook".into(), json!(gods_text));
+    obj.insert(
+        "daeun_summary".into(),
+        daeun_summary_json(
+            &core.pillars,
+            core.birth_year,
+            core.birth_month,
+            core.birth_day,
+            core.birth_hour,
+            core.birth_minute,
+            core.normalized_gender,
+        ),
+    );
+    obj.insert("gongmang".into(), gongmang_to_json(&gongmang_with_prose));
+    obj.insert(
+        "shinsal".into(),
+        json!(
+            shinsal_with_prose
+                .iter()
+                .map(shinsal_to_json)
+                .collect::<Vec<_>>()
+        ),
+    );
+    obj.insert("lucky".into(), lucky_to_json(&lucky_with_prose));
+    obj.insert("interpretation".into(), interpretation_value);
+    obj.insert("lead".into(), lead);
+    obj.insert(
+        "legacy_prose".into(),
+        json!({
+            "version": SAJU_LEGACY_PROSE_VERSION,
+            "status": "compatibility",
+            "fields": [
+                "interpretation",
+                "lead",
+                "personality",
+                "fortune_outlook",
+                "element_balance.analysis",
+                "gongmang.interpretation",
+                "lucky.interpretation"
+            ],
+        }),
+    );
+}
+
 impl SajuEngine {
     fn is_lunar_leap_month(input: &Value) -> bool {
         input
@@ -465,6 +1008,43 @@ impl SajuEngine {
             minute,
             has_birth_time,
         ))
+    }
+
+    fn build_saju_core_context(input: &Value) -> Option<SajuCoreContext> {
+        let (year, month, day, hour, minute, has_birth_time) = Self::parse_birth_data(input)?;
+        let pillars = saju::calculate_four_pillars_precise(year, month, day, hour, minute);
+        let day_master = pillars.day.stem;
+        let balance = ElementBalance::from_pillars_with_hour(&pillars, has_birth_time);
+        let ten_gods = ten_gods::analyze_ten_gods(&pillars, has_birth_time);
+        let gongmang = gongmang::calculate(&pillars, has_birth_time);
+        let shinsal = shinsal::calculate(&pillars, has_birth_time);
+        let lucky = lucky::calculate(&pillars, has_birth_time);
+        let gender = input
+            .get("gender")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown")
+            .to_string();
+        let normalized_gender = normalize_gender(input.get("gender").and_then(|v| v.as_str()));
+        let birth = Self::parse_normalized_birth_date(input)?;
+
+        Some(SajuCoreContext {
+            birth_year: year,
+            birth_month: month,
+            birth_day: day,
+            birth_hour: hour,
+            birth_minute: minute,
+            has_birth_time,
+            pillars,
+            day_master,
+            balance,
+            ten_gods,
+            gongmang,
+            shinsal,
+            lucky,
+            gender,
+            normalized_gender,
+            birth,
+        })
     }
 
     fn generate_daily(&self, input: &Value, version: &str) -> (Value, String) {
@@ -624,101 +1204,21 @@ impl SajuEngine {
     }
 
     fn generate_saju(&self, input: &Value, version: &str) -> (Value, String) {
-        let Some((year, month, day, hour, minute, has_birth_time)) = Self::parse_birth_data(input)
-        else {
+        let Some(core) = Self::build_saju_core_context(input) else {
             return (
                 json!({"error": "사주 분석에는 생년월일시 정보가 필요합니다."}),
                 version.to_string(),
             );
         };
 
-        let fp = saju::calculate_four_pillars_precise(year, month, day, hour, minute);
-        let day_master = fp.day.stem;
-        let balance = ElementBalance::from_pillars_with_hour(&fp, has_birth_time);
-        let gods = ten_gods::analyze_ten_gods(&fp, has_birth_time);
+        let mut result = saju_core_json(&core);
+        let core_snapshot = result.clone();
 
-        let personality = interpreter::personality(day_master);
-        let balance_text = interpreter::element_balance_analysis(&balance);
-        let gods_text = interpreter::ten_gods_outlook(&fp, has_birth_time);
-
-        // v0.0.3 콘텐츠 고도화 — 공망/신살/행운 아이템.
-        let gm = gongmang::analyze(&fp, has_birth_time);
-        let ss = shinsal::analyze(&fp, has_birth_time);
-        let lk = lucky::analyze(&fp, has_birth_time);
-
-        let gender = input
-            .get("gender")
-            .and_then(|v| v.as_str())
-            .unwrap_or("unknown");
-        let normalized_gender = normalize_gender(input.get("gender").and_then(|v| v.as_str()));
-        let birth = Self::parse_normalized_birth_date(input).expect("birth data parsed above");
-
-        // 시주: birth_time이 있을 때만 포함
-        let mut four_pillars = json!({
-            "year": format!("{}", fp.year),
-            "month": format!("{}", fp.month),
-            "day": format!("{}", fp.day),
-        });
-        let mut four_pillars_detail = json!({
-            "year": {"stem": day_master_info(fp.year.stem), "branch": branch_info(fp.year.branch)},
-            "month": {"stem": day_master_info(fp.month.stem), "branch": branch_info(fp.month.branch)},
-            "day": {"stem": day_master_info(fp.day.stem), "branch": branch_info(fp.day.branch)},
-        });
-        if has_birth_time {
-            four_pillars
-                .as_object_mut()
-                .unwrap()
-                .insert("hour".into(), json!(format!("{}", fp.hour)));
-            four_pillars_detail.as_object_mut().unwrap()
-                .insert("hour".into(), json!({"stem": day_master_info(fp.hour.stem), "branch": branch_info(fp.hour.branch)}));
-        }
-
-        // 종합 해석은 canonical full report로만 생성한다. 공개/로그인/섹션별
-        // 노출 정책은 엔진 밖의 백엔드 composer가 담당한다.
-        let comp = interpretation::compose_detail(&fp, &balance, &gods);
-        let interpretation_value = interpretation::to_json(&comp);
-        let lead = saju_lead(&comp, &balance_text, &lk, day_master);
-
-        let mut result = json!({
-            "four_pillars": four_pillars,
-            "four_pillars_detail": four_pillars_detail,
-            "has_birth_time": has_birth_time,
-            "day_master": {
-                "stem": day_master.korean(),
-                "hanja": day_master.hanja(),
-                "element": day_master.element().korean(),
-                "polarity": day_master.polarity().korean(),
-            },
-            "element_balance": {
-                "wood": balance.wood,
-                "fire": balance.fire,
-                "earth": balance.earth,
-                "metal": balance.metal,
-                "water": balance.water,
-                "analysis": balance_text,
-            },
-            "ten_gods": gods.iter().map(|(pos, god)| {
-                json!({"position": pos, "god": god.korean()})
-            }).collect::<Vec<_>>(),
-            "personality": personality,
-            "fortune_outlook": gods_text,
-            "gender": gender,
-            "calculation_basis": {
-                "calendar_type": birth.calendar_type(),
-                "normalized_birth_date": birth.solar_date_string(),
-                "is_lunar_converted": birth.was_converted(),
-                "is_lunar_leap_month": birth.is_lunar_leap_month,
-                "birth_time_status": if has_birth_time { "known" } else { "unknown" },
-                "timezone": "KST",
-            },
-            "daeun_summary": daeun_summary_json(&fp, year, month, day, hour, minute, normalized_gender),
-            "gongmang": gongmang_to_json(&gm),
-            "shinsal": ss.iter().map(shinsal_to_json).collect::<Vec<_>>(),
-            "lucky": lucky_to_json(&lk),
-            "interpretation": interpretation_value,
-            "lead": lead,
-        });
+        attach_legacy_saju_prose(&mut result, &core);
         enrichment::enrich_saju_result(&mut result);
+        if let Some(obj) = result.as_object_mut() {
+            obj.insert("saju_core".into(), core_snapshot);
+        }
 
         (result, version.to_string())
     }
@@ -1883,6 +2383,114 @@ mod content_depth_tests {
         let (female, _version) = SajuEngine.generate("daily_detail", &female_input);
 
         assert_ne!(male["current_daeun"], female["current_daeun"]);
+    }
+
+    #[test]
+    fn saju_core_response_contains_deterministic_structured_facts() {
+        let input = saju_input_with_time();
+        let (first, version) = SajuEngine.generate_saju_core(&input);
+        let (second, second_version) = SajuEngine.generate_saju_core(&input);
+
+        assert_eq!(version, SAJU_ENGINE_VERSION);
+        assert_eq!(second_version, SAJU_ENGINE_VERSION);
+        assert_eq!(first, second);
+        assert_eq!(first["schema_version"], SAJU_CORE_SCHEMA_VERSION);
+        assert!(first["calculation_basis"].is_object());
+        assert!(first["day_master"].is_object());
+        assert!(first["element_balance"].is_object());
+        assert_eq!(first["element_balance"]["total_count"], 8);
+        assert!(first["dominant_element"].is_object());
+        assert!(first["weakest_element"].is_object());
+        assert_eq!(
+            first["ten_gods_summary"]["counts"].as_array().map(Vec::len),
+            Some(10)
+        );
+        assert!(
+            first["signals"]
+                .as_array()
+                .is_some_and(|items| items.iter().any(|item| item["kind"] == "day_master"))
+        );
+        assert!(
+            first["evidence"]
+                .as_array()
+                .is_some_and(|items| items.iter().any(|item| item["kind"] == "pillar"))
+        );
+
+        assert!(first.get("interpretation").is_none());
+        assert!(first.get("lead").is_none());
+        assert!(first.get("personality").is_none());
+        assert!(first.get("fortune_outlook").is_none());
+        assert!(first["element_balance"].get("analysis").is_none());
+        assert!(first["gongmang"].get("interpretation").is_none());
+        assert!(first["lucky"].get("interpretation").is_none());
+    }
+
+    #[test]
+    fn saju_compat_response_keeps_legacy_prose_and_embeds_core_snapshot() {
+        let (result, version) = SajuEngine.generate("saju", &saju_input_with_time());
+
+        assert_eq!(version, SAJU_ENGINE_VERSION);
+        assert!(result.get("interpretation").is_some());
+        assert!(result.get("lead").is_some());
+        assert!(result.get("personality").is_some());
+        assert!(result.get("fortune_outlook").is_some());
+        assert_eq!(result["legacy_prose"]["status"], "compatibility");
+        assert_eq!(result["legacy_prose"]["version"], SAJU_LEGACY_PROSE_VERSION);
+
+        let core = result.get("saju_core").expect("saju_core snapshot");
+        assert_eq!(core["schema_version"], SAJU_CORE_SCHEMA_VERSION);
+        assert_eq!(core["day_master"], result["day_master"]);
+        assert_eq!(core["dominant_element"], result["dominant_element"]);
+        assert_eq!(core["weakest_element"], result["weakest_element"]);
+        assert_eq!(core["signals"], result["signals"]);
+        assert!(core.get("interpretation").is_none());
+        assert!(core.get("lead").is_none());
+        assert!(core["element_balance"].get("analysis").is_none());
+        assert!(core["gongmang"].get("interpretation").is_none());
+        assert!(core["lucky"].get("interpretation").is_none());
+    }
+
+    #[test]
+    fn service_layers_can_compose_from_structured_saju_core_without_prose() {
+        let (core, _version) = SajuEngine.generate_saju_core(&saju_input_with_time());
+
+        let day_stem = core["day_master"]["stem"]
+            .as_str()
+            .expect("structured day master stem");
+        let dominant = core["dominant_element"]["element"]
+            .as_str()
+            .expect("structured dominant element");
+        let weakest = core["weakest_element"]["element"]
+            .as_str()
+            .expect("structured weakest element");
+        let strongest_ten_god = core["ten_gods_summary"]["strongest"]["god"]
+            .as_str()
+            .expect("structured strongest ten god");
+        let service_payload = json!({
+            "day_stem": day_stem,
+            "dominant_element": dominant,
+            "weakest_element": weakest,
+            "strongest_ten_god": strongest_ten_god,
+        });
+
+        assert!(
+            service_payload["day_stem"]
+                .as_str()
+                .is_some_and(|v| !v.is_empty())
+        );
+        assert!(core["evidence"].as_array().is_some_and(|items| {
+            items.iter().any(|item| {
+                item["kind"] == "element_count"
+                    && item["element"] == service_payload["dominant_element"]
+            })
+        }));
+        assert!(core["signals"].as_array().is_some_and(|items| {
+            items.iter().any(|item| {
+                item["kind"] == "strongest_ten_god"
+                    && item["god"] == service_payload["strongest_ten_god"]
+            })
+        }));
+        assert!(core.get("interpretation").is_none());
     }
 
     #[test]

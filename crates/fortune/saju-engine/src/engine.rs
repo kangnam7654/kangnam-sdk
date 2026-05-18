@@ -1,5 +1,5 @@
 use crate::{
-    self as saju, branches, calendar, daeun, daily, elements, gongmang, interpretation,
+    self as saju, branches, calendar, daeun, daily, elements, enrichment, gongmang, interpretation,
     interpreter, lucky, monthly, natal_categories, shinsal, ten_gods, types::*,
 };
 use chrono::{Datelike, NaiveDate};
@@ -8,14 +8,13 @@ use serde_json::{Value, json};
 pub struct SajuEngine;
 
 /// 엔진 버전. 캐시 무효화 기준으로 사용된다.
-pub const SAJU_ENGINE_VERSION: &str = "saju-v1.4";
+pub const SAJU_ENGINE_VERSION: &str = "saju-v1.5";
 
 /// Public reading type keys supported by the saju engine.
-pub const SAJU_READING_TYPES: [&str; 19] = [
+pub const SAJU_READING_TYPES: [&str; 18] = [
     "daily",
     "daily_detail",
     "saju",
-    "saju_full",
     "saju_wealth",
     "saju_love",
     "saju_marriage",
@@ -38,13 +37,6 @@ pub fn is_valid_reading_type(reading_type: &str) -> bool {
     SAJU_READING_TYPES.contains(&reading_type)
 }
 
-/// 종합 해석 tier — `saju` 는 simple, `saju_full` 은 detail.
-#[derive(Clone, Copy)]
-enum InterpTier {
-    Simple,
-    Detail,
-}
-
 impl SajuEngine {
     pub fn generate(&self, reading_type: &str, input: &Value) -> (Value, String) {
         let version = SAJU_ENGINE_VERSION.to_string();
@@ -52,8 +44,7 @@ impl SajuEngine {
         match reading_type {
             "daily" => self.generate_daily(input, &version),
             "daily_detail" => self.generate_daily_detail(input, &version),
-            "saju" => self.generate_saju(input, &version, InterpTier::Simple),
-            "saju_full" => self.generate_saju(input, &version, InterpTier::Detail),
+            "saju" => self.generate_saju(input, &version),
             "saju_wealth" | "saju_love" | "saju_marriage" | "saju_career" | "saju_health"
             | "saju_study" | "saju_children" | "saju_travel" | "saju_relations" => {
                 self.generate_natal_category(reading_type, input, &version)
@@ -228,6 +219,96 @@ fn current_daeun_context(
     )
 }
 
+fn stem_from_korean(value: &str) -> Option<Stem> {
+    match value {
+        "갑" => Some(Stem::Gap),
+        "을" => Some(Stem::Eul),
+        "병" => Some(Stem::Byeong),
+        "정" => Some(Stem::Jeong),
+        "무" => Some(Stem::Mu),
+        "기" => Some(Stem::Gi),
+        "경" => Some(Stem::Gyeong),
+        "신" => Some(Stem::Sin),
+        "임" => Some(Stem::Im),
+        "계" => Some(Stem::Gye),
+        _ => None,
+    }
+}
+
+fn daeun_period_json(period: &daeun::DaeunPeriod, day_master: Stem) -> Value {
+    let ten_god =
+        stem_from_korean(&period.stem).map(|stem| ten_gods::derive_ten_god(day_master, stem));
+    json!({
+        "start_age": period.start_age,
+        "end_age": period.end_age,
+        "pillar": format!("{}{}", period.stem, period.branch),
+        "stem": period.stem,
+        "branch": period.branch,
+        "element": period.element,
+        "ten_god": ten_god.map(|god| god.korean()),
+        "score": period.score,
+        "description": period.description,
+        "is_current": period.is_current,
+    })
+}
+
+fn daeun_summary_json(
+    user_pillars: &FourPillars,
+    birth_year: i32,
+    birth_month: u32,
+    birth_day: u32,
+    birth_hour: u32,
+    birth_minute: u32,
+    gender: Option<&str>,
+) -> Value {
+    let Some(gender) = gender else {
+        return json!({
+            "available": false,
+            "reason": "대운 계산에는 성별 정보가 필요합니다.",
+        });
+    };
+    let periods = daeun::calculate_daeun_with_time(
+        user_pillars,
+        birth_year,
+        birth_month,
+        birth_day,
+        birth_hour,
+        birth_minute,
+        gender,
+    );
+    let current_index = periods.iter().position(|p| p.is_current);
+    let current = current_index.and_then(|idx| periods.get(idx));
+    let next = current_index.and_then(|idx| periods.get(idx + 1));
+    let start_age = periods.first().map(|p| p.start_age);
+    json!({
+        "available": true,
+        "start_age": start_age,
+        "daeun_start": start_age.map(|age| json!({
+            "age": age,
+            "approximate_start_year": birth_year + age,
+            "approximate_start_date": approximate_daeun_start_date(birth_year, birth_month, birth_day, age),
+            "calculation_note": "대운 시작 나이는 절기까지의 일수/3 기준으로 산출하고, 날짜는 해당 나이에 도달하는 생일 기준 근사값입니다.",
+        })),
+        "current_period_index": current_index,
+        "current": current.map(|p| daeun_period_json(p, user_pillars.day.stem)),
+        "next": next.map(|p| daeun_period_json(p, user_pillars.day.stem)),
+        "periods": periods.iter().map(|p| daeun_period_json(p, user_pillars.day.stem)).collect::<Vec<_>>(),
+    })
+}
+
+fn approximate_daeun_start_date(
+    birth_year: i32,
+    birth_month: u32,
+    birth_day: u32,
+    start_age: i32,
+) -> String {
+    let target_year = birth_year + start_age;
+    let day = birth_day.min(days_in_month(target_year, birth_month));
+    NaiveDate::from_ymd_opt(target_year, birth_month, day)
+        .map(|date| date.to_string())
+        .unwrap_or_else(|| format!("{target_year:04}-01-01"))
+}
+
 fn daily_v2_context(
     user_pillars: &FourPillars,
     today: Pillar,
@@ -302,18 +383,13 @@ fn saju_lead(
     balance_text: &str,
     lucky: &lucky::LuckyItems,
     day_master: Stem,
-    tier: InterpTier,
 ) -> Value {
-    let action = match tier {
-        InterpTier::Simple => lucky.interpretation.as_str(),
-        InterpTier::Detail => comp
-            .sections
-            .iter()
-            .find(|section| section.key == "remedies")
-            .expect("detail interpretation must include remedies section")
-            .body
-            .as_str(),
-    };
+    let action = comp
+        .sections
+        .iter()
+        .find(|section| section.key == "remedies")
+        .map(|section| section.body.as_str())
+        .unwrap_or(lucky.interpretation.as_str());
 
     json!({
         "signal": comp.headline.as_str(),
@@ -547,7 +623,7 @@ impl SajuEngine {
         (result, version.to_string())
     }
 
-    fn generate_saju(&self, input: &Value, version: &str, tier: InterpTier) -> (Value, String) {
+    fn generate_saju(&self, input: &Value, version: &str) -> (Value, String) {
         let Some((year, month, day, hour, minute, has_birth_time)) = Self::parse_birth_data(input)
         else {
             return (
@@ -574,6 +650,8 @@ impl SajuEngine {
             .get("gender")
             .and_then(|v| v.as_str())
             .unwrap_or("unknown");
+        let normalized_gender = normalize_gender(input.get("gender").and_then(|v| v.as_str()));
+        let birth = Self::parse_normalized_birth_date(input).expect("birth data parsed above");
 
         // 시주: birth_time이 있을 때만 포함
         let mut four_pillars = json!({
@@ -595,19 +673,13 @@ impl SajuEngine {
                 .insert("hour".into(), json!({"stem": day_master_info(fp.hour.stem), "branch": branch_info(fp.hour.branch)}));
         }
 
-        // 종합 해석 — tier 에 따라 simple(headline + 한 단락 요약) 혹은
-        // detail(headline + 5섹션) 중 하나로 분기. 카피 출처는 동일하게
-        // data/interpretation_copy.json (자평진전·적천수·궁통보감·명리정종
-        // ·오행대의 정통 명리 인용 베이스). free `saju` → simple, paid
-        // `saju_full` → detail.
-        let comp = match tier {
-            InterpTier::Simple => interpretation::compose_simple(&fp, &balance, &gods),
-            InterpTier::Detail => interpretation::compose_detail(&fp, &balance, &gods),
-        };
+        // 종합 해석은 canonical full report로만 생성한다. 공개/로그인/섹션별
+        // 노출 정책은 엔진 밖의 백엔드 composer가 담당한다.
+        let comp = interpretation::compose_detail(&fp, &balance, &gods);
         let interpretation_value = interpretation::to_json(&comp);
-        let lead = saju_lead(&comp, &balance_text, &lk, day_master, tier);
+        let lead = saju_lead(&comp, &balance_text, &lk, day_master);
 
-        let result = json!({
+        let mut result = json!({
             "four_pillars": four_pillars,
             "four_pillars_detail": four_pillars_detail,
             "has_birth_time": has_birth_time,
@@ -631,12 +703,22 @@ impl SajuEngine {
             "personality": personality,
             "fortune_outlook": gods_text,
             "gender": gender,
+            "calculation_basis": {
+                "calendar_type": birth.calendar_type(),
+                "normalized_birth_date": birth.solar_date_string(),
+                "is_lunar_converted": birth.was_converted(),
+                "is_lunar_leap_month": birth.is_lunar_leap_month,
+                "birth_time_status": if has_birth_time { "known" } else { "unknown" },
+                "timezone": "KST",
+            },
+            "daeun_summary": daeun_summary_json(&fp, year, month, day, hour, minute, normalized_gender),
             "gongmang": gongmang_to_json(&gm),
             "shinsal": ss.iter().map(shinsal_to_json).collect::<Vec<_>>(),
             "lucky": lucky_to_json(&lk),
             "interpretation": interpretation_value,
             "lead": lead,
         });
+        enrichment::enrich_saju_result(&mut result);
 
         (result, version.to_string())
     }
@@ -647,7 +729,7 @@ impl SajuEngine {
         input: &Value,
         version: &str,
     ) -> (Value, String) {
-        let (saju_result, saju_version) = self.generate_saju(input, version, InterpTier::Simple);
+        let (saju_result, saju_version) = self.generate_saju(input, version);
         if saju_result.get("error").is_some() {
             return (saju_result, saju_version);
         }
@@ -1821,7 +1903,7 @@ mod content_depth_tests {
     }
 
     #[test]
-    fn saju_response_includes_structured_lead_from_engine_fields() {
+    fn saju_response_includes_structured_lead_from_remedies() {
         let (result, version) = SajuEngine.generate("saju", &saju_input_with_time());
 
         assert_eq!(version, SAJU_ENGINE_VERSION);
@@ -1829,30 +1911,6 @@ mod content_depth_tests {
         let interpretation = result
             .get("interpretation")
             .expect("saju.interpretation 필드 필수");
-        let balance = result
-            .get("element_balance")
-            .expect("saju.element_balance 필드 필수");
-        let lucky = result.get("lucky").expect("saju.lucky 필드 필수");
-
-        assert_eq!(lead.get("signal"), interpretation.get("headline"));
-        assert_eq!(lead.get("risk"), balance.get("analysis"));
-        assert_eq!(lead.get("action"), lucky.get("interpretation"));
-        assert!(
-            lead.get("question")
-                .and_then(|v| v.as_str())
-                .is_some_and(|v| v.contains("반복해서 선택"))
-        );
-    }
-
-    #[test]
-    fn saju_full_response_includes_structured_lead_from_remedies() {
-        let (result, version) = SajuEngine.generate("saju_full", &saju_input_with_time());
-
-        assert_eq!(version, SAJU_ENGINE_VERSION);
-        let lead = result.get("lead").expect("saju_full.lead 필드 필수");
-        let interpretation = result
-            .get("interpretation")
-            .expect("saju_full.interpretation 필드 필수");
         let remedies = interpretation
             .get("sections")
             .and_then(|v| v.as_array())
@@ -1861,10 +1919,10 @@ mod content_depth_tests {
                     .iter()
                     .find(|section| section.get("key").and_then(|v| v.as_str()) == Some("remedies"))
             })
-            .expect("saju_full.interpretation.sections remedies 필수");
+            .expect("saju.interpretation.sections remedies 필수");
         let balance = result
             .get("element_balance")
-            .expect("saju_full.element_balance 필드 필수");
+            .expect("saju.element_balance 필드 필수");
 
         assert_eq!(lead.get("signal"), interpretation.get("headline"));
         assert_eq!(lead.get("risk"), balance.get("analysis"));
@@ -1872,7 +1930,7 @@ mod content_depth_tests {
         assert!(
             lead.get("question")
                 .and_then(|v| v.as_str())
-                .is_some_and(|v| v.contains("무엇부터 조정"))
+                .is_some_and(|v| v.contains("반복해서 선택"))
         );
     }
 

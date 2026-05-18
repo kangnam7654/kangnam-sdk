@@ -483,7 +483,7 @@ fn compose_remedies(weakest: ElementKey) -> String {
 
 // ─── Public entry ────────────────────────────────────────────────────────────
 
-/// Detail tier — headline + 5섹션 (본성·관계·일·돈·보완책). Paid `saju_full` 응답.
+/// Canonical full report — headline + 5섹션 (본성·관계·일·돈·보완책).
 pub fn compose_detail(
     pillars: &FourPillars,
     balance: &ElementBalance,
@@ -527,7 +527,7 @@ pub fn compose_detail(
     }
 }
 
-/// Simple tier — headline + 한 단락 요약. Free `saju` 응답.
+/// Legacy compact tier — headline + 한 단락 요약.
 ///
 /// 일간 metaphor + 강한 오행이 더해주는 결 + 가장 두드러진 십신 한 줄 + 약한 오행
 /// remedy 압축의 3~4문장 묶음. detail tier 의 building block 들을 재사용해 카피

@@ -42,6 +42,7 @@ pub mod daeun;
 pub mod daily;
 pub mod elements;
 pub mod engine;
+pub mod enrichment;
 pub mod gongmang;
 pub mod interpretation;
 pub mod interpreter;

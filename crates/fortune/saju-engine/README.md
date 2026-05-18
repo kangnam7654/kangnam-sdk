@@ -30,7 +30,7 @@ assert_eq!(total, 8);
 - `generate_daily_saju`, `generate_saju_profile`, `generate_saju_compatibility` — convenience wrappers over the strict API.
 - `parse_birth_input`, `parse_birth_time` — shared date/time validation helpers for app code.
 - `SAJU_ENGINE_VERSION`, `SAJU_READING_TYPES`, `SAJU_DAILY_CATEGORIES`, `is_valid_reading_type` — public constants/helpers for routing, caching, and UI policy.
-- `SajuEngine::generate(reading_type, input) -> (Value, String)` — unified JSON entry point for `daily`, `daily_detail`, `weekly`, `monthly`, `saju`, `saju_full`, `compatibility`, `compatibility_detail`, `monthly_fortune`, `daeun`.
+- `SajuEngine::generate(reading_type, input) -> (Value, String)` — unified JSON entry point for `daily`, `daily_detail`, `weekly`, `monthly`, `saju`, `compatibility`, `compatibility_detail`, `monthly_fortune`, `daeun`.
 - `calculate_four_pillars(year, month, day, hour) -> FourPillars`
 - `ElementBalance::from_pillars(pillars) -> ElementBalance`
 - `types` module — `Stem`, `Branch`, `Element`, `Polarity`, `TenGod`, `Pillar`, `FourPillars`, `ElementBalance`.

@@ -1,4 +1,4 @@
-//! Quick visual check of the interpretation field — both tiers. Run:
+//! Quick visual check of the canonical interpretation field. Run:
 //!   cargo run -p saju-engine --example show_interp
 use saju_engine::SajuEngine;
 use serde_json::json;
@@ -12,14 +12,8 @@ fn main() {
         "calendar_type": "solar",
     });
 
-    println!("━━━ SIMPLE (saju) ━━━\n");
+    println!("━━━ SAJU CANONICAL REPORT ━━━\n");
     let (result, _v) = engine.generate("saju", &input);
-    let interp = &result["interpretation"];
-    println!("HEADLINE: {}\n", interp["headline"].as_str().unwrap_or("?"));
-    println!("SUMMARY: {}\n", interp["summary"].as_str().unwrap_or("?"));
-
-    println!("━━━ DETAIL (saju_full) ━━━\n");
-    let (result, _v) = engine.generate("saju_full", &input);
     let interp = &result["interpretation"];
     println!("HEADLINE: {}\n", interp["headline"].as_str().unwrap_or("?"));
     for s in interp["sections"].as_array().unwrap() {

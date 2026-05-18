@@ -29,6 +29,15 @@ fn compatibility_input() -> serde_json::Value {
     })
 }
 
+fn minimal_input_with_gender() -> serde_json::Value {
+    json!({
+        "birth_date": "1990-05-15",
+        "birth_time": "14:30",
+        "calendar_type": "solar",
+        "gender": "male"
+    })
+}
+
 fn assert_shape(reading_type: &str, input: &serde_json::Value) {
     let engine = SajuEngine;
     let (result, version) = engine.generate(reading_type, input);
@@ -107,41 +116,58 @@ fn saju_returns_object() {
 }
 
 #[test]
-fn saju_full_returns_object() {
-    assert_shape("saju_full", &minimal_input());
-}
-
-#[test]
-fn saju_returns_simple_interpretation_tier() {
-    // free `saju` 응답은 interpretation.headline + summary 만, sections 없음.
+fn saju_returns_canonical_full_interpretation() {
     let (result, _v) = SajuEngine.generate("saju", &minimal_input());
     let interp = result.get("interpretation").expect("interpretation field");
     assert!(interp.get("headline").is_some(), "headline required");
     assert!(
-        interp.get("summary").is_some(),
-        "saju (simple) tier must include summary"
-    );
-    assert!(
-        interp.get("sections").is_none(),
-        "saju (simple) tier must NOT include sections"
-    );
-}
-
-#[test]
-fn saju_full_returns_detail_interpretation_tier() {
-    // paid `saju_full` 응답은 interpretation.headline + sections 5개, summary 없음.
-    let (result, _v) = SajuEngine.generate("saju_full", &minimal_input());
-    let interp = result.get("interpretation").expect("interpretation field");
-    assert!(interp.get("headline").is_some(), "headline required");
-    assert!(
         interp.get("summary").is_none(),
-        "saju_full (detail) tier must NOT include summary"
+        "canonical saju report must not use the legacy simple summary tier"
     );
     let sections = interp
         .get("sections")
         .and_then(|v| v.as_array())
-        .expect("saju_full must include sections array");
-    assert_eq!(sections.len(), 5, "detail tier has 5 sections");
+        .expect("saju must include sections array");
+    assert_eq!(sections.len(), 5, "canonical saju report has 5 sections");
+}
+
+#[test]
+fn saju_includes_full_report_enrichment_fields() {
+    let (result, version) = SajuEngine.generate("saju", &minimal_input_with_gender());
+
+    assert_eq!(version, "saju-v1.5");
+    assert_eq!(result["dalgyeol_enrichment_version"], "saju_extended_v1");
+    assert_eq!(result["hidden_stems"].as_array().map(Vec::len), Some(4));
+    assert!(result["branch_relations"].as_array().is_some());
+    assert_eq!(result["naeum"].as_array().map(Vec::len), Some(4));
+    assert!(result["yin_yang_balance"].is_object());
+    assert!(result["ten_gods_summary"].is_object());
+    assert!(result["wolryeong"].is_object());
+    assert!(result["seasonal_energy"].is_object());
+    assert!(result["strength_profile"].is_object());
+    assert!(result["calculation_basis"].is_object());
+    assert!(result["daeun_summary"].is_object());
+    assert!(result["daeun_summary"]["daeun_start"].is_object());
+    assert!(result["annual_fortune"].is_object());
+    assert_eq!(
+        result["monthly_fortunes"].as_array().map(Vec::len),
+        Some(12)
+    );
+    assert!(
+        result["life_timeline"]
+            .as_array()
+            .is_some_and(|v| v.len() >= 7)
+    );
+    assert!(
+        result["domain_fortunes"]
+            .as_array()
+            .is_some_and(|v| v.len() >= 14)
+    );
+    assert!(
+        result["ai_prompts"]
+            .as_array()
+            .is_some_and(|v| v.len() >= 4)
+    );
 }
 
 #[test]

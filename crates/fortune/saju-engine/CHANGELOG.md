@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Support lunar birth-date normalization for saju readings.
 - Include precision metadata, daily pillar influences, and current daeun context in `daily_detail`.
 - Use precise solar-term distance for daeun start-age calculation when data is available.
+- Enrich canonical `saju` results with full-report fields for Dalgyeol: naeum, hidden stems, branch relations, wolryeong, strength profile, daeun summary, annual/monthly flow, domain fortunes, and AI prompt suggestions.
 
 ## [0.1.0] - 2026-04-21
 

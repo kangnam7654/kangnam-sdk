@@ -81,6 +81,7 @@ kangnam-design-artifact       = { path = "crates/design/design-artifact" }
 kangnam-design-tools          = { path = "crates/design/design-tools" }
 saju-engine           = { path = "crates/fortune/saju-engine" }
 tarot-engine          = { path = "crates/fortune/tarot-engine" }
+ziwei-engine          = { path = "crates/fortune/ziwei-engine" }
 ai-consult            = { path = "crates/fortune/ai-consult" }
 pii-crypto            = { path = "crates/pii-crypto" }
 

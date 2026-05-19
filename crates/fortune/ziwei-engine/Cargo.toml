@@ -1,0 +1,19 @@
+[package]
+name = "ziwei-engine"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Zi Wei Dou Shu (자미두수) chart engine — 12 palaces, life/body palaces, five-element bureau, and 14 major stars. Pure computation, no IO."
+
+[lints.rust]
+unsafe_code = "deny"
+
+[dependencies]
+chrono = { workspace = true }
+rs-klc = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]

@@ -7570,6 +7570,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ziwei-engine"
+version = "0.3.1"
+dependencies = [
+ "chrono",
+ "rs-klc",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "zmij"
 version = "1.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"

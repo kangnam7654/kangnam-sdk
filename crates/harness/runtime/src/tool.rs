@@ -9,7 +9,8 @@
 //! - [`ToolResult::Success`] — terminal, content is fed back to the
 //!   model as the tool_result content block.
 //! - [`ToolResult::AwaitUser`] — turn is suspended until the host
-//!   posts a response over the chat-rpc channel keyed by `await_id`.
+//!   posts a response through its interaction channel keyed by
+//!   `await_id`.
 //!   Use cases: `<question-form>` posts, artifact previews, user
 //!   selections from a candidate list, approval prompts, etc.
 //! - [`ToolResult::Failed`] — tool ran to completion but reports
@@ -17,9 +18,9 @@
 //!   content block with `is_error: true`.
 //!
 //! `AwaitUser` is the new shape `harness-core::Tool` couldn't
-//! express. The chat-server side maintains a
-//! `HashMap<await_id, oneshot::Sender>` and resumes the task once
-//! the matching response arrives.
+//! express. Hosts maintain a `HashMap<await_id, oneshot::Sender>` or
+//! equivalent pending-response registry and resume the task once the
+//! matching response arrives.
 //!
 //! # Designed for multiple consumers
 //!
@@ -56,16 +57,16 @@ pub enum ToolError {
     Other(String),
 }
 
-/// What the tool is asking the host to wait for. Tagged so the
-/// chat-rpc layer can route the eventual response to the right
-/// method (e.g. `cli.questionFormResponse`, `cli.previewResult`,
-/// `cli.selectionResponse`, `cli.approvalResponse`, …).
+/// What the tool is asking the host to wait for. Tagged so the host
+/// interaction layer can route the eventual response to the right
+/// handler (for example question forms, previews, selections, and
+/// approvals).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AwaitKind {
-    /// `<question-form>` posted; waiting for `cli.questionFormResponse`.
+    /// `<question-form>` posted; waiting for a form response.
     QuestionForm,
-    /// Preview render requested; waiting for `cli.previewResult`.
+    /// Preview render requested; waiting for a preview response.
     Preview,
     /// Generic permission prompt (already exists, kept here for symmetry).
     Permission,
@@ -88,7 +89,7 @@ pub enum ToolResult {
     Success { content: Value },
     /// Turn suspended — the host should hold the agent task and resume
     /// it with the user's response. `await_id` is the correlation key
-    /// used by the chat-rpc response method to look up the receiver.
+    /// used by the host response method to look up the receiver.
     AwaitUser {
         await_id: String,
         kind: AwaitKind,
@@ -98,7 +99,7 @@ pub enum ToolResult {
         payload: Value,
         /// Receiver the harness `await`s on. The host wires the matching
         /// `oneshot::Sender` into its pending-await map and fires it
-        /// from the chat-rpc handler.
+        /// from the interaction response handler.
         receiver: oneshot::Receiver<Value>,
     },
     /// Tool ran to completion but reports failure. The harness wraps
@@ -247,16 +248,16 @@ pub trait ImageCallbacks: Send + Sync {
 /// Suspend/resume bridge between agent tools and the host UI.
 ///
 /// Implementors mint a fresh correlation id, push the payload to the
-/// host (typically over a JSON-RPC notification), and return the
+/// host (for example over JSON-RPC, Tauri events, or an in-memory
+/// channel), and return the
 /// receiver half of a oneshot. The agent task `await`s the receiver;
-/// the host's chat-rpc handler fires the matching sender once the
-/// user has responded (`cli.questionFormResponse`,
-/// `cli.previewResult`, `cli.selectionResponse`, etc).
+/// the host's response handler fires the matching sender once the
+/// user has responded.
 ///
 /// The named methods (`register_question_form`, `register_preview`)
-/// match the chat-rpc methods 1:1 so the dispatch is straightforward.
-/// Hosts that need additional interaction kinds can implement the
-/// blanket `register_await` directly.
+/// are convenience hooks for common interaction kinds. Hosts that need
+/// additional interaction kinds can implement `register_await`
+/// directly.
 #[async_trait]
 pub trait InteractionBridge: Send + Sync {
     /// Register an arbitrary await of the supplied `kind` with the
@@ -280,15 +281,14 @@ pub trait InteractionBridge: Send + Sync {
     }
 
     /// Register a pending QuestionForm await and return a fresh
-    /// correlation id + receiver. The host's chat-rpc layer looks up
-    /// `await_id` when `cli.questionFormResponse` fires.
+    /// correlation id + receiver. The host interaction layer looks up
+    /// `await_id` when the form response arrives.
     async fn register_question_form(
         &self,
         payload: &Value,
     ) -> Result<(String, oneshot::Receiver<Value>), ToolError>;
 
-    /// Same shape, but for preview render requests resolved by
-    /// `cli.previewResult`.
+    /// Same shape, but for preview render requests.
     async fn register_preview(
         &self,
         payload: &Value,

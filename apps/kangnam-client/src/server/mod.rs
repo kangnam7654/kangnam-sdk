@@ -1,8 +1,8 @@
-//! HTTP server boot — delegates to the `chat-server` crate.
+//! HTTP server boot — delegates to the `session-server` crate.
 //!
-//! This module builds a [`kangnam_chat::server::ServerContext`] from this app's
-//! `AppState` and a [`kangnam_chat::server::ServerConfig`] from env / build
-//! constants, then calls [`kangnam_chat::server::start`].
+//! This module builds a [`kangnam_harness_session::server::ServerContext`] from this app's
+//! `AppState` and a [`kangnam_harness_session::server::ServerConfig`] from env / build
+//! constants, then calls [`kangnam_harness_session::server::start`].
 
 use std::sync::Arc;
 
@@ -12,7 +12,7 @@ pub async fn start_server(
     state: Arc<AppState>,
     port: u16,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let ctx = Arc::new(kangnam_chat::server::ServerContext {
+    let ctx = Arc::new(kangnam_harness_session::server::ServerContext {
         cli_manager: state.cli_manager.clone(),
         db: state.db.clone(),
         pending_permissions: state.pending_permissions.clone(),
@@ -28,12 +28,12 @@ pub async fn start_server(
         auth_hook: None,
         message_guard: None,
     });
-    let config = kangnam_chat::server::ServerConfig {
+    let config = kangnam_harness_session::server::ServerConfig {
         port,
         static_dir: std::env::var("KANGNAM_STATIC_DIR").ok(),
         server_name: "kangnam-client".to_string(),
         server_version: env!("CARGO_PKG_VERSION").to_string(),
         mcp_tool_namespace: "kangnam".to_string(),
     };
-    kangnam_chat::server::start(ctx, config).await
+    kangnam_harness_session::server::start(ctx, config).await
 }

@@ -1,0 +1,112 @@
+//! Pluggable persistence trait.
+//!
+//! The session module persists two kinds of records — conversations and
+//! their messages — and exposes a small set of CRUD-ish operations on
+//! top. Hosts pick a backend by enabling the corresponding feature
+//! flag (`sqlite`, `postgres`) and pass an `Arc<dyn Storage>` to the
+//! RPC dispatcher / saver.
+//!
+//! ## Why async
+//!
+//! sqlx is async, rusqlite is sync. The trait is async so a single
+//! caller signature works for both; the SQLite impl wraps blocking
+//! calls in `tokio::task::spawn_blocking`.
+//!
+//! ## What's NOT here
+//!
+//! - Connection pooling, transactions across multiple ops — backends
+//!   handle their own.
+//! - Search ranking / pagination — the current chat-sdk only needs
+//!   simple LIKE search and full-load reads. Add as needed.
+
+use async_trait::async_trait;
+
+use crate::error::Result;
+use crate::types::{Conversation, Message, NewMessage, SearchResult};
+
+/// Async, object-safe persistence interface.
+///
+/// All methods return `Result` so callers can branch on
+/// `NotFound` without parsing error strings. Implementors are
+/// expected to be cheaply cloneable (e.g. wrap a `sqlx::PgPool` or
+/// `Arc<Mutex<rusqlite::Connection>>`) so callers can hand out
+/// `Arc<dyn Storage>` freely.
+#[async_trait]
+pub trait Storage: Send + Sync {
+    /// Run any backend-specific schema setup. Idempotent.
+    async fn migrate(&self) -> Result<()>;
+
+    // -- conversations --
+
+    async fn list_conversations(&self) -> Result<Vec<Conversation>>;
+
+    async fn create_conversation(
+        &self,
+        cli_provider: &str,
+        model: Option<&str>,
+    ) -> Result<Conversation>;
+
+    async fn get_conversation(&self, id: &str) -> Result<Option<Conversation>>;
+
+    /// True if a conversation with this id exists. Cheaper than
+    /// `get_conversation` because it doesn't allocate a row.
+    async fn conversation_exists(&self, id: &str) -> Result<bool>;
+
+    /// Insert a conversation row with the given id if it doesn't
+    /// already exist. Used by session-rpc's lazy-create path on first
+    /// `cli.sendMessage` after `cli.startSession`.
+    async fn ensure_conversation(&self, id: &str, cli_provider: &str) -> Result<()>;
+
+    async fn delete_conversation(&self, id: &str) -> Result<()>;
+
+    async fn delete_all_conversations(&self) -> Result<()>;
+
+    async fn update_title(&self, id: &str, title: &str) -> Result<()>;
+
+    async fn toggle_pin(&self, id: &str) -> Result<()>;
+
+    /// If the conversation's title is still the placeholder
+    /// (`"New Chat"`), derive a title from the first non-empty line
+    /// of `user_message` (truncated to 40 chars). No-op otherwise.
+    async fn auto_title_if_needed(&self, conversation_id: &str, user_message: &str) -> Result<()>;
+
+    // -- messages --
+
+    async fn get_messages(&self, conversation_id: &str) -> Result<Vec<Message>>;
+
+    async fn add_message(&self, conversation_id: &str, msg: NewMessage<'_>) -> Result<Message>;
+
+    async fn search_messages(&self, query: &str) -> Result<Vec<SearchResult>>;
+}
+
+// -- shared helpers --
+
+/// Compute the auto-title from a user message. Backends share this
+/// logic so the title text stays identical across SQLite and Postgres.
+pub fn derive_auto_title(user_message: &str) -> Option<String> {
+    let trimmed = user_message.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let first_line = trimmed.lines().next().unwrap_or(trimmed);
+    let title = if first_line.chars().count() > 40 {
+        let cutoff = first_line
+            .char_indices()
+            .nth(40)
+            .map(|(i, _)| i)
+            .unwrap_or(first_line.len());
+        format!("{}…", &first_line[..cutoff])
+    } else {
+        first_line.to_string()
+    };
+    Some(title)
+}
+
+#[allow(dead_code)] // unused when neither sqlite nor postgres feature is enabled
+pub(crate) fn now_ts() -> i64 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}

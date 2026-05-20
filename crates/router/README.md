@@ -5,12 +5,14 @@
 [![Latest release](https://img.shields.io/github/v/tag/kangnam7654/llm-router?label=release&sort=semver)](https://github.com/kangnam7654/llm-router/releases)
 [![Rust](https://img.shields.io/badge/rust-1.85%2B-orange.svg)](https://www.rust-lang.org/)
 
-Multi-provider LLM client for Rust — one object-safe trait, nine built-in providers (HTTP + local CLI), typed per-request options, token-aware streaming.
+Multi-provider LLM client for Rust — one router facade, one object-safe provider trait, built-in HTTP/local/subscription providers, typed per-request options, token-aware streaming.
 
 ## Purpose
 
-Library for calling LLM backends through a single trait (`LlmProviderDyn`). One call site, swappable providers. Supports:
+Library for calling LLM backends through one common API. Register concrete provider configs in `Router`, submit a `RenderRequest` or `RouteRequest`, and receive normalized `LlmResponse` / `LlmStreamEvent` output. Lower-level call sites can still construct one provider directly through `LlmProviderDyn`. Supports:
 
+- Multi-provider routing with aliases and a default provider via `Router`.
+- Single-prompt routing via `RenderRequest`.
 - Single-shot `render_dyn`, multi-turn `chat_dyn`, streaming `chat_stream_dyn`.
 - Per-request options (image attachments, working directory, web search, reasoning effort, turn limits) via `chat_with_options_dyn` / `chat_stream_with_options_dyn`.
 - Incremental `Delta { text }` events from local CLI providers as tokens arrive.
@@ -37,8 +39,10 @@ Requires Rust 1.85+ (edition 2024) and a tokio runtime.
 | `codex`         | OpenAI Chat Completions (HTTP)       | Requires `OPENAI_API_KEY`.                |
 | `codex_local`   | `codex` CLI                          | Streaming deltas, honors CLI options.     |
 | `copilot`       | GitHub Copilot Chat (HTTP)           | Requires a GitHub Copilot token.          |
+| `copilot_local` | GitHub Copilot via `gh` auth          | Uses local GitHub CLI login.              |
 | `gemini`        | Google Generative Language (HTTP)    | Requires `GEMINI_API_KEY`.                |
 | `gemini_local`  | `gemini` CLI                         | Streaming deltas, honors CLI options.     |
+| `pi_local`      | Pi Coding Agent CLI                  | Uses Pi subscription `/login` state.      |
 | `antigravity`   | Alias for `gemini`                   | Legacy-config compatibility.              |
 | `openai_compat` | Any OpenAI-compatible HTTP endpoint  | Requires `base_url`; streams with usage.  |
 | `dummy`         | Offline echo provider                | Tests and examples, no credentials.       |
@@ -61,16 +65,19 @@ The router normalizes provider features into a queryable `ProviderCapabilities` 
 ## Quick Start
 
 ```rust
-use llm_router::{create_provider, ChatMessage};
-use serde_json::json;
+use llm_router::{ChatMessage, ProviderConfig, RouteRequest, Router};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let provider = create_provider("dummy", "", "", "")?;
-    let messages = vec![ChatMessage::user("hello")];
-    let resp = provider
-        .chat_dyn("you are a helpful assistant", &messages, &json!({}))
-        .await?;
+    let router = Router::new().with_provider(
+        "default",
+        ProviderConfig::new("dummy", "", "", ""),
+    );
+
+    let request = RouteRequest::chat(vec![ChatMessage::user("hello")])
+        .with_system_prompt("you are a helpful assistant");
+    let resp = router.chat(request).await?;
+
     println!("{}", resp.rendered_text);
     if let (Some(ip), Some(op)) = (resp.input_tokens, resp.output_tokens) {
         println!("tokens: in={ip} out={op}");
@@ -78,6 +85,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+### OpenAI-Compatible Gateways
+
+Several agent gateways and local runtimes do not need a new native provider;
+they can be registered through `ProviderConfig` presets:
+
+```rust
+use llm_router::{ProviderConfig, Router};
+
+let router = Router::new()
+    .with_provider("pi", ProviderConfig::pi_local("openai", "openai/gpt-5"))
+    .with_provider("copilot", ProviderConfig::copilot_local("claude-sonnet-4.6"))
+    .with_provider("openclaw", ProviderConfig::openclaw_gateway("local-token", ""))
+    .with_provider("hermes", ProviderConfig::hermes_agent("local-token", ""))
+    .with_provider(
+        "nous-via-hermes",
+        ProviderConfig::hermes_subscription_proxy("sk-unused", "Hermes-4-70B"),
+    )
+    .with_provider(
+        "openrouter",
+        ProviderConfig::openrouter("sk-or-...", "anthropic/claude-sonnet-latest"),
+    )
+    .with_provider("ollama", ProviderConfig::ollama("llama3.1:8b"))
+    .with_provider("lmstudio", ProviderConfig::lm_studio("local-model"))
+    .with_provider(
+        "vllm",
+        ProviderConfig::vllm("http://127.0.0.1:8000/v1", "Qwen/Qwen3"),
+    );
+```
+
+`provider_integration_candidates()` exposes the researched attach path for
+these gateways plus planned native/CLI follow-ups such as Pi.
+`subscription_provider_benchmarks()` separately tracks subscription/OAuth
+routes benchmarked from OpenClaw, Hermes, and Pi.
 
 ## Streaming with Delta Events
 
@@ -216,6 +257,12 @@ for m in models {
 
 ## API Overview
 
+- `Router` — high-level facade that registers provider configs and routes normalized requests.
+- `ProviderConfig { provider, api_key, model, base_url }` — one concrete provider configuration.
+- `RenderRequest { provider, system_prompt, user_input, result_json }` — common single-prompt request envelope used by `Router`.
+- `RouteRequest { provider, system_prompt, messages, options, result_json }` — common chat request envelope used by `Router`.
+- `provider_integration_candidates()` — researched attach paths for gateways/agents such as OpenClaw, Hermes, Pi, OpenRouter, Ollama, LM Studio, and vLLM.
+- `subscription_provider_benchmarks()` — benchmarked subscription/OAuth routes such as ChatGPT Codex, Claude Pro/Max, GitHub Copilot, Gemini OAuth, and Nous Portal proxy paths.
 - `LlmProviderDyn` — object-safe trait every provider implements.
 - `ChatMessage` — one turn of conversation; multipart `Vec<ChatContent>` content. Constructed via `::user`, `::assistant`, `::user_with_image`, `::user_multipart`, `::tool_result`.
 - `ChatContent::{Text, Image, ToolUse, ToolResult}` — multipart content blocks (`#[non_exhaustive]`).

@@ -1,7 +1,7 @@
 //! Streaming `<artifact>` parser + `<question-form>` JSON schema + P0/P1
 //! lint + sandboxed srcdoc HTML wrapper.
 //!
-//! This crate sits between the model's text stream and the chat-server's
+//! This crate sits between the model's text stream and the session host's
 //! WebSocket out-channel: SSE / stream-json deltas feed [`ArtifactParser`],
 //! which emits typed [`ArtifactEvent`]s the host can forward as new
 //! `UnifiedMessage::Artifact{Start,Delta,End}` and `QuestionFormPosted`

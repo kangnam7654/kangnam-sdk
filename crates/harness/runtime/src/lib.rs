@@ -10,7 +10,7 @@
 //!   image generation, user-interaction bridge).
 //! - [`ToolResult`] — three-way outcome including
 //!   [`ToolResult::AwaitUser`] for tools that suspend the agent turn
-//!   until the host posts a response over the chat-rpc channel
+//!   until the host posts a response through its interaction channel
 //!   (forms, previews, selections, approvals, …).
 //! - [`PermissionEvaluator`] / [`HookExecutor`] — per-tool gating
 //!   surfaces that mirror Claude Code's settings.json semantics.
@@ -18,7 +18,7 @@
 //! This is the layer ADR-002 hinted at as a future extraction.
 //! Phase 4 of the design family work activated it because the
 //! design `ask` and `preview` tools need to suspend the agent turn
-//! until the host posts back a response over the chat-rpc channel —
+//! until the host posts back a response through an interaction bridge —
 //! something `harness-core::Tool` doesn't model.
 //!
 //! # Designed for multiple consumers
@@ -47,3 +47,16 @@ pub use tool::{
     AgentTool, AwaitKind, DefaultCapabilities, FsCallbacks, ImageCallbacks, InteractionBridge,
     ToolCtx, ToolError, ToolResult, WebCallbacks,
 };
+
+#[cfg(test)]
+mod boundary_tests {
+    #[test]
+    fn runtime_does_not_depend_on_chat_crates() {
+        let manifest = include_str!("../Cargo.toml");
+
+        assert!(
+            !manifest.contains("kangnam-chat"),
+            "harness-runtime must stay host-agnostic; put session transport in a bridge or host crate"
+        );
+    }
+}

@@ -1,0 +1,25 @@
+[package]
+name = "kangnam-harness-session-server"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Axum-based WebSocket + MCP server for harness sessions: routes JSON-RPC requests through session-rpc, broadcasts agent events, and exposes MCP permission tools."
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+rusqlite = { workspace = true }
+uuid = { workspace = true }
+kangnam-harness-session-core = { workspace = true }
+kangnam-harness-session-agent = { workspace = true }
+kangnam-harness-session-rpc = { workspace = true }
+tokio = { version = "1", features = ["sync", "rt", "macros", "net", "time"] }
+axum = { version = "0.8", features = ["ws"] }
+tower-http = { version = "0.6", features = ["cors", "fs"] }
+futures = "0.3"
+async-trait = { workspace = true }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }

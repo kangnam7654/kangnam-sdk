@@ -86,13 +86,12 @@ impl CopilotProvider {
             .build()
             .expect("Failed to build HTTP client");
 
-        let (github_token, copilot_token) =
-            if token.starts_with("ghu_") || token.starts_with("gho_") {
-                (token, String::new())
-            } else {
-                // Assume it's already a copilot token — store empty github token
-                (String::new(), token)
-            };
+        let (github_token, copilot_token) = if is_github_oauth_token(&token) {
+            (token, String::new())
+        } else {
+            // Assume it's already a copilot token — store empty github token
+            (String::new(), token)
+        };
 
         Self {
             client,
@@ -311,6 +310,10 @@ impl CopilotProvider {
         }
         Ok(current)
     }
+}
+
+pub(crate) fn is_github_oauth_token(token: &str) -> bool {
+    token.starts_with("ghu_") || token.starts_with("gho_") || token.starts_with("github_pat_")
 }
 
 impl LlmProviderDyn for CopilotProvider {
@@ -658,6 +661,14 @@ mod tests {
 
     // ──────────────────────────────────────────────────────────────────────────
     // Pre-existing tests
+
+    #[test]
+    fn github_oauth_token_detection_includes_fine_grained_pat() {
+        assert!(is_github_oauth_token("ghu_abc"));
+        assert!(is_github_oauth_token("gho_abc"));
+        assert!(is_github_oauth_token("github_pat_abc"));
+        assert!(!is_github_oauth_token("copilot_direct_token"));
+    }
     // ──────────────────────────────────────────────────────────────────────────
 
     #[tokio::test(flavor = "multi_thread")]

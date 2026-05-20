@@ -2,8 +2,8 @@ use rusqlite::Connection;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex as StdMutex};
 
-use kangnam_chat::agent::CliManager;
-use kangnam_chat::server::broadcast::{self, BroadcastTx, EnhancedBroadcastTx};
+use kangnam_harness_session::agent::CliManager;
+use kangnam_harness_session::server::broadcast::{self, BroadcastTx, EnhancedBroadcastTx};
 
 use crate::db;
 use crate::mcp::bridge::McpBridge;

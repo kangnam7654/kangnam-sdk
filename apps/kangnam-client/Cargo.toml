@@ -38,7 +38,7 @@ dirs = "6"
 url = "2"
 urlencoding = "2"
 open = "5"
-kangnam-chat = { workspace = true, features = ["server"] }
+kangnam-harness-session = { workspace = true, features = ["server"] }
 kangnam-harness = { workspace = true }
 kangnam-design-skill = { workspace = true }
 kangnam-design-system = { workspace = true }

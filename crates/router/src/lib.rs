@@ -1,21 +1,23 @@
 #![deny(unsafe_code)]
 //! Multi-provider LLM client.
 //!
-//! This crate exposes a single object-safe trait, [`LlmProviderDyn`], that
-//! every backend implements. Callers construct a provider through
-//! [`create_provider`] and drive it with [`LlmProviderDyn::render_dyn`],
-//! [`LlmProviderDyn::chat_dyn`], or [`LlmProviderDyn::chat_stream_dyn`]
-//! (plus their `_with_options_dyn` counterparts that accept
-//! [`LlmRequestOptions`]).
+//! This crate exposes a [`Router`] facade for routing requests across multiple
+//! configured providers, plus the lower-level object-safe [`LlmProviderDyn`]
+//! trait that every backend implements. Callers can either register provider
+//! configs in [`Router`] and drive all calls through [`RouteRequest`], or
+//! construct one provider directly through [`create_provider`] and call
+//! [`LlmProviderDyn::render_dyn`], [`LlmProviderDyn::chat_dyn`], or
+//! [`LlmProviderDyn::chat_stream_dyn`] (plus their `_with_options_dyn`
+//! counterparts that accept [`LlmRequestOptions`]).
 //!
 //! # Built-in providers
 //!
 //! The [`REGISTRY`](self) ships with HTTP backends (`claude`, `codex`,
 //! `copilot`, `gemini`, `openai_compat`), local-CLI backends
-//! (`claude_local`, `codex_local`, `gemini_local`), a `dummy` offline
-//! provider for tests, and an `antigravity` alias for `gemini`. Unknown
-//! keys fall back to `dummy`. See [`registered_providers`] for the full
-//! list.
+//! (`claude_local`, `codex_local`, `copilot_local`, `gemini_local`,
+//! `pi_local`), a `dummy` offline provider for tests, and an
+//! `antigravity` alias for `gemini`. Unknown keys fall back to `dummy`.
+//! See [`registered_providers`] for the full list.
 //!
 //! # Streaming
 //!
@@ -28,13 +30,15 @@
 //! # Example
 //!
 //! ```no_run
-//! use kangnam_router::{create_provider, ChatMessage};
-//! use serde_json::json;
+//! use kangnam_router::{ChatMessage, ProviderConfig, RouteRequest, Router};
 //!
 //! # async fn run() -> Result<(), Box<dyn std::error::Error>> {
-//! let provider = create_provider("dummy", "", "", "")?;
-//! let messages = vec![ChatMessage::user("hello")];
-//! let resp = provider.chat_dyn("", &messages, &json!({})).await?;
+//! let router = Router::new().with_provider(
+//!     "default",
+//!     ProviderConfig::new("dummy", "", "", ""),
+//! );
+//! let request = RouteRequest::chat(vec![ChatMessage::user("hello")]);
+//! let resp = router.chat(request).await?;
 //! println!("{}", resp.rendered_text);
 //! # Ok(()) }
 //! ```
@@ -49,11 +53,20 @@ pub mod codex;
 pub mod codex_local;
 pub mod context;
 pub mod copilot;
+pub mod copilot_local;
 pub mod dummy;
 pub mod gemini;
 pub mod gemini_local;
 pub mod openai_compat;
+pub mod pi_local;
 pub mod pricing;
+pub mod router;
+
+pub use router::{
+    ProviderConfig, ProviderIntegrationCandidate, ProviderIntegrationStatus, RenderRequest,
+    RouteRequest, Router, RouterAttachPath, SubscriptionAuthSurface, SubscriptionProviderBenchmark,
+    provider_integration_candidates, subscription_provider_benchmarks,
+};
 
 /// The kind of provider backend.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -778,7 +791,9 @@ pub async fn list_models_with_base_url(
         "codex" => Ok(Vec::new()),
         "codex_local" => codex_local::list_models().await,
         "copilot" => Ok(Vec::new()),
+        "copilot_local" => copilot_local::list_models(api_key).await,
         "openai_compat" => openai_compat::list_models(base_url, api_key).await,
+        "pi_local" => pi_local::list_models().await,
         "dummy" => Ok(Vec::new()),
         _ => Ok(Vec::new()),
     }
@@ -906,10 +921,12 @@ static REGISTRY: LazyLock<HashMap<&'static str, ProviderFactory>> = LazyLock::ne
     m.insert("codex", codex::make as ProviderFactory);
     m.insert("codex_local", codex_local::make as ProviderFactory);
     m.insert("copilot", copilot::make as ProviderFactory);
+    m.insert("copilot_local", copilot_local::make as ProviderFactory);
     m.insert("gemini", gemini::make as ProviderFactory);
     m.insert("antigravity", gemini::make as ProviderFactory);
     m.insert("gemini_local", gemini_local::make as ProviderFactory);
     m.insert("openai_compat", openai_compat::make as ProviderFactory);
+    m.insert("pi_local", pi_local::make as ProviderFactory);
     m.insert("dummy", dummy::make as ProviderFactory);
     m
 });
@@ -1113,10 +1130,12 @@ mod registry_tests {
             "codex",
             "codex_local",
             "copilot",
+            "copilot_local",
             "gemini",
             "antigravity",
             "gemini_local",
             "openai_compat",
+            "pi_local",
             "dummy",
         ] {
             assert!(

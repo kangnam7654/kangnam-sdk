@@ -2,7 +2,6 @@
 resolver = "2"
 members = [
     "apps/kangnam-client",
-    "crates/chat/*",
     "crates/harness/*",
     "crates/router",
     "crates/design/*",
@@ -54,12 +53,12 @@ kangnam-harness-store      = { path = "crates/harness/store" }
 kangnam-harness-runtime    = { path = "crates/harness/runtime" }
 kangnam-harness-llm-bridge = { path = "crates/harness/llm-bridge" }
 kangnam-harness            = { path = "crates/harness/harness" }
+kangnam-harness-session-core   = { path = "crates/harness/session-core" }
+kangnam-harness-session-agent  = { path = "crates/harness/session-agent" }
+kangnam-harness-session-rpc    = { path = "crates/harness/session-rpc" }
+kangnam-harness-session-server = { path = "crates/harness/session-server" }
+kangnam-harness-session        = { path = "crates/harness/session" }
 kangnam-router        = { path = "crates/router" }
-kangnam-chat-core     = { path = "crates/chat/core" }
-kangnam-chat-agent    = { path = "crates/chat/agent" }
-kangnam-chat-rpc      = { path = "crates/chat/rpc" }
-kangnam-chat-server   = { path = "crates/chat/server" }
-kangnam-chat          = { path = "crates/chat/chat" }
 kangnam-design                = { path = "crates/design/design" }
 kangnam-design-doc-slide      = { path = "crates/design/design-doc-slide" }
 kangnam-design-doc-site       = { path = "crates/design/design-doc-site" }

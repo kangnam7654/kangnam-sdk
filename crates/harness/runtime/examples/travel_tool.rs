@@ -207,8 +207,8 @@ impl AccommodationProvider for StubAccommodation {
     }
 }
 
-/// In-memory bridge — the production version would post to chat-rpc
-/// and resolve via the host's PendingAwaits map.
+/// In-memory bridge — a production host would post to its own
+/// interaction channel and resolve via its pending-await map.
 struct InMemoryBridge;
 #[async_trait]
 impl InteractionBridge for InMemoryBridge {
@@ -252,7 +252,15 @@ async fn main() {
     };
     let ctx = ToolCtx::new("demo-session", caps);
 
-    // 1. Search
+    let web_results = ctx
+        .capabilities
+        .web
+        .search("Seoul hotels")
+        .await
+        .expect("web search");
+    println!("web → {:?}", web_results);
+
+    // 1. Accommodation search
     let search_tool = AccommodationSearchTool;
     let result = search_tool
         .execute(json!({"city": "Seoul", "budget_band": "mid"}), &ctx)

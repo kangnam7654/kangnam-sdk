@@ -2,6 +2,25 @@
 
 Pure Rust Zi Wei Dou Shu (자미두수) chart engine.
 
+## Calculation Profile
+
+The current product profile is locked as
+`iztro_compatible_kr_service` / `v1`:
+
+- **Compatibility target**: `iztro-compatible`
+- **School policy**: sanhe-first output shaped to stay compatible with the
+  `iztro` calculation contract where the Korean calendar policy permits it
+- **Calendar policy**: Korean lunar calendar via `rs-klc`, aligned with
+  Dalgyeol/KST and the existing saju engine
+- **Primary calculation references**: open-source or primary table fixtures
+  only
+- **Secondary references**: multiple public traditional tables for
+  cross-checking before promotion to primary calculation data
+- **Interpretation policy**: Dalgyeol Korean service copy is applied only after
+  calculation; prose sources must not redefine core placement tables
+- **Unsupported policy**: any table without authoritative fixture coverage must
+  be emitted with an explicit pending/heuristic source policy
+
 ## MVP Scope
 
 The first engine contract is calculation-first and intentionally narrow:

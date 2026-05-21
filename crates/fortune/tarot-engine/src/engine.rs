@@ -1,14 +1,19 @@
 use serde_json::{Value, json};
 
 use crate::cards;
+use crate::category_meanings;
 use crate::draw;
 use crate::interpreter;
-use crate::types::{SpreadType, TarotReading};
+use crate::profile;
+use crate::types::{
+    ArcanaType, DrawnCard, SpreadType, Suit, TarotCard, TarotElement, TarotReading,
+};
+use sha2::{Digest, Sha256};
 
 pub struct TarotEngine;
 
 /// 엔진 버전. 캐시 무효화 기준으로 사용된다.
-pub const TAROT_ENGINE_VERSION: &str = "tarot-v2.3";
+pub const TAROT_ENGINE_VERSION: &str = "tarot-v2.4";
 
 /// Public reading type keys supported by the tarot engine.
 pub const TAROT_READING_TYPES: [&str; 5] = [
@@ -77,6 +82,21 @@ impl TarotEngine {
             .and_then(|o| o.get("draw_index"))
             .and_then(|v| v.as_u64())
             .unwrap_or(0);
+        let deck_scope = input
+            .get("options")
+            .and_then(|o| o.get("deck_scope"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("major_arcana");
+        let draw_pool_size = if deck_scope == "full_78" {
+            draw::FULL_DECK_SIZE
+        } else {
+            draw::DRAW_POOL_SIZE
+        };
+        let draw_pool = if draw_pool_size == draw::FULL_DECK_SIZE {
+            "full_78"
+        } else {
+            "major_arcana_22"
+        };
         let seed_input = if draw_index == 0 {
             format!(
                 "{}|{}|{}|{}|{}",
@@ -95,11 +115,12 @@ impl TarotEngine {
             .and_then(|v| v.as_u64())
             .unwrap_or(0) as usize;
 
-        let drawn_cards = draw::draw_cards(&spread_type, &seed_input);
+        let drawn_cards = draw::draw_cards_from_pool(&spread_type, &seed_input, draw_pool_size);
 
         // 프리뷰: 선택 위치의 카드 1장만 요약 정보로 반환
         if reading_type == "tarot_one_preview" {
-            let all_cards = draw::draw_cards_n(draw::DRAW_POOL_SIZE as usize, &seed_input);
+            let all_cards =
+                draw::draw_cards_n_from_pool(draw_pool_size as usize, &seed_input, draw_pool_size);
             let pick_idx = selected_position.min(all_cards.len().saturating_sub(1));
             let drawn = &all_cards[pick_idx];
             let card = cards::get_card(drawn.card_id);
@@ -124,6 +145,9 @@ impl TarotEngine {
                 let result = json!({
                     "spread_type": "one_card_preview",
                     "is_preview": true,
+                    "engine_version": version,
+                    "deck_contract": deck_contract_json(draw_pool, draw_pool_size),
+                    "draw_contract": draw_contract_json(&seed_input, &today_kst, draw_index, draw_pool, draw_pool_size, &[], calendar_type),
                     "cards": [{
                         "card_name_ko": card.name_ko,
                         "card_name_en": card.name_en,
@@ -138,14 +162,16 @@ impl TarotEngine {
         }
 
         // tarot_one / tarot_daily에서 selected_position 적용 (tarot_daily는 0 고정으로 쓰는 걸 권장하지만 옵션은 허용)
-        let drawn_cards =
-            if matches!(reading_type, "tarot_one" | "tarot_daily") && selected_position > 0 {
-                let all = draw::draw_cards_n(draw::DRAW_POOL_SIZE as usize, &seed_input);
-                let pick_idx = selected_position.min(all.len().saturating_sub(1));
-                vec![all[pick_idx].clone()]
-            } else {
-                drawn_cards
-            };
+        let drawn_cards = if matches!(reading_type, "tarot_one" | "tarot_daily")
+            && selected_position > 0
+        {
+            let all =
+                draw::draw_cards_n_from_pool(draw_pool_size as usize, &seed_input, draw_pool_size);
+            let pick_idx = selected_position.min(all.len().saturating_sub(1));
+            vec![all[pick_idx].clone()]
+        } else {
+            drawn_cards
+        };
 
         // 멀티카드: options.selected_positions 배열 허용
         let drawn_cards = if matches!(spread_type, SpreadType::ThreeCard | SpreadType::CelticCross)
@@ -164,7 +190,7 @@ impl TarotEngine {
             let is_valid = selected_positions.len() == spread_type.card_count()
                 && selected_positions
                     .iter()
-                    .all(|&p| p < draw::DRAW_POOL_SIZE as usize)
+                    .all(|&p| p < draw_pool_size as usize)
                 && {
                     let mut sorted = selected_positions.clone();
                     sorted.sort();
@@ -173,7 +199,11 @@ impl TarotEngine {
                 };
 
             if is_valid {
-                let all = draw::draw_cards_n(draw::DRAW_POOL_SIZE as usize, &seed_input);
+                let all = draw::draw_cards_n_from_pool(
+                    draw_pool_size as usize,
+                    &seed_input,
+                    draw_pool_size,
+                );
                 let position_names = spread_type.position_names();
                 selected_positions
                     .iter()
@@ -198,10 +228,11 @@ impl TarotEngine {
         // 해석 (사주 무관). options.category가 있으면 카테고리별 본문 사용
         // (메이저만), 없거나 매칭 안 되는 마이너는 cards.rs 일반 톤 fallback.
         // 카테고리 후보: "love" | "career" | "wealth" | "health" | "general".
-        let category = input
+        let raw_category = input
             .get("options")
             .and_then(|o| o.get("category"))
             .and_then(|v| v.as_str());
+        let category = raw_category.filter(|value| category_meanings::is_valid_category(value));
 
         let mut reading = TarotReading {
             spread_type,
@@ -234,6 +265,8 @@ impl TarotEngine {
                         "number": card.number,
                         "is_reversed": drawn.is_reversed,
                         "keywords": card.keywords,
+                        "element": tarot_element_code(card.element),
+                        "ohang": card.ohang.korean(),
                         "meaning": if drawn.is_reversed { card.reversed_meaning } else { card.upright_meaning },
                         // 클라이언트가 is_reversed에 따라 직접 선택할 수 있도록 두 톤을 모두 노출한다
                         "meaning_upright": card.upright_meaning,
@@ -260,12 +293,225 @@ impl TarotEngine {
             "spread_name": spread_name,
             "engine_version": version,
             "drawn_at": drawn_at,
+            "valid_for": valid_for_json(reading_type, &today_kst),
+            "deck_contract": deck_contract_json(draw_pool, draw_pool_size),
+            "spread_contract": spread_contract_json(spread_type),
+            "draw_contract": draw_contract_json(
+                &seed_input,
+                &today_kst,
+                draw_index,
+                draw_pool,
+                draw_pool_size,
+                &reading.cards.iter().map(|card| card.position as usize).collect::<Vec<_>>(),
+                calendar_type
+            ),
             "cards": cards_json,
+            "card_relationships": card_relationships_json(&reading.cards),
+            "reading_facts": reading_facts_json(&reading.cards, category, raw_category),
             "overall_summary": reading.overall_message,
         });
 
         (result, version)
     }
+}
+
+fn deck_contract_json(draw_pool: &str, draw_pool_size: u8) -> Value {
+    json!({
+        "deck_id": "rider_waite_smith_78_ko_v1",
+        "source_profile": profile::deck_source_profile_json(),
+        "deck_size": cards::all_cards().len(),
+        "draw_pool": draw_pool,
+        "draw_pool_size": draw_pool_size,
+        "major_count": 22,
+        "minor_count": 56,
+        "supports_reversed": true,
+    })
+}
+
+fn spread_contract_json(spread_type: SpreadType) -> Value {
+    json!({
+        "spread": spread_type.name_ko(),
+        "card_count": spread_type.card_count(),
+        "positions": spread_type.position_names().iter().enumerate().map(|(index, label)| {
+            json!({"index": index, "label": label})
+        }).collect::<Vec<_>>(),
+    })
+}
+
+fn draw_contract_json(
+    seed_input: &str,
+    seed_date: &str,
+    draw_index: u64,
+    draw_pool: &str,
+    draw_pool_size: u8,
+    selected_positions: &[usize],
+    calendar_type: &str,
+) -> Value {
+    json!({
+        "algorithm": "sha256_seed_std_rng_shuffle_v1",
+        "seed_hash": sha256_hex(seed_input),
+        "seed_date": seed_date,
+        "timezone": "Asia/Seoul",
+        "draw_index": draw_index,
+        "draw_pool": draw_pool,
+        "draw_pool_size": draw_pool_size,
+        "selected_positions": selected_positions,
+        "calendar_type": calendar_type,
+    })
+}
+
+fn valid_for_json(reading_type: &str, today_kst: &str) -> Value {
+    json!({
+        "timezone": "Asia/Seoul",
+        "seed_date": today_kst,
+        "scope": if reading_type == "tarot_daily" { "daily" } else { "single_draw" },
+    })
+}
+
+fn tarot_element_code(element: TarotElement) -> &'static str {
+    match element {
+        TarotElement::Fire => "fire",
+        TarotElement::Water => "water",
+        TarotElement::Air => "air",
+        TarotElement::Earth => "earth",
+    }
+}
+
+fn card_relationships_json(drawn_cards: &[DrawnCard]) -> Value {
+    let resolved = drawn_cards
+        .iter()
+        .filter_map(|drawn| cards::get_card(drawn.card_id).map(|card| (drawn, card)))
+        .collect::<Vec<_>>();
+    let reversal_count = resolved
+        .iter()
+        .filter(|(drawn, _)| drawn.is_reversed)
+        .count();
+    let dominant_element = dominant_tarot_element(&resolved);
+    let pairs = resolved
+        .windows(2)
+        .map(|pair| {
+            let (left_drawn, left) = pair[0];
+            let (right_drawn, right) = pair[1];
+            json!({
+                "from_position": left_drawn.position,
+                "to_position": right_drawn.position,
+                "from_card": left.name_ko,
+                "to_card": right.name_ko,
+                "element_relation": element_relation_label(left.element, right.element),
+                "number_delta": i16::from(right.number) - i16::from(left.number),
+            })
+        })
+        .collect::<Vec<_>>();
+    json!({
+        "reversal_count": reversal_count,
+        "upright_count": resolved.len().saturating_sub(reversal_count),
+        "dominant_element": dominant_element,
+        "pairs": pairs,
+    })
+}
+
+fn reading_facts_json(
+    drawn_cards: &[DrawnCard],
+    category: Option<&str>,
+    raw_category: Option<&str>,
+) -> Value {
+    let resolved = drawn_cards
+        .iter()
+        .filter_map(|drawn| cards::get_card(drawn.card_id).map(|card| (drawn, card)))
+        .collect::<Vec<_>>();
+    let major_count = resolved
+        .iter()
+        .filter(|(_, card)| card.arcana == ArcanaType::Major)
+        .count();
+    let minor_count = resolved.len().saturating_sub(major_count);
+    json!({
+        "category": category.unwrap_or("general"),
+        "category_status": if raw_category.is_some() && category.is_none() { "unsupported_fallback_general" } else { "accepted" },
+        "major_count": major_count,
+        "minor_count": minor_count,
+        "suit_balance": suit_balance_json(&resolved),
+        "repeated_numbers": repeated_numbers_json(&resolved),
+    })
+}
+
+fn sha256_hex(input: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(input.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
+
+fn dominant_tarot_element(cards: &[(&DrawnCard, &TarotCard)]) -> &'static str {
+    let mut counts = [0usize; 4];
+    for (_, card) in cards {
+        counts[match card.element {
+            TarotElement::Fire => 0,
+            TarotElement::Water => 1,
+            TarotElement::Air => 2,
+            TarotElement::Earth => 3,
+        }] += 1;
+    }
+    let index = counts
+        .iter()
+        .enumerate()
+        .max_by_key(|(_, count)| *count)
+        .map(|(index, _)| index)
+        .unwrap_or(0);
+    ["fire", "water", "air", "earth"][index]
+}
+
+fn element_relation_label(left: TarotElement, right: TarotElement) -> &'static str {
+    if left == right {
+        "same_element"
+    } else {
+        match (left, right) {
+            (TarotElement::Fire, TarotElement::Air)
+            | (TarotElement::Air, TarotElement::Fire)
+            | (TarotElement::Water, TarotElement::Earth)
+            | (TarotElement::Earth, TarotElement::Water) => "supportive",
+            (TarotElement::Fire, TarotElement::Water)
+            | (TarotElement::Water, TarotElement::Fire)
+            | (TarotElement::Air, TarotElement::Earth)
+            | (TarotElement::Earth, TarotElement::Air) => "challenging",
+            _ => "neutral",
+        }
+    }
+}
+
+fn suit_balance_json(cards: &[(&DrawnCard, &TarotCard)]) -> Value {
+    let mut wands = 0usize;
+    let mut cups = 0usize;
+    let mut swords = 0usize;
+    let mut pentacles = 0usize;
+    for (_, card) in cards {
+        match card.suit {
+            Some(Suit::Wands) => wands += 1,
+            Some(Suit::Cups) => cups += 1,
+            Some(Suit::Swords) => swords += 1,
+            Some(Suit::Pentacles) => pentacles += 1,
+            None => {}
+        }
+    }
+    json!({
+        "wands": wands,
+        "cups": cups,
+        "swords": swords,
+        "pentacles": pentacles,
+    })
+}
+
+fn repeated_numbers_json(cards: &[(&DrawnCard, &TarotCard)]) -> Vec<Value> {
+    let mut results = Vec::new();
+    for number in 0..=21 {
+        let matches = cards
+            .iter()
+            .filter(|(_, card)| card.number == number)
+            .map(|(_, card)| card.name_ko)
+            .collect::<Vec<_>>();
+        if matches.len() > 1 {
+            results.push(json!({"number": number, "cards": matches}));
+        }
+    }
+    results
 }
 
 #[cfg(test)]
@@ -490,8 +736,44 @@ mod tests {
         assert!(card["number"].is_number());
         assert!(card["is_reversed"].is_boolean());
         assert!(card["keywords"].is_array());
+        assert!(card["element"].is_string());
+        assert!(card["ohang"].is_string());
         assert!(card["meaning"].is_string());
         assert!(card["interpretation"].is_string());
+        assert_eq!(result["deck_contract"]["deck_size"], 78);
+        assert_eq!(result["deck_contract"]["draw_pool"], "major_arcana_22");
+        assert_eq!(
+            result["deck_contract"]["source_profile"]["id"],
+            profile::TAROT_PROFILE_ID
+        );
+        assert_eq!(
+            result["deck_contract"]["source_profile"]["compatibility_target"],
+            profile::TAROT_COMPATIBILITY_TARGET
+        );
+        assert!(result["draw_contract"]["seed_hash"].is_string());
+        assert!(result["draw_contract"].get("seed_input").is_none());
+        assert!(result["card_relationships"]["reversal_count"].is_number());
+        assert!(result["reading_facts"]["major_count"].is_number());
+    }
+
+    #[test]
+    fn test_rws_open_data_card_identity_contract() {
+        let cards = cards::all_cards();
+
+        assert_eq!(cards.len(), 78);
+        assert_eq!(cards[0].name_en, "The Fool");
+        assert_eq!(cards[0].number, 0);
+        assert_eq!(cards[21].name_en, "The World");
+        assert_eq!(cards[21].number, 21);
+        assert_eq!(cards[22].name_en, "Ace of Wands");
+        assert_eq!(cards[22].suit, Some(Suit::Wands));
+        assert_eq!(cards[35].name_en, "King of Wands");
+        assert_eq!(cards[36].name_en, "Ace of Cups");
+        assert_eq!(cards[49].name_en, "King of Cups");
+        assert_eq!(cards[50].name_en, "Ace of Swords");
+        assert_eq!(cards[63].name_en, "King of Swords");
+        assert_eq!(cards[64].name_en, "Ace of Pentacles");
+        assert_eq!(cards[77].name_en, "King of Pentacles");
     }
 
     #[test]
@@ -515,7 +797,52 @@ mod tests {
 
     #[test]
     fn test_engine_version_bumped() {
-        assert_eq!(TAROT_ENGINE_VERSION, "tarot-v2.3");
+        assert_eq!(TAROT_ENGINE_VERSION, "tarot-v2.4");
+    }
+
+    #[test]
+    fn test_full_deck_scope_can_draw_minor_arcana_with_contract() {
+        let engine = TarotEngine;
+        let input = json!({
+            "birth_date": "1990-01-01",
+            "birth_time": "12:00",
+            "calendar_type": "solar",
+            "options": { "deck_scope": "full_78" },
+        });
+        let (result, _) = engine.generate("tarot_celtic", &input);
+
+        assert_eq!(result["deck_contract"]["draw_pool"], "full_78");
+        assert_eq!(result["deck_contract"]["draw_pool_size"], 78);
+        assert_eq!(result["cards"].as_array().unwrap().len(), 10);
+        assert!(
+            result["reading_facts"]["minor_count"]
+                .as_u64()
+                .is_some_and(|count| count > 0),
+            "fixed full_78 fixture must prove minor arcana can be drawn"
+        );
+        assert!(result["cards"].as_array().unwrap().iter().all(|card| {
+            card["card_id"].as_u64().is_some_and(|id| id < 78)
+                && card["element"].as_str().is_some()
+                && card["ohang"].as_str().is_some()
+        }));
+    }
+
+    #[test]
+    fn test_unknown_category_is_marked_as_general_fallback() {
+        let engine = TarotEngine;
+        let input = json!({
+            "birth_date": "1990-01-01",
+            "birth_time": "12:00",
+            "calendar_type": "solar",
+            "options": { "category": "unknown" },
+        });
+        let (result, _) = engine.generate("tarot_three", &input);
+
+        assert_eq!(
+            result["reading_facts"]["category_status"],
+            "unsupported_fallback_general"
+        );
+        assert_eq!(result["reading_facts"]["category"], "general");
     }
 
     #[test]

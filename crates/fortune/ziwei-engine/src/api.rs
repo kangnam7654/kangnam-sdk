@@ -12,6 +12,8 @@ pub struct ZiweiEngineRequest<'a> {
     pub birth_time: Option<&'a str>,
     pub calendar_type: Option<&'a str>,
     pub is_lunar_leap_month: bool,
+    pub gender: Option<&'a str>,
+    pub target_year: Option<i32>,
 }
 
 #[derive(Debug, Clone)]
@@ -58,6 +60,8 @@ pub fn generate_ziwei_chart(
         birth_time: Some(birth_time),
         calendar_type: Some("solar"),
         is_lunar_leap_month: false,
+        gender: None,
+        target_year: None,
     })
 }
 
@@ -107,6 +111,8 @@ pub fn generate_ziwei_reading(
         birth_time: format!("{hour:02}:{minute:02}"),
         hour,
         minute,
+        target_year: request.target_year,
+        gender: request.gender.map(str::to_string),
     })
     .map_err(|error| ZiweiEngineError::EngineReturnedError(error.to_string()))?;
     let engine_version = ZIWEI_ENGINE_VERSION.to_string();

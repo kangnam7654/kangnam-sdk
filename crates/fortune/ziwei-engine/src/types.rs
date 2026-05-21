@@ -367,10 +367,91 @@ impl MajorStar {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FourTransformation {
+    HuaLu,
+    HuaQuan,
+    HuaKe,
+    HuaJi,
+}
+
+impl FourTransformation {
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::HuaLu => "hua_lu",
+            Self::HuaQuan => "hua_quan",
+            Self::HuaKe => "hua_ke",
+            Self::HuaJi => "hua_ji",
+        }
+    }
+
+    pub const fn korean(self) -> &'static str {
+        match self {
+            Self::HuaLu => "화록",
+            Self::HuaQuan => "화권",
+            Self::HuaKe => "화과",
+            Self::HuaJi => "화기",
+        }
+    }
+
+    pub const fn hanja(self) -> &'static str {
+        match self {
+            Self::HuaLu => "化祿",
+            Self::HuaQuan => "化權",
+            Self::HuaKe => "化科",
+            Self::HuaJi => "化忌",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StarRef {
+    pub code: String,
+    pub ko: String,
+    pub hanja: String,
+}
+
+impl StarRef {
+    pub fn new(code: &str, ko: &str, hanja: &str) -> Self {
+        Self {
+            code: code.to_string(),
+            ko: ko.to_string(),
+            hanja: hanja.to_string(),
+        }
+    }
+}
+
+impl From<MajorStar> for StarRef {
+    fn from(value: MajorStar) -> Self {
+        Self::new(value.code(), value.korean(), value.hanja())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StarPlacement {
     pub star: MajorStar,
     pub branch: Branch,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NamedStarPlacement {
+    pub star: StarRef,
+    pub branch: Branch,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Transformation {
+    pub kind: FourTransformation,
+    pub star: StarRef,
+    pub branch: Option<Branch>,
+    pub placement_status: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Triad {
+    pub palace: Branch,
+    pub related_palaces: Vec<Branch>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -379,8 +460,93 @@ pub struct Palace {
     pub stem: Stem,
     pub name: PalaceName,
     pub major_stars: Vec<MajorStar>,
+    pub auxiliary_stars: Vec<StarRef>,
+    pub malefic_stars: Vec<StarRef>,
+    pub transformations: Vec<Transformation>,
     pub is_life_palace: bool,
     pub is_body_palace: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StarState {
+    pub star: StarRef,
+    pub branch: Branch,
+    pub level: String,
+    pub label: String,
+    pub source_policy: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TriadSummary {
+    pub palace: Branch,
+    pub related_palaces: Vec<Branch>,
+    pub major_star_count: usize,
+    pub auxiliary_star_count: usize,
+    pub malefic_star_count: usize,
+    pub transformation_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DecadeCycle {
+    pub index: usize,
+    pub start_age: u8,
+    pub end_age: u8,
+    pub palace: Branch,
+    pub stem: Stem,
+    pub branch: Branch,
+    pub transformations: Vec<Transformation>,
+    pub direction: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChartLord {
+    pub kind: String,
+    pub star: StarRef,
+    pub basis: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AnnualFlow {
+    pub year: i32,
+    pub stem: Stem,
+    pub branch: Branch,
+    pub palace: Branch,
+    pub transformations: Vec<Transformation>,
+    pub source_policy: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DomainFact {
+    pub domain: String,
+    pub palace: Branch,
+    pub label: String,
+    pub major_star_count: usize,
+    pub auxiliary_star_count: usize,
+    pub malefic_star_count: usize,
+    pub transformation_count: usize,
+    pub signal_level: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ZiweiSourcePolicy {
+    pub tier: String,
+    pub role: String,
+    pub allowed_use: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ZiweiCalculationProfile {
+    pub id: String,
+    pub version: String,
+    pub display_name: String,
+    pub compatibility_target: String,
+    pub school_policy: String,
+    pub calendar_policy: String,
+    pub primary_reference: String,
+    pub secondary_reference: String,
+    pub interpretation_policy: String,
+    pub unsupported_policy: String,
+    pub source_policies: Vec<ZiweiSourcePolicy>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -407,6 +573,7 @@ pub struct BirthData {
 pub struct ZiweiChart {
     pub chart_type: String,
     pub schema_version: String,
+    pub calculation_profile: ZiweiCalculationProfile,
     pub birth: BirthData,
     pub life_palace: Branch,
     pub body_palace: Branch,
@@ -415,4 +582,14 @@ pub struct ZiweiChart {
     pub tianfu_star: Branch,
     pub palaces: Vec<Palace>,
     pub major_star_placements: Vec<StarPlacement>,
+    pub auxiliary_star_placements: Vec<NamedStarPlacement>,
+    pub malefic_star_placements: Vec<NamedStarPlacement>,
+    pub transformations: Vec<Transformation>,
+    pub triads: Vec<Triad>,
+    pub star_states: Vec<StarState>,
+    pub triad_summaries: Vec<TriadSummary>,
+    pub decade_cycles: Vec<DecadeCycle>,
+    pub annual_flow: Option<AnnualFlow>,
+    pub chart_lords: Vec<ChartLord>,
+    pub domain_facts: Vec<DomainFact>,
 }

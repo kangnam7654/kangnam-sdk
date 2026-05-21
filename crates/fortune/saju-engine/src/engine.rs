@@ -1,6 +1,6 @@
 use crate::{
     self as saju, branches, calendar, daeun, daily, elements, enrichment, gongmang, interpretation,
-    interpreter, lucky, monthly, natal_categories, shinsal, ten_gods, types::*,
+    interpreter, lucky, monthly, natal_categories, pillars, profile, shinsal, ten_gods, types::*,
 };
 use chrono::{Datelike, NaiveDate};
 use serde_json::{Value, json};
@@ -8,11 +8,11 @@ use serde_json::{Value, json};
 pub struct SajuEngine;
 
 /// 엔진 버전. 캐시 무효화 기준으로 사용된다.
-pub const SAJU_ENGINE_VERSION: &str = "saju-v1.6";
+pub const SAJU_ENGINE_VERSION: &str = "saju-v1.7";
 
 /// Calculation-first saju schema. This path intentionally excludes prose
 /// fields so app/backend layers can compose their own user-facing explanation.
-pub const SAJU_CORE_SCHEMA_VERSION: &str = "saju_core_v1";
+pub const SAJU_CORE_SCHEMA_VERSION: &str = "saju_core_v2";
 
 const SAJU_LEGACY_PROSE_VERSION: &str = "saju_legacy_prose_v1";
 
@@ -339,6 +339,7 @@ struct SajuCoreContext {
     birth_day: u32,
     birth_hour: u32,
     birth_minute: u32,
+    target_year: i32,
     has_birth_time: bool,
     pillars: FourPillars,
     day_master: Stem,
@@ -379,6 +380,7 @@ fn saju_core_json(core: &SajuCoreContext) -> Value {
 
     json!({
         "schema_version": SAJU_CORE_SCHEMA_VERSION,
+        "calculation_profile": profile::calculation_profile_json(),
         "four_pillars": four_pillars,
         "four_pillars_detail": four_pillars_detail,
         "has_birth_time": core.has_birth_time,
@@ -389,13 +391,423 @@ fn saju_core_json(core: &SajuCoreContext) -> Value {
         "ten_gods": ten_gods_positions_json(&core.ten_gods),
         "ten_gods_summary": ten_gods_summary_core_json(&core.ten_gods),
         "gender": core.gender,
+        "target_year": core.target_year,
         "calculation_basis": calculation_basis_json(core),
         "daeun_summary": daeun_summary_core_json(core),
         "gongmang": gongmang_core_json(&core.gongmang),
         "shinsal": core.shinsal.iter().map(shinsal_core_json).collect::<Vec<_>>(),
         "lucky": lucky_core_json(&core.lucky),
+        "manseoryok": manseoryok_json(core),
         "signals": saju_signals_json(core),
         "evidence": saju_evidence_json(core),
+    })
+}
+
+fn manseoryok_json(core: &SajuCoreContext) -> Value {
+    json!({
+        "schema_version": "saju_manseoryok_v1",
+        "hidden_stems": hidden_stems_manse_json(core),
+        "twelve_stages": twelve_stages_json(core),
+        "branch_interactions": branch_interactions_manse_json(core),
+        "useful_elements": useful_elements_json(core),
+        "gyeokguk": gyeokguk_json(core),
+        "johu_eokbu_tonggwan": johu_eokbu_tonggwan_json(core),
+        "fortune_cycles": fortune_cycles_manse_json(core),
+        "calculation_basis": {
+            "calculation_profile_id": profile::SAJU_PROFILE_ID,
+            "calculation_profile_version": profile::SAJU_PROFILE_VERSION,
+            "hidden_stem_rule": "branch藏干_primary_secondary_residual_table_v1",
+            "twelve_stage_rule": "day_stem_twelve_growth_stage_table_v1",
+            "useful_element_rule": "strength_score_plus_seasonal_adjustment_v1",
+            "gyeokguk_rule": "month_branch_primary_hidden_stem_ten_god_v1",
+            "cycle_rule": "daeun_plus_next_10_annual_12_monthly_10_daily_flows",
+            "precision_note": "solar_term_boundary_uses_engine_precise_pillar_path_and daeun adjacent solar-term days when available",
+        }
+    })
+}
+
+fn hidden_stems_manse_json(core: &SajuCoreContext) -> Vec<Value> {
+    pillar_entries(&core.pillars, core.has_birth_time)
+        .into_iter()
+        .map(|(position, pillar)| {
+            let stems = hidden_stems_for_branch(pillar.branch);
+            json!({
+                "position": position,
+                "branch": branch_info(pillar.branch),
+                "stems": stems.iter().enumerate().map(|(idx, stem)| {
+                    json!({
+                        "stem": day_master_info(*stem),
+                        "priority": if idx == 0 { "primary" } else if idx == 1 { "secondary" } else { "residual" },
+                        "ten_god": ten_gods::derive_ten_god(core.day_master, *stem).korean(),
+                    })
+                }).collect::<Vec<_>>(),
+            })
+        })
+        .collect()
+}
+
+fn twelve_stages_json(core: &SajuCoreContext) -> Vec<Value> {
+    pillar_entries(&core.pillars, core.has_birth_time)
+        .into_iter()
+        .map(|(position, pillar)| {
+            let stage = twelve_stage(core.day_master, pillar.branch);
+            json!({
+                "position": position,
+                "branch": branch_info(pillar.branch),
+                "stage": stage,
+                "summary": twelve_stage_summary(stage),
+            })
+        })
+        .collect()
+}
+
+fn branch_interactions_manse_json(core: &SajuCoreContext) -> Value {
+    let branches = pillar_entries(&core.pillars, core.has_birth_time)
+        .into_iter()
+        .map(|(_, pillar)| pillar.branch)
+        .collect::<Vec<_>>();
+    let analysis = branches::analyze(&branches, &[]);
+    json!({
+        "samhap": analysis.samhap.iter().map(|item| match item {
+            branches::SamhapResult::Full(element) => json!({"type": "full", "element": element.korean()}),
+            branches::SamhapResult::Half(element) => json!({"type": "half", "element": element.korean()}),
+        }).collect::<Vec<_>>(),
+        "yukhap_count": analysis.yukhap_count,
+        "clash_count": analysis.sangchung_count,
+        "punishment_count": analysis.sanghyeong_count,
+        "harms": branch_harms(&branches),
+        "breaks": branch_breaks(&branches),
+    })
+}
+
+fn useful_elements_json(core: &SajuCoreContext) -> Value {
+    let strength = strength_score(core);
+    let day_element = core.day_master.element();
+    let season_element = core.pillars.month.branch.element();
+    let useful = if strength >= 62 {
+        vec![generates(day_element), controls(day_element)]
+    } else if strength <= 42 {
+        vec![generating(day_element), day_element]
+    } else {
+        vec![
+            weakest_element_for(&core.balance),
+            season_balancer(season_element),
+        ]
+    };
+    let avoid = if strength >= 62 {
+        vec![day_element, generating(day_element)]
+    } else if strength <= 42 {
+        vec![controls(day_element), generates(day_element)]
+    } else {
+        vec![dominant_element_for(&core.balance)]
+    };
+    json!({
+        "strength_score": strength,
+        "strength_label": if strength >= 62 { "신강" } else if strength <= 42 { "신약" } else { "중화" },
+        "yongsin_candidates": useful.iter().map(|element| element.korean()).collect::<Vec<_>>(),
+        "gisin_candidates": avoid.iter().map(|element| element.korean()).collect::<Vec<_>>(),
+        "huisin_candidates": vec![weakest_element_for(&core.balance).korean()],
+    })
+}
+
+fn gyeokguk_json(core: &SajuCoreContext) -> Value {
+    let primary = hidden_stems_for_branch(core.pillars.month.branch)
+        .first()
+        .copied()
+        .unwrap_or(core.pillars.month.stem);
+    let ten_god = ten_gods::derive_ten_god(core.day_master, primary);
+    json!({
+        "basis": "month_branch_primary_hidden_stem",
+        "month_branch": branch_info(core.pillars.month.branch),
+        "primary_hidden_stem": day_master_info(primary),
+        "ten_god": ten_god.korean(),
+        "label": gyeok_label(ten_god),
+    })
+}
+
+fn johu_eokbu_tonggwan_json(core: &SajuCoreContext) -> Value {
+    let month = core.pillars.month.branch;
+    let strength = strength_score(core);
+    let cold_hot = match month {
+        Branch::Hae | Branch::Ja | Branch::Chuk => "cold",
+        Branch::Sa | Branch::O | Branch::Mi => "hot",
+        _ => "moderate",
+    };
+    let johu = match cold_hot {
+        "cold" => Element::Fire,
+        "hot" => Element::Water,
+        _ => weakest_element_for(&core.balance),
+    };
+    let eokbu = if strength >= 62 {
+        "일간이 강하므로 설기·재성·관성으로 힘을 분산하는 쪽을 우선 검토합니다."
+    } else if strength <= 42 {
+        "일간이 약하므로 인성·비겁으로 기반을 보강하는 쪽을 우선 검토합니다."
+    } else {
+        "일간 힘이 중간권이므로 조후와 부족 오행을 함께 봅니다."
+    };
+    json!({
+        "johu": {"season_temperature": cold_hot, "candidate": johu.korean()},
+        "eokbu": eokbu,
+        "tonggwan": tonggwan_hint(core),
+    })
+}
+
+fn fortune_cycles_manse_json(core: &SajuCoreContext) -> Value {
+    let daeun = core
+        .normalized_gender
+        .map(|gender| {
+            daeun::calculate_daeun_with_time(
+                &core.pillars,
+                core.birth_year,
+                core.birth_month,
+                core.birth_day,
+                core.birth_hour,
+                core.birth_minute,
+                gender,
+            )
+            .into_iter()
+            .map(|period| daeun_period_json(&period, core.day_master))
+            .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let current_year = core.target_year;
+    let annual = (0..10)
+        .map(|offset| annual_flow_json(core, current_year + offset))
+        .collect::<Vec<_>>();
+    let monthly = monthly::calculate_monthly_fortune(&core.pillars, current_year)
+        .into_iter()
+        .map(|month| {
+            json!({
+                "month": month.month,
+                "score": month.score,
+                "grade": month.grade,
+                "categories": {
+                    "overall": month.categories.overall,
+                    "love": month.categories.love,
+                    "career": month.categories.career,
+                    "health": month.categories.health,
+                    "wealth": month.categories.wealth,
+                },
+                "advice": month.advice,
+            })
+        })
+        .collect::<Vec<_>>();
+    let daily = (0..10)
+        .map(|offset| {
+            let date = NaiveDate::from_ymd_opt(core.target_year, 1, 1).unwrap()
+                + chrono::Duration::days(offset);
+            let fortune = daily::calculate_daily_for_date(
+                &core.pillars,
+                date.year(),
+                date.month(),
+                date.day(),
+            );
+            json!({
+                "date": date.to_string(),
+                "pillar": format!("{}", fortune.today_pillar),
+                "score": fortune.scores.overall,
+                "relation": fortune.relation.korean(),
+            })
+        })
+        .collect::<Vec<_>>();
+    json!({
+        "daeun": daeun,
+        "annual": annual,
+        "monthly": monthly,
+        "daily": daily,
+    })
+}
+
+fn pillar_entries(pillars: &FourPillars, has_birth_time: bool) -> Vec<(&'static str, Pillar)> {
+    let mut entries = vec![
+        ("year", pillars.year),
+        ("month", pillars.month),
+        ("day", pillars.day),
+    ];
+    if has_birth_time {
+        entries.push(("hour", pillars.hour));
+    }
+    entries
+}
+
+fn hidden_stems_for_branch(branch: Branch) -> &'static [Stem] {
+    match branch {
+        Branch::Ja => &[Stem::Gye],
+        Branch::Chuk => &[Stem::Gi, Stem::Gye, Stem::Sin],
+        Branch::In => &[Stem::Gap, Stem::Byeong, Stem::Mu],
+        Branch::Myo => &[Stem::Eul],
+        Branch::Jin => &[Stem::Mu, Stem::Eul, Stem::Gye],
+        Branch::Sa => &[Stem::Byeong, Stem::Gyeong, Stem::Mu],
+        Branch::O => &[Stem::Jeong, Stem::Gi],
+        Branch::Mi => &[Stem::Gi, Stem::Jeong, Stem::Eul],
+        Branch::Sin => &[Stem::Gyeong, Stem::Im, Stem::Mu],
+        Branch::Yu => &[Stem::Sin],
+        Branch::Sul => &[Stem::Mu, Stem::Sin, Stem::Jeong],
+        Branch::Hae => &[Stem::Im, Stem::Gap],
+    }
+}
+
+fn twelve_stage(day_master: Stem, branch: Branch) -> &'static str {
+    const STAGES: [&str; 12] = [
+        "장생", "목욕", "관대", "건록", "제왕", "쇠", "병", "사", "묘", "절", "태", "양",
+    ];
+    let (start, forward) = match day_master {
+        Stem::Gap => (Branch::Hae, true),
+        Stem::Eul => (Branch::O, false),
+        Stem::Byeong | Stem::Mu => (Branch::In, true),
+        Stem::Jeong | Stem::Gi => (Branch::Yu, false),
+        Stem::Gyeong => (Branch::Sa, true),
+        Stem::Sin => (Branch::Ja, false),
+        Stem::Im => (Branch::Sin, true),
+        Stem::Gye => (Branch::Myo, false),
+    };
+    let offset = if forward {
+        (branch.index() + 12 - start.index()) % 12
+    } else {
+        (start.index() + 12 - branch.index()) % 12
+    };
+    STAGES[offset]
+}
+
+fn twelve_stage_summary(stage: &str) -> &'static str {
+    match stage {
+        "장생" | "건록" | "제왕" => "기운이 살아 움직이고 주도성이 강한 단계입니다.",
+        "목욕" | "관대" | "양" => "성장과 조정이 함께 필요한 단계입니다.",
+        "쇠" | "병" | "사" => "속도보다 관리와 회복을 우선할 단계입니다.",
+        _ => "내면화, 정리, 다음 흐름의 준비가 강조되는 단계입니다.",
+    }
+}
+
+fn branch_harms(branches: &[Branch]) -> Vec<Value> {
+    const HARMS: [(Branch, Branch); 6] = [
+        (Branch::Ja, Branch::Mi),
+        (Branch::Chuk, Branch::O),
+        (Branch::In, Branch::Sa),
+        (Branch::Myo, Branch::Jin),
+        (Branch::Sin, Branch::Hae),
+        (Branch::Yu, Branch::Sul),
+    ];
+    branch_pair_hits(branches, &HARMS, "harm")
+}
+
+fn branch_breaks(branches: &[Branch]) -> Vec<Value> {
+    const BREAKS: [(Branch, Branch); 6] = [
+        (Branch::Ja, Branch::Yu),
+        (Branch::Chuk, Branch::Jin),
+        (Branch::In, Branch::Hae),
+        (Branch::Myo, Branch::O),
+        (Branch::Sa, Branch::Sin),
+        (Branch::Mi, Branch::Sul),
+    ];
+    branch_pair_hits(branches, &BREAKS, "break")
+}
+
+fn branch_pair_hits(branches: &[Branch], pairs: &[(Branch, Branch)], kind: &str) -> Vec<Value> {
+    pairs
+        .iter()
+        .filter(|(a, b)| branches.contains(a) && branches.contains(b))
+        .map(|(a, b)| json!({"type": kind, "branches": [a.korean(), b.korean()]}))
+        .collect()
+}
+
+fn strength_score(core: &SajuCoreContext) -> i32 {
+    let day = core.day_master.element();
+    let same = element_count(&core.balance, day) as i32;
+    let resource = element_count(&core.balance, generating(day)) as i32;
+    let season = if core.pillars.month.branch.element() == day {
+        12
+    } else {
+        0
+    };
+    (35 + same * 8 + resource * 6 + season).clamp(20, 85)
+}
+
+fn generating(element: Element) -> Element {
+    match element {
+        Element::Wood => Element::Water,
+        Element::Fire => Element::Wood,
+        Element::Earth => Element::Fire,
+        Element::Metal => Element::Earth,
+        Element::Water => Element::Metal,
+    }
+}
+
+fn generates(element: Element) -> Element {
+    match element {
+        Element::Wood => Element::Fire,
+        Element::Fire => Element::Earth,
+        Element::Earth => Element::Metal,
+        Element::Metal => Element::Water,
+        Element::Water => Element::Wood,
+    }
+}
+
+fn controls(element: Element) -> Element {
+    match element {
+        Element::Wood => Element::Earth,
+        Element::Fire => Element::Metal,
+        Element::Earth => Element::Water,
+        Element::Metal => Element::Wood,
+        Element::Water => Element::Fire,
+    }
+}
+
+fn season_balancer(element: Element) -> Element {
+    match element {
+        Element::Water => Element::Fire,
+        Element::Fire => Element::Water,
+        Element::Wood => Element::Metal,
+        Element::Metal => Element::Fire,
+        Element::Earth => Element::Wood,
+    }
+}
+
+fn gyeok_label(ten_god: TenGod) -> &'static str {
+    match ten_god {
+        TenGod::Bigyeon => "건록/비견격 후보",
+        TenGod::Geupjae => "양인/겁재격 후보",
+        TenGod::Sikshin => "식신격 후보",
+        TenGod::Sanggwan => "상관격 후보",
+        TenGod::Pyeonjae => "편재격 후보",
+        TenGod::Jeongjae => "정재격 후보",
+        TenGod::Pyeongwan => "편관격 후보",
+        TenGod::Jeonggwan => "정관격 후보",
+        TenGod::Pyeonin => "편인격 후보",
+        TenGod::Jeongin => "정인격 후보",
+    }
+}
+
+fn tonggwan_hint(core: &SajuCoreContext) -> &'static str {
+    let dominant = dominant_element_for(&core.balance);
+    let weakest = weakest_element_for(&core.balance);
+    if generates(dominant) == weakest || controls(dominant) == weakest {
+        "강한 오행과 약한 오행 사이를 이어주는 통관 오행을 우선 검토해야 합니다."
+    } else {
+        "오행 간 단절보다 전체 균형 보정이 우선인 구조입니다."
+    }
+}
+
+fn annual_flow_json(core: &SajuCoreContext, year: i32) -> Value {
+    let year_pillar = pillars::year_pillar(year, 7, 1);
+    let relation = ten_gods::derive_ten_god(core.day_master, year_pillar.stem);
+    let branch_analysis = branches::analyze(
+        &pillar_entries(&core.pillars, core.has_birth_time)
+            .into_iter()
+            .map(|(_, pillar)| pillar.branch)
+            .collect::<Vec<_>>(),
+        &[year_pillar.branch],
+    );
+    json!({
+        "year": year,
+        "pillar": format!("{}", year_pillar),
+        "stem_ten_god": relation.korean(),
+        "branch": branch_info(year_pillar.branch),
+        "interactions": {
+            "samhap_count": branch_analysis.samhap_count,
+            "yukhap_count": branch_analysis.yukhap_count,
+            "clash_count": branch_analysis.sangchung_count,
+            "punishment_count": branch_analysis.sanghyeong_count,
+        }
     })
 }
 
@@ -427,6 +839,8 @@ fn four_pillars_core_json(pillars: &FourPillars, has_birth_time: bool) -> (Value
 
 fn calculation_basis_json(core: &SajuCoreContext) -> Value {
     json!({
+        "calculation_profile_id": profile::SAJU_PROFILE_ID,
+        "calculation_profile_version": profile::SAJU_PROFILE_VERSION,
         "calendar_type": core.birth.calendar_type(),
         "normalized_birth_date": core.birth.solar_date_string(),
         "is_lunar_converted": core.birth.was_converted(),
@@ -1026,6 +1440,16 @@ impl SajuEngine {
             .to_string();
         let normalized_gender = normalize_gender(input.get("gender").and_then(|v| v.as_str()));
         let birth = Self::parse_normalized_birth_date(input)?;
+        let target_year = input
+            .get("target_year")
+            .or_else(|| {
+                input
+                    .get("options")
+                    .and_then(|options| options.get("target_year"))
+            })
+            .and_then(|value| value.as_i64())
+            .and_then(|value| i32::try_from(value).ok())
+            .unwrap_or(year);
 
         Some(SajuCoreContext {
             birth_year: year,
@@ -1033,6 +1457,7 @@ impl SajuEngine {
             birth_day: day,
             birth_hour: hour,
             birth_minute: minute,
+            target_year,
             has_birth_time,
             pillars,
             day_master,
@@ -2491,6 +2916,153 @@ mod content_depth_tests {
             })
         }));
         assert!(core.get("interpretation").is_none());
+    }
+
+    #[test]
+    fn saju_core_includes_manseoryok_grade_sections() {
+        let (core, _version) = SajuEngine.generate_saju_core(&saju_input_with_time());
+        let manse = core.get("manseoryok").expect("manseoryok section");
+
+        assert_eq!(
+            core["calculation_profile"]["id"],
+            profile::SAJU_PROFILE_ID,
+            "saju core must declare its open-source compatibility target"
+        );
+        assert_eq!(
+            core["calculation_profile"]["compatibility_target"],
+            profile::SAJU_COMPATIBILITY_TARGET
+        );
+        assert_eq!(
+            core["calculation_basis"]["calculation_profile_id"],
+            profile::SAJU_PROFILE_ID
+        );
+        assert_eq!(manse["schema_version"], "saju_manseoryok_v1");
+        assert_eq!(
+            manse["calculation_basis"]["calculation_profile_version"],
+            profile::SAJU_PROFILE_VERSION
+        );
+        assert_eq!(
+            manse["hidden_stems"].as_array().map(Vec::len),
+            Some(4),
+            "known birth time should expose four hidden-stem sections"
+        );
+        assert_eq!(manse["twelve_stages"].as_array().map(Vec::len), Some(4));
+        assert!(
+            manse["useful_elements"]["yongsin_candidates"]
+                .as_array()
+                .is_some_and(|items| !items.is_empty())
+        );
+        assert!(
+            manse["gyeokguk"]["label"]
+                .as_str()
+                .is_some_and(|label| label.contains("후보"))
+        );
+        assert_eq!(
+            manse["fortune_cycles"]["monthly"].as_array().map(Vec::len),
+            Some(12)
+        );
+        assert_eq!(
+            manse["fortune_cycles"]["daily"].as_array().map(Vec::len),
+            Some(10)
+        );
+    }
+
+    #[test]
+    fn saju_core_matches_6tail_lunar_python_readme_fixture() {
+        // 6tail/lunar-python README fixture:
+        // Lunar.fromYmd(1986, 4, 21) => 1986-05-29 00:00, 丙寅年 癸巳月 癸酉日 子时.
+        let input = json!({
+            "birth_date": "1986-04-21",
+            "birth_time": "00:00",
+            "calendar_type": "lunar",
+            "is_lunar_leap_month": false,
+        });
+        let (core, _version) = SajuEngine.generate_saju_core(&input);
+
+        assert_eq!(core["calculation_basis"]["is_lunar_converted"], true);
+        assert_eq!(
+            core["calculation_basis"]["normalized_birth_date"],
+            "1986-05-29"
+        );
+        assert_eq!(core["four_pillars"]["year"], "병인 (丙寅)");
+        assert_eq!(core["four_pillars"]["month"], "계사 (癸巳)");
+        assert_eq!(core["four_pillars"]["day"], "계유 (癸酉)");
+        assert_eq!(core["four_pillars"]["hour"], "임자 (壬子)");
+        assert_eq!(core["calculation_profile"]["id"], profile::SAJU_PROFILE_ID);
+    }
+
+    #[test]
+    fn saju_core_matches_6tail_lunar_javascript_eightchar_fixture() {
+        // 6tail/lunar-javascript EightChar fixture:
+        // Solar.fromYmdHms(2005, 12, 23, 8, 37, 0)
+        // => 乙酉 戊子 辛巳 壬辰, hidden stems 辛 / 癸 / 丙庚戊 / 戊乙癸.
+        let input = json!({
+            "birth_date": "2005-12-23",
+            "birth_time": "08:37",
+            "calendar_type": "solar",
+        });
+        let (core, _version) = SajuEngine.generate_saju_core(&input);
+
+        assert_eq!(core["four_pillars"]["year"], "을유 (乙酉)");
+        assert_eq!(core["four_pillars"]["month"], "무자 (戊子)");
+        assert_eq!(core["four_pillars"]["day"], "신사 (辛巳)");
+        assert_eq!(core["four_pillars"]["hour"], "임진 (壬辰)");
+        let hidden = core["manseoryok"]["hidden_stems"].as_array().unwrap();
+        assert_eq!(hidden[0]["stems"][0]["stem"]["korean"], "신");
+        assert_eq!(hidden[1]["stems"][0]["stem"]["korean"], "계");
+        assert_eq!(hidden[2]["stems"][0]["stem"]["korean"], "병");
+        assert_eq!(hidden[2]["stems"][1]["stem"]["korean"], "경");
+        assert_eq!(hidden[2]["stems"][2]["stem"]["korean"], "무");
+        assert_eq!(hidden[3]["stems"][0]["stem"]["korean"], "무");
+        assert_eq!(hidden[3]["stems"][1]["stem"]["korean"], "을");
+        assert_eq!(hidden[3]["stems"][2]["stem"]["korean"], "계");
+    }
+
+    #[test]
+    fn saju_core_matches_additional_6tail_eightchar_fixtures() {
+        let fixtures = [
+            (
+                json!({
+                    "birth_date": "1988-02-15",
+                    "birth_time": "22:30",
+                    "calendar_type": "solar",
+                }),
+                ["무진 (戊辰)", "갑인 (甲寅)", "경자 (庚子)", "정해 (丁亥)"],
+            ),
+            (
+                json!({
+                    "birth_date": "1988-02-02",
+                    "birth_time": "22:30",
+                    "calendar_type": "solar",
+                }),
+                ["정묘 (丁卯)", "계축 (癸丑)", "정해 (丁亥)", "신해 (辛亥)"],
+            ),
+            (
+                json!({
+                    "birth_date": "2019-12-12",
+                    "birth_time": "11:22",
+                    "calendar_type": "lunar",
+                    "is_lunar_leap_month": false,
+                }),
+                ["기해 (己亥)", "정축 (丁丑)", "무신 (戊申)", "무오 (戊午)"],
+            ),
+            (
+                json!({
+                    "birth_date": "1999-06-07",
+                    "birth_time": "09:11",
+                    "calendar_type": "solar",
+                }),
+                ["기묘 (己卯)", "경오 (庚午)", "경인 (庚寅)", "신사 (辛巳)"],
+            ),
+        ];
+
+        for (input, expected) in fixtures {
+            let (core, _version) = SajuEngine.generate_saju_core(&input);
+            assert_eq!(core["four_pillars"]["year"], expected[0]);
+            assert_eq!(core["four_pillars"]["month"], expected[1]);
+            assert_eq!(core["four_pillars"]["day"], expected[2]);
+            assert_eq!(core["four_pillars"]["hour"], expected[3]);
+        }
     }
 
     #[test]

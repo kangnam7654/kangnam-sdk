@@ -135,7 +135,7 @@ fn saju_returns_canonical_full_interpretation() {
 fn saju_includes_full_report_enrichment_fields() {
     let (result, version) = SajuEngine.generate("saju", &minimal_input_with_gender());
 
-    assert_eq!(version, "saju-v1.6");
+    assert_eq!(version, "saju-v1.7");
     assert_eq!(result["dalgyeol_enrichment_version"], "saju_extended_v1");
     assert_eq!(result["hidden_stems"].as_array().map(Vec::len), Some(4));
     assert!(result["branch_relations"].as_array().is_some());

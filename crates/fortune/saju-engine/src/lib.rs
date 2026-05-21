@@ -52,6 +52,7 @@ pub mod lucky;
 pub mod monthly;
 pub mod natal_categories;
 pub mod pillars;
+pub mod profile;
 pub mod shinsal;
 pub mod solar_terms;
 pub mod tables;
@@ -71,4 +72,7 @@ pub use engine::{
     is_valid_reading_type,
 };
 pub use pillars::{calculate_four_pillars, calculate_four_pillars_precise};
+pub use profile::{
+    SAJU_COMPATIBILITY_TARGET, SAJU_PROFILE_ID, SAJU_PROFILE_VERSION, calculation_profile_json,
+};
 pub use types::{Branch, Element, ElementBalance, FourPillars, Pillar, Polarity, Stem, TenGod};

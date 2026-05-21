@@ -8,9 +8,14 @@ use super::{DrawnCard, SpreadType};
 /// 드로우 카드 풀: Major Arcana 22장(card_id 0~21)만 사용.
 /// 이미지 에셋이 Major Arcana만 제공되므로 Minor Arcana는 드로우하지 않는다.
 pub const DRAW_POOL_SIZE: u8 = 22;
+pub const FULL_DECK_SIZE: u8 = 78;
 
 /// N장 드로우 (직접 고르기에서 22장 셔플용)
 pub fn draw_cards_n(n: usize, seed_input: &str) -> Vec<DrawnCard> {
+    draw_cards_n_from_pool(n, seed_input, DRAW_POOL_SIZE)
+}
+
+pub fn draw_cards_n_from_pool(n: usize, seed_input: &str, pool_size: u8) -> Vec<DrawnCard> {
     let seed = {
         let mut hasher = Sha256::new();
         hasher.update(seed_input.as_bytes());
@@ -19,7 +24,7 @@ pub fn draw_cards_n(n: usize, seed_input: &str) -> Vec<DrawnCard> {
     };
 
     let mut rng = StdRng::seed_from_u64(seed);
-    let mut indices: Vec<u8> = (0..DRAW_POOL_SIZE).collect();
+    let mut indices: Vec<u8> = (0..pool_size).collect();
     indices.shuffle(&mut rng);
 
     let count = n.min(indices.len());
@@ -43,6 +48,14 @@ pub fn draw_cards_n(n: usize, seed_input: &str) -> Vec<DrawnCard> {
 /// `seed_input`을 SHA256으로 해싱하여 결정적 난수 시드를 만든다.
 /// 같은 입력이면 항상 같은 카드가 나온다.
 pub fn draw_cards(spread: &SpreadType, seed_input: &str) -> Vec<DrawnCard> {
+    draw_cards_from_pool(spread, seed_input, DRAW_POOL_SIZE)
+}
+
+pub fn draw_cards_from_pool(
+    spread: &SpreadType,
+    seed_input: &str,
+    pool_size: u8,
+) -> Vec<DrawnCard> {
     let seed = {
         let mut hasher = Sha256::new();
         hasher.update(seed_input.as_bytes());
@@ -54,7 +67,7 @@ pub fn draw_cards(spread: &SpreadType, seed_input: &str) -> Vec<DrawnCard> {
     let card_count = spread.card_count();
     let position_names = spread.position_names();
 
-    let mut indices: Vec<u8> = (0..DRAW_POOL_SIZE).collect();
+    let mut indices: Vec<u8> = (0..pool_size).collect();
     indices.shuffle(&mut rng);
 
     let selected = &indices[..card_count];

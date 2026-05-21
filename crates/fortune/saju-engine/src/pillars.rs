@@ -3,8 +3,9 @@ use super::tables;
 use super::types::{Branch, FourPillars, Pillar, Stem};
 use chrono::{Datelike, NaiveDate};
 
-/// 기준일: 1900-01-31 = 갑자일 (stem=0, branch=0)
-const BASE_DATE: (i32, u32, u32) = (1900, 1, 31);
+/// 기준일: 1900-02-20 = 갑자일 (stem=0, branch=0).
+/// 1900-01-31은 공개 만년력/6tail 호환 기준으로 갑진일이다.
+const BASE_DATE: (i32, u32, u32) = (1900, 2, 20);
 
 /// 년주 계산 (양력 근사값 — 입춘 약 2/4)
 /// 1900~2100 범위에서는 `year_pillar_precise`를 권장.
@@ -159,10 +160,18 @@ mod tests {
 
     #[test]
     fn test_day_pillar_known_date() {
-        // 1900-01-31 = 갑자일
-        let p = day_pillar(1900, 1, 31);
+        // 1900-02-20 = 갑자일
+        let p = day_pillar(1900, 2, 20);
         assert_eq!(p.stem, Stem::Gap);
         assert_eq!(p.branch, Branch::Ja);
+    }
+
+    #[test]
+    fn test_day_pillar_1900_01_31_matches_open_manseoryok() {
+        // 공개 만년력/6tail 호환 기준: 1900-01-31 = 갑진일
+        let p = day_pillar(1900, 1, 31);
+        assert_eq!(p.stem, Stem::Gap);
+        assert_eq!(p.branch, Branch::Jin);
     }
 
     #[test]
@@ -173,7 +182,7 @@ mod tests {
     #[test]
     fn test_day_pillar_60_days_later() {
         // 60일 후 = 다시 갑자
-        let p = day_pillar(1900, 4, 1);
+        let p = day_pillar(1900, 4, 21);
         assert_eq!(p.stem, Stem::Gap);
         assert_eq!(p.branch, Branch::Ja);
     }

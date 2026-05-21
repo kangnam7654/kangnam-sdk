@@ -6,6 +6,34 @@ Korean four-pillars (사주팔자) astrology computation engine — pure Rust, n
 
 Library for computing Korean four-pillars astrology: given a birth date and time, returns typed values (`FourPillars`, `ElementBalance`, `TenGod`, …) plus Korean interpretation text for daily, monthly, and daeun (대운 10-year luck period) fortunes. Rule-based, no LLM, no network calls. All dates are KST (UTC+9).
 
+## Calculation Profile
+
+The current product profile is locked as
+`lunar_6tail_compatible_kr_service` / `v1`:
+
+- **Compatibility target**: `6tail-lunar-compatible`
+- **Primary calculation reference**:
+  `6tail/lunar-python` and `6tail/lunar-javascript` EightChar/BaZi
+  contracts
+- **Calendar policy**: Korean lunar calendar via `rs-klc`, aligned with
+  Dalgyeol/KST and the ziwei engine. Chinese-calendar reference engines can
+  differ in rare leap-month years, and those cases must be marked by fixture.
+- **Sect policy**: civil-date Zi hour; no late-Zi day shift unless a future
+  profile explicitly opts into that school.
+- **Unsupported policy**: any rule without fixture coverage is emitted as
+  approximate or pending instead of authoritative.
+
+The regression suite includes open-source compatibility fixtures:
+
+- `6tail/lunar-python` README: lunar `1986-04-21 00:00` converts to solar
+  `1986-05-29` and yields `병인/계사/계유/임자`.
+- `6tail/lunar-javascript` EightChar docs: solar `2005-12-23 08:37`
+  yields `을유/무자/신사/임진`, with hidden stems locked for all four
+  branches.
+- Additional `6tail/lunar-javascript` fixtures cover solar `1988-02-15
+  22:30`, solar `1988-02-02 22:30`, lunar `2019-12-12 11:22`, and solar
+  `1999-06-07 09:11`.
+
 ## Installation
 
 ```toml

@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Zi Wei Dou Shu (자미두수) chart engine — 12 palaces, life/body palaces, five-element bureau, and 14 major stars. Pure computation, no IO."
+description = "Zi Wei Dou Shu (자미두수) chart engine — palaces, major/auxiliary/malefic stars, transformations, cycles, and interpretation facts. Pure computation, no IO."
 
 [lints.rust]
 unsafe_code = "deny"

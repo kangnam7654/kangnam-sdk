@@ -6,7 +6,9 @@
 //!
 //! The MVP scope intentionally locks the structural chart contract first:
 //! 12 palaces, life/body palaces, five-element bureau, Ziwei/Tianfu positions,
-//! and the 14 major stars.
+//! 14 major stars, selected auxiliary/malefic stars, four transformations,
+//! sanfang-sizheng triads, decade cycles, and product-facing interpretation
+//! facts.
 
 #![deny(unsafe_code)]
 
@@ -14,6 +16,7 @@ pub mod api;
 pub mod calendar;
 pub mod chart;
 pub mod engine;
+pub mod profile;
 pub mod types;
 
 pub use api::{
@@ -22,7 +25,13 @@ pub use api::{
 };
 pub use chart::{ChartError, ChartInput, ZIWEI_SCHEMA_VERSION, branch_for_hour, calculate_chart};
 pub use engine::{ZIWEI_ENGINE_VERSION, ZIWEI_READING_TYPES, ZiweiEngine, is_valid_reading_type};
+pub use profile::{
+    ZIWEI_COMPATIBILITY_TARGET, ZIWEI_PROFILE_DISPLAY_NAME, ZIWEI_PROFILE_ID,
+    ZIWEI_PROFILE_VERSION, ZIWEI_STAR_STATE_SOURCE_POLICY, calculation_profile,
+};
 pub use types::{
-    BirthData, Branch, Element, FiveElementBureau, MajorStar, Palace, PalaceName, StarPlacement,
-    Stem, ZiweiChart,
+    AnnualFlow, BirthData, Branch, ChartLord, DecadeCycle, DomainFact, Element, FiveElementBureau,
+    FourTransformation, MajorStar, NamedStarPlacement, Palace, PalaceName, StarPlacement, StarRef,
+    StarState, Stem, Transformation, Triad, TriadSummary, ZiweiCalculationProfile, ZiweiChart,
+    ZiweiSourcePolicy,
 };

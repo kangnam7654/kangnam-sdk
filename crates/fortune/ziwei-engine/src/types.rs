@@ -544,7 +544,6 @@ pub struct ZiweiCalculationProfile {
     pub calendar_policy: String,
     pub primary_reference: String,
     pub secondary_reference: String,
-    pub interpretation_policy: String,
     pub unsupported_policy: String,
     pub source_policies: Vec<ZiweiSourcePolicy>,
 }

@@ -6,7 +6,37 @@
 //! the contract being locked is *shape*, not *content*.
 
 use saju_engine::SajuEngine;
-use serde_json::json;
+use serde_json::{Value, json};
+
+const PROSE_KEYS: &[&str] = &[
+    "legacy_prose",
+    "personality",
+    "fortune_outlook",
+    "interpretation",
+    "interpretation_policy",
+    "lead",
+    "analysis",
+    "advice",
+    "description",
+    "meaning",
+    "modern_take",
+    "prompt",
+    "prompts",
+    "ai_prompts",
+    "headline",
+    "sections",
+    "summary",
+    "element_energy",
+    "personality_summary",
+    "persona_today",
+    "saju_connection",
+    "mixed_interpretation",
+    "basic_interpretation",
+    "saju_interpretation",
+    "confidence_note",
+    "preview_text",
+    "overall_summary",
+];
 
 fn minimal_input() -> serde_json::Value {
     json!({
@@ -51,6 +81,32 @@ fn assert_shape(reading_type: &str, input: &serde_json::Value) {
     );
 }
 
+fn assert_no_prose_keys(reading_type: &str, value: &Value) {
+    fn visit(reading_type: &str, path: &str, value: &Value) {
+        match value {
+            Value::Object(map) => {
+                for key in PROSE_KEYS {
+                    assert!(
+                        !map.contains_key(*key),
+                        "reading_type={reading_type}: prose key {key} at {path}"
+                    );
+                }
+                for (key, child) in map {
+                    visit(reading_type, &format!("{path}.{key}"), child);
+                }
+            }
+            Value::Array(items) => {
+                for (index, child) in items.iter().enumerate() {
+                    visit(reading_type, &format!("{path}[{index}]"), child);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    visit(reading_type, "$", value);
+}
+
 #[test]
 fn daily_returns_object() {
     assert_shape("daily", &minimal_input());
@@ -84,11 +140,10 @@ fn daily_detail_category_details_has_7_keys() {
             .get(key)
             .unwrap_or_else(|| panic!("missing category: {key}"));
         let obj = entry.as_object().expect("category entry must be object");
-        let advice = obj
-            .get("advice")
-            .and_then(|v| v.as_str())
-            .unwrap_or_else(|| panic!("{key}.advice missing or non-string"));
-        assert!(!advice.is_empty(), "{key}.advice empty");
+        assert!(
+            obj.get("advice").is_none(),
+            "{key}.advice must stay backend-only"
+        );
         let score = obj
             .get("score")
             .and_then(|v| v.as_i64())
@@ -118,56 +173,67 @@ fn saju_returns_object() {
 #[test]
 fn saju_returns_canonical_full_interpretation() {
     let (result, _v) = SajuEngine.generate("saju", &minimal_input());
-    let interp = result.get("interpretation").expect("interpretation field");
-    assert!(interp.get("headline").is_some(), "headline required");
-    assert!(
-        interp.get("summary").is_none(),
-        "canonical saju report must not use the legacy simple summary tier"
-    );
-    let sections = interp
-        .get("sections")
-        .and_then(|v| v.as_array())
-        .expect("saju must include sections array");
-    assert_eq!(sections.len(), 5, "canonical saju report has 5 sections");
+    assert_eq!(result["schema_version"], "saju_core_v2");
+    assert!(result.get("interpretation").is_none());
+    assert!(result.get("headline").is_none());
+    assert!(result.get("sections").is_none());
 }
 
 #[test]
-fn saju_includes_full_report_enrichment_fields() {
+fn saju_includes_calculation_fields() {
     let (result, version) = SajuEngine.generate("saju", &minimal_input_with_gender());
 
     assert_eq!(version, "saju-v1.7");
-    assert_eq!(result["dalgyeol_enrichment_version"], "saju_extended_v1");
-    assert_eq!(result["hidden_stems"].as_array().map(Vec::len), Some(4));
-    assert!(result["branch_relations"].as_array().is_some());
-    assert_eq!(result["naeum"].as_array().map(Vec::len), Some(4));
-    assert!(result["yin_yang_balance"].is_object());
+    assert_eq!(result["schema_version"], "saju_core_v2");
+    assert_eq!(
+        result["manseoryok"]["hidden_stems"]
+            .as_array()
+            .map(Vec::len),
+        Some(4)
+    );
+    assert!(result["manseoryok"]["branch_interactions"].is_object());
+    assert!(result["element_balance"].is_object());
     assert!(result["ten_gods_summary"].is_object());
-    assert!(result["wolryeong"].is_object());
-    assert!(result["seasonal_energy"].is_object());
-    assert!(result["strength_profile"].is_object());
     assert!(result["calculation_basis"].is_object());
     assert!(result["daeun_summary"].is_object());
     assert!(result["daeun_summary"]["daeun_start"].is_object());
-    assert!(result["annual_fortune"].is_object());
     assert_eq!(
-        result["monthly_fortunes"].as_array().map(Vec::len),
+        result["manseoryok"]["fortune_cycles"]["monthly"]
+            .as_array()
+            .map(Vec::len),
         Some(12)
     );
-    assert!(
-        result["life_timeline"]
-            .as_array()
-            .is_some_and(|v| v.len() >= 7)
-    );
-    assert!(
-        result["domain_fortunes"]
-            .as_array()
-            .is_some_and(|v| v.len() >= 14)
-    );
-    assert!(
-        result["ai_prompts"]
-            .as_array()
-            .is_some_and(|v| v.len() >= 4)
-    );
+    assert!(result["signals"].as_array().is_some_and(|v| !v.is_empty()));
+    assert!(result["evidence"].as_array().is_some_and(|v| !v.is_empty()));
+}
+
+#[test]
+fn all_saju_reading_types_are_calculation_only() {
+    let cases = [
+        ("daily", minimal_input()),
+        ("daily_detail", minimal_input_with_gender()),
+        ("saju", minimal_input_with_gender()),
+        ("saju_wealth", minimal_input_with_gender()),
+        ("saju_love", minimal_input_with_gender()),
+        ("saju_marriage", minimal_input_with_gender()),
+        ("saju_career", minimal_input_with_gender()),
+        ("saju_health", minimal_input_with_gender()),
+        ("saju_study", minimal_input_with_gender()),
+        ("saju_children", minimal_input_with_gender()),
+        ("saju_travel", minimal_input_with_gender()),
+        ("saju_relations", minimal_input_with_gender()),
+        ("weekly", minimal_input()),
+        ("monthly", minimal_input()),
+        ("compatibility", compatibility_input()),
+        ("compatibility_detail", compatibility_input()),
+        ("monthly_fortune", minimal_input()),
+        ("daeun", minimal_input_with_gender()),
+    ];
+
+    for (reading_type, input) in cases {
+        let (result, _version) = SajuEngine.generate(reading_type, &input);
+        assert_no_prose_keys(reading_type, &result);
+    }
 }
 
 #[test]

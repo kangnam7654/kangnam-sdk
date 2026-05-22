@@ -14,6 +14,8 @@
 //! 통변 톤: "결핍 = 단정"이 아니라 "결핍 = 인생의 과제" 프레이밍.
 //! Gemini 사주 보고서 §4 참고.
 
+#![allow(dead_code)]
+
 use crate::ten_gods::derive_ten_god;
 use crate::types::{Branch, FourPillars, Pillar, Stem, TenGod};
 use serde::Serialize;

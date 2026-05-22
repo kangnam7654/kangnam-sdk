@@ -1,10 +1,12 @@
+#![allow(dead_code)]
+
 use super::elements::{self, ElementRelation};
 use super::solar_terms;
 use super::types::{Branch, FourPillars, Pillar, Polarity, Stem};
 use chrono::Datelike;
 
 /// 대운 한 주기 (10년)
-pub struct DaeunPeriod {
+struct DaeunPeriod {
     pub start_age: i32,
     pub end_age: i32,
     pub stem: String,        // 천간 한글
@@ -13,6 +15,17 @@ pub struct DaeunPeriod {
     pub score: i32,          // 0-100
     pub description: String, // 한국어 설명
     pub is_current: bool,    // 현재 대운 여부
+}
+
+/// 대운 계산값. 해석 문장을 포함하지 않아 엔진 JSON 출력 경로에서 사용한다.
+pub struct DaeunCalculation {
+    pub start_age: i32,
+    pub end_age: i32,
+    pub stem: String,
+    pub branch: String,
+    pub element: String,
+    pub score: i32,
+    pub is_current: bool,
 }
 
 /// 대운(10년 주기) 계산
@@ -24,7 +37,7 @@ pub struct DaeunPeriod {
 /// 대운 시작 나이(起大運):
 ///   - 순행이면 출생 후 다음 절기까지의 일수, 역행이면 이전 절기부터 지난 일수
 ///   - 일수 ÷ 3을 시작 나이로 환산하고 최소 1세로 보정
-pub fn calculate_daeun(
+fn calculate_daeun(
     user_pillars: &FourPillars,
     birth_year: i32,
     birth_month: u32,
@@ -42,7 +55,7 @@ pub fn calculate_daeun(
     )
 }
 
-pub fn calculate_daeun_with_time(
+fn calculate_daeun_with_time(
     user_pillars: &FourPillars,
     birth_year: i32,
     birth_month: u32,
@@ -51,6 +64,65 @@ pub fn calculate_daeun_with_time(
     birth_minute: u32,
     gender: &str, // "M" or "F"
 ) -> Vec<DaeunPeriod> {
+    calculate_daeun_calculation_with_time(
+        user_pillars,
+        birth_year,
+        birth_month,
+        birth_day,
+        birth_hour,
+        birth_minute,
+        gender,
+    )
+    .into_iter()
+    .enumerate()
+    .map(|(index, period)| {
+        let stem = stem_from_korean(&period.stem).unwrap_or(user_pillars.month.stem);
+        let branch = branch_from_korean(&period.branch).unwrap_or(user_pillars.month.branch);
+        let pillar = Pillar::new(stem, branch);
+        let stem_relation = elements::relation(user_pillars.day.stem.element(), stem.element());
+        let branch_relation = elements::relation(user_pillars.day.stem.element(), branch.element());
+        let description = daeun_description(stem_relation, branch_relation, &pillar, index as i32);
+        DaeunPeriod {
+            start_age: period.start_age,
+            end_age: period.end_age,
+            stem: period.stem,
+            branch: period.branch,
+            element: period.element,
+            score: period.score,
+            description,
+            is_current: period.is_current,
+        }
+    })
+    .collect()
+}
+
+pub fn calculate_daeun_calculation(
+    user_pillars: &FourPillars,
+    birth_year: i32,
+    birth_month: u32,
+    birth_day: u32,
+    gender: &str,
+) -> Vec<DaeunCalculation> {
+    calculate_daeun_calculation_with_time(
+        user_pillars,
+        birth_year,
+        birth_month,
+        birth_day,
+        12,
+        0,
+        gender,
+    )
+}
+
+pub fn calculate_daeun_calculation_with_time(
+    user_pillars: &FourPillars,
+    birth_year: i32,
+    birth_month: u32,
+    birth_day: u32,
+    birth_hour: u32,
+    birth_minute: u32,
+    gender: &str,
+) -> Vec<DaeunCalculation> {
     let is_male = gender.eq_ignore_ascii_case("M") || gender.eq_ignore_ascii_case("male");
     let year_stem_is_yang = user_pillars.year.stem.polarity() == Polarity::Yang;
 
@@ -99,7 +171,6 @@ pub fn calculate_daeun_with_time(
 
             let stem = Stem::from_index(stem_idx);
             let branch = Branch::from_index(branch_idx);
-            let pillar = Pillar::new(stem, branch);
 
             // 점수: 대운 천간 오행 vs 일간 오행 관계
             let day_master = user_pillars.day.stem;
@@ -107,18 +178,15 @@ pub fn calculate_daeun_with_time(
             let branch_relation = elements::relation(day_master.element(), branch.element());
             let score = daeun_score(stem_relation, branch_relation);
 
-            let description = daeun_description(stem_relation, branch_relation, &pillar, i);
-
             let is_current = (period_start..=period_end).contains(&current_age);
 
-            DaeunPeriod {
+            DaeunCalculation {
                 start_age: period_start,
                 end_age: period_end,
                 stem: stem.korean().to_string(),
                 branch: branch.korean().to_string(),
                 element: stem.element().korean().to_string(),
                 score,
-                description,
                 is_current,
             }
         })
@@ -133,6 +201,40 @@ fn fallback_days_to_jieqi(birth_year: i32, birth_month: u32, birth_day: u32, for
         next_jieqi_day.max(1)
     } else {
         (birth_day as i32 - jieqi_day as i32).max(1)
+    }
+}
+
+fn stem_from_korean(value: &str) -> Option<Stem> {
+    match value {
+        "갑" => Some(Stem::Gap),
+        "을" => Some(Stem::Eul),
+        "병" => Some(Stem::Byeong),
+        "정" => Some(Stem::Jeong),
+        "무" => Some(Stem::Mu),
+        "기" => Some(Stem::Gi),
+        "경" => Some(Stem::Gyeong),
+        "신" => Some(Stem::Sin),
+        "임" => Some(Stem::Im),
+        "계" => Some(Stem::Gye),
+        _ => None,
+    }
+}
+
+fn branch_from_korean(value: &str) -> Option<Branch> {
+    match value {
+        "자" => Some(Branch::Ja),
+        "축" => Some(Branch::Chuk),
+        "인" => Some(Branch::In),
+        "묘" => Some(Branch::Myo),
+        "진" => Some(Branch::Jin),
+        "사" => Some(Branch::Sa),
+        "오" => Some(Branch::O),
+        "미" => Some(Branch::Mi),
+        "신" => Some(Branch::Sin),
+        "유" => Some(Branch::Yu),
+        "술" => Some(Branch::Sul),
+        "해" => Some(Branch::Hae),
+        _ => None,
     }
 }
 

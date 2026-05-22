@@ -211,26 +211,6 @@ pub fn analyze(subject_branches: &[Branch], target_branches: &[Branch]) -> Branc
     }
 }
 
-/// 지지 관계 유형의 한국어 해석
-pub fn relation_description(
-    samhap: bool,
-    yukhap: bool,
-    clash: bool,
-    punishment: bool,
-) -> &'static str {
-    if samhap {
-        "세 가지 기운이 하나로 모여 강한 조화를 이룹니다."
-    } else if yukhap {
-        "자연스러운 끌림과 조화의 관계입니다."
-    } else if clash {
-        "서로 다른 에너지가 부딪혀 갈등이 생길 수 있습니다."
-    } else if punishment {
-        "관계에서 미묘한 갈등 요소가 있습니다."
-    } else {
-        ""
-    }
-}
-
 impl PunishmentType {
     pub fn korean(&self) -> &'static str {
         match self {

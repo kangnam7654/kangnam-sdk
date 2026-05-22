@@ -1,10 +1,9 @@
 //! Korean four-pillars (사주팔자) astrology computation engine.
 //!
 //! Pure-computation library: given a birth date/time, returns typed values
-//! (`FourPillars`, `ElementBalance`, `TenGod`, …). The legacy
-//! `SajuEngine::generate("saju", ...)` compatibility payload still includes
-//! Korean interpretation text, but calculation-first consumers should use the
-//! core saju fields instead. No IO, no rendering, no database.
+//! (`FourPillars`, `ElementBalance`, `TenGod`, …) and calculation-only JSON
+//! payloads. User-facing interpretation copy belongs in the consuming service
+//! layer. No IO, no rendering, no database.
 //!
 //! # Example
 //!
@@ -29,7 +28,6 @@
 //! - [`elements`] — Five-element relations (생/극, generating/controlling).
 //! - [`ten_gods`] — Ten-gods (십신) derivation and analysis.
 //! - [`branches`] — Earthly-branch relations (삼합/육합/상충/상형).
-//! - [`interpreter`] — legacy Korean interpretation text generators.
 //! - [`daily`] — Daily fortune calculation (including `daily_detail`).
 //! - [`monthly`] — Monthly fortune over a whole year.
 //! - [`daeun`] — Great-luck (대운) 10-year period calculation.
@@ -44,16 +42,14 @@ pub mod daeun;
 pub mod daily;
 pub mod elements;
 pub mod engine;
-pub mod enrichment;
-pub mod gongmang;
-pub mod interpretation;
-pub mod interpreter;
-pub mod lucky;
+mod gongmang;
+#[allow(dead_code)]
+mod interpreter;
+mod lucky;
 pub mod monthly;
-pub mod natal_categories;
 pub mod pillars;
 pub mod profile;
-pub mod shinsal;
+mod shinsal;
 pub mod solar_terms;
 pub mod tables;
 pub mod ten_gods;

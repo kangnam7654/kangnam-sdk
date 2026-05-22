@@ -196,9 +196,11 @@ fn calculation_profile_json(profile: &ZiweiCalculationProfile) -> Value {
         "calendar_policy": profile.calendar_policy,
         "primary_reference": profile.primary_reference,
         "secondary_reference": profile.secondary_reference,
-        "interpretation_policy": profile.interpretation_policy,
         "unsupported_policy": profile.unsupported_policy,
-        "source_policies": profile.source_policies.iter().map(source_policy_json).collect::<Vec<_>>(),
+        "source_policies": profile.source_policies
+            .iter()
+            .map(source_policy_json)
+            .collect::<Vec<_>>(),
     })
 }
 
@@ -399,7 +401,12 @@ mod tests {
             result["calculation_profile"]["source_policies"]
                 .as_array()
                 .map(Vec::len),
-            Some(3)
+            Some(2)
+        );
+        assert!(
+            result["calculation_profile"]
+                .get("interpretation_policy")
+                .is_none()
         );
         assert_eq!(
             result["calculation_basis"]["calculation_profile_id"],

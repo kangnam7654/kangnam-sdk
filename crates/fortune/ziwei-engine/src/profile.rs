@@ -17,7 +17,6 @@ pub fn calculation_profile() -> ZiweiCalculationProfile {
         calendar_policy: "korean_lunar_calendar_rs_klc_kst".to_string(),
         primary_reference: "iztro_open_source_calculation_contract".to_string(),
         secondary_reference: "traditional_ziwei_tables_cross_check".to_string(),
-        interpretation_policy: "dalgyeol_korean_service_copy_after_calculation".to_string(),
         unsupported_policy:
             "emit_explicit_pending_policy_for_tables_without_authoritative_fixture_lock".to_string(),
         source_policies: vec![
@@ -32,11 +31,6 @@ pub fn calculation_profile() -> ZiweiCalculationProfile {
                 tier: "B".to_string(),
                 role: "cross_check".to_string(),
                 allowed_use: "compare_multiple_public_tables_before promoting_to_A".to_string(),
-            },
-            ZiweiSourcePolicy {
-                tier: "C".to_string(),
-                role: "interpretation_reference_only".to_string(),
-                allowed_use: "copy_tone_or_explanation_never_core_calculation".to_string(),
             },
         ],
     }

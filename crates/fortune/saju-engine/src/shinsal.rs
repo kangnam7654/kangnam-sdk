@@ -27,6 +27,8 @@
 //!
 //! **천을귀인**은 일간(`day.stem`) 기준 두 지지가 어느 기둥에든 등장하면 발현.
 
+#![allow(dead_code)]
+
 use crate::types::{Branch, FourPillars, Pillar, Stem};
 use serde::Serialize;
 

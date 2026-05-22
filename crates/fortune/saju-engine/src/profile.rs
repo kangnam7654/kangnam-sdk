@@ -14,7 +14,6 @@ pub fn calculation_profile_json() -> Value {
         "sect_policy": "civil_date_no_late_zi_day_shift",
         "primary_reference": "6tail_lunar_python_lunar_javascript_eightchar_contract",
         "secondary_reference": "traditional_korean_manseoryok_tables_cross_check",
-        "interpretation_policy": "dalgyeol_korean_service_copy_after_calculation",
         "unsupported_policy": "emit_explicit_approximate_or_pending_policy_for_rules_without_fixture_lock",
         "source_policies": [
             {
@@ -26,11 +25,6 @@ pub fn calculation_profile_json() -> Value {
                 "tier": "B",
                 "role": "cross_check",
                 "allowed_use": "compare_multiple_manseoryok_sources_before_promoting_to_A"
-            },
-            {
-                "tier": "C",
-                "role": "interpretation_reference_only",
-                "allowed_use": "copy_tone_or_explanation_never_core_calculation"
             }
         ]
     })

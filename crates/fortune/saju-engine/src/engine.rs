@@ -1,6 +1,6 @@
 use crate::{
-    self as saju, branches, calendar, daeun, daily, elements, enrichment, gongmang, interpretation,
-    interpreter, lucky, monthly, natal_categories, pillars, profile, shinsal, ten_gods, types::*,
+    self as saju, branches, calendar, daeun, daily, elements, gongmang, lucky, monthly, pillars,
+    profile, shinsal, ten_gods, types::*,
 };
 use chrono::{Datelike, NaiveDate};
 use serde_json::{Value, json};
@@ -13,8 +13,6 @@ pub const SAJU_ENGINE_VERSION: &str = "saju-v1.7";
 /// Calculation-first saju schema. This path intentionally excludes prose
 /// fields so app/backend layers can compose their own user-facing explanation.
 pub const SAJU_CORE_SCHEMA_VERSION: &str = "saju_core_v2";
-
-const SAJU_LEGACY_PROSE_VERSION: &str = "saju_legacy_prose_v1";
 
 /// Public reading type keys supported by the saju engine.
 pub const SAJU_READING_TYPES: [&str; 18] = [
@@ -105,35 +103,6 @@ fn parse_birth_hour(input: &str) -> Option<(u32, u32)> {
     Some((hour, minute))
 }
 
-fn daily_lead(fortune: &daily::DailyFortune) -> Value {
-    json!({
-        "signal": format!(
-            "{} 일간에게 오늘 {} 일주는 '{}' 흐름으로 작용합니다.",
-            fortune.day_master.korean(),
-            fortune.today_pillar,
-            fortune.relation.korean()
-        ),
-        "risk": fortune.caution.as_str(),
-        "action": fortune.advice.as_str(),
-        "question": format!(
-            "오늘 내 {} 기질을 살리려면 무엇을 먼저 조정해야 하나요?",
-            fortune.day_master.element().korean()
-        ),
-    })
-}
-
-fn daily_detail_lead(detail: &daily::DailyDetailFortune) -> Value {
-    json!({
-        "signal": detail.persona_today.strength.as_str(),
-        "risk": detail.persona_today.caution.as_str(),
-        "action": detail.persona_today.action.as_str(),
-        "question": format!(
-            "{} 오늘 이 문장을 실제 행동으로 만들려면 무엇을 먼저 해야 하나요?",
-            detail.persona_today.mantra.as_str()
-        ),
-    })
-}
-
 fn normalize_gender(value: Option<&str>) -> Option<&'static str> {
     match value.unwrap_or("").trim().to_ascii_lowercase().as_str() {
         "m" | "male" | "man" | "남" | "남성" => Some("male"),
@@ -214,7 +183,7 @@ fn current_daeun_context(
     let Some(gender) = gender else {
         return (None, 0);
     };
-    let periods = daeun::calculate_daeun_with_time(
+    let periods = daeun::calculate_daeun_calculation_with_time(
         user_pillars,
         birth_year,
         birth_month,
@@ -237,7 +206,6 @@ fn current_daeun_context(
             "element": period.element,
             "score": period.score,
             "adjustment": adjustment,
-            "description": period.description,
         })),
         adjustment,
     )
@@ -257,67 +225,6 @@ fn stem_from_korean(value: &str) -> Option<Stem> {
         "계" => Some(Stem::Gye),
         _ => None,
     }
-}
-
-fn daeun_period_json(period: &daeun::DaeunPeriod, day_master: Stem) -> Value {
-    let ten_god =
-        stem_from_korean(&period.stem).map(|stem| ten_gods::derive_ten_god(day_master, stem));
-    json!({
-        "start_age": period.start_age,
-        "end_age": period.end_age,
-        "pillar": format!("{}{}", period.stem, period.branch),
-        "stem": period.stem,
-        "branch": period.branch,
-        "element": period.element,
-        "ten_god": ten_god.map(|god| god.korean()),
-        "score": period.score,
-        "description": period.description,
-        "is_current": period.is_current,
-    })
-}
-
-fn daeun_summary_json(
-    user_pillars: &FourPillars,
-    birth_year: i32,
-    birth_month: u32,
-    birth_day: u32,
-    birth_hour: u32,
-    birth_minute: u32,
-    gender: Option<&str>,
-) -> Value {
-    let Some(gender) = gender else {
-        return json!({
-            "available": false,
-            "reason": "대운 계산에는 성별 정보가 필요합니다.",
-        });
-    };
-    let periods = daeun::calculate_daeun_with_time(
-        user_pillars,
-        birth_year,
-        birth_month,
-        birth_day,
-        birth_hour,
-        birth_minute,
-        gender,
-    );
-    let current_index = periods.iter().position(|p| p.is_current);
-    let current = current_index.and_then(|idx| periods.get(idx));
-    let next = current_index.and_then(|idx| periods.get(idx + 1));
-    let start_age = periods.first().map(|p| p.start_age);
-    json!({
-        "available": true,
-        "start_age": start_age,
-        "daeun_start": start_age.map(|age| json!({
-            "age": age,
-            "approximate_start_year": birth_year + age,
-            "approximate_start_date": approximate_daeun_start_date(birth_year, birth_month, birth_day, age),
-            "calculation_note": "대운 시작 나이는 절기까지의 일수/3 기준으로 산출하고, 날짜는 해당 나이에 도달하는 생일 기준 근사값입니다.",
-        })),
-        "current_period_index": current_index,
-        "current": current.map(|p| daeun_period_json(p, user_pillars.day.stem)),
-        "next": next.map(|p| daeun_period_json(p, user_pillars.day.stem)),
-        "periods": periods.iter().map(|p| daeun_period_json(p, user_pillars.day.stem)).collect::<Vec<_>>(),
-    })
 }
 
 fn approximate_daeun_start_date(
@@ -455,7 +362,6 @@ fn twelve_stages_json(core: &SajuCoreContext) -> Vec<Value> {
                 "position": position,
                 "branch": branch_info(pillar.branch),
                 "stage": stage,
-                "summary": twelve_stage_summary(stage),
             })
         })
         .collect()
@@ -528,6 +434,8 @@ fn gyeokguk_json(core: &SajuCoreContext) -> Value {
 fn johu_eokbu_tonggwan_json(core: &SajuCoreContext) -> Value {
     let month = core.pillars.month.branch;
     let strength = strength_score(core);
+    let dominant = dominant_element_for(&core.balance);
+    let weakest = weakest_element_for(&core.balance);
     let cold_hot = match month {
         Branch::Hae | Branch::Ja | Branch::Chuk => "cold",
         Branch::Sa | Branch::O | Branch::Mi => "hot",
@@ -538,17 +446,11 @@ fn johu_eokbu_tonggwan_json(core: &SajuCoreContext) -> Value {
         "hot" => Element::Water,
         _ => weakest_element_for(&core.balance),
     };
-    let eokbu = if strength >= 62 {
-        "일간이 강하므로 설기·재성·관성으로 힘을 분산하는 쪽을 우선 검토합니다."
-    } else if strength <= 42 {
-        "일간이 약하므로 인성·비겁으로 기반을 보강하는 쪽을 우선 검토합니다."
-    } else {
-        "일간 힘이 중간권이므로 조후와 부족 오행을 함께 봅니다."
-    };
     json!({
         "johu": {"season_temperature": cold_hot, "candidate": johu.korean()},
-        "eokbu": eokbu,
-        "tonggwan": tonggwan_hint(core),
+        "strength_score": strength,
+        "dominant_element": dominant.korean(),
+        "weakest_element": weakest.korean(),
     })
 }
 
@@ -556,7 +458,7 @@ fn fortune_cycles_manse_json(core: &SajuCoreContext) -> Value {
     let daeun = core
         .normalized_gender
         .map(|gender| {
-            daeun::calculate_daeun_with_time(
+            daeun::calculate_daeun_calculation_with_time(
                 &core.pillars,
                 core.birth_year,
                 core.birth_month,
@@ -566,7 +468,7 @@ fn fortune_cycles_manse_json(core: &SajuCoreContext) -> Value {
                 gender,
             )
             .into_iter()
-            .map(|period| daeun_period_json(&period, core.day_master))
+            .map(|period| daeun_period_core_json(&period, core.day_master))
             .collect::<Vec<_>>()
         })
         .unwrap_or_default();
@@ -574,7 +476,7 @@ fn fortune_cycles_manse_json(core: &SajuCoreContext) -> Value {
     let annual = (0..10)
         .map(|offset| annual_flow_json(core, current_year + offset))
         .collect::<Vec<_>>();
-    let monthly = monthly::calculate_monthly_fortune(&core.pillars, current_year)
+    let monthly = monthly::calculate_monthly_calculation(&core.pillars, current_year)
         .into_iter()
         .map(|month| {
             json!({
@@ -588,7 +490,6 @@ fn fortune_cycles_manse_json(core: &SajuCoreContext) -> Value {
                     "health": month.categories.health,
                     "wealth": month.categories.wealth,
                 },
-                "advice": month.advice,
             })
         })
         .collect::<Vec<_>>();
@@ -596,7 +497,7 @@ fn fortune_cycles_manse_json(core: &SajuCoreContext) -> Value {
         .map(|offset| {
             let date = NaiveDate::from_ymd_opt(core.target_year, 1, 1).unwrap()
                 + chrono::Duration::days(offset);
-            let fortune = daily::calculate_daily_for_date(
+            let fortune = daily::calculate_daily_calculation_for_date(
                 &core.pillars,
                 date.year(),
                 date.month(),
@@ -667,15 +568,6 @@ fn twelve_stage(day_master: Stem, branch: Branch) -> &'static str {
         (start.index() + 12 - branch.index()) % 12
     };
     STAGES[offset]
-}
-
-fn twelve_stage_summary(stage: &str) -> &'static str {
-    match stage {
-        "장생" | "건록" | "제왕" => "기운이 살아 움직이고 주도성이 강한 단계입니다.",
-        "목욕" | "관대" | "양" => "성장과 조정이 함께 필요한 단계입니다.",
-        "쇠" | "병" | "사" => "속도보다 관리와 회복을 우선할 단계입니다.",
-        _ => "내면화, 정리, 다음 흐름의 준비가 강조되는 단계입니다.",
-    }
 }
 
 fn branch_harms(branches: &[Branch]) -> Vec<Value> {
@@ -774,16 +666,6 @@ fn gyeok_label(ten_god: TenGod) -> &'static str {
         TenGod::Jeonggwan => "정관격 후보",
         TenGod::Pyeonin => "편인격 후보",
         TenGod::Jeongin => "정인격 후보",
-    }
-}
-
-fn tonggwan_hint(core: &SajuCoreContext) -> &'static str {
-    let dominant = dominant_element_for(&core.balance);
-    let weakest = weakest_element_for(&core.balance);
-    if generates(dominant) == weakest || controls(dominant) == weakest {
-        "강한 오행과 약한 오행 사이를 이어주는 통관 오행을 우선 검토해야 합니다."
-    } else {
-        "오행 간 단절보다 전체 균형 보정이 우선인 구조입니다."
     }
 }
 
@@ -988,7 +870,7 @@ fn ten_gods_summary_core_json(gods: &[(&'static str, TenGod)]) -> Value {
     })
 }
 
-fn daeun_period_core_json(period: &daeun::DaeunPeriod, day_master: Stem) -> Value {
+fn daeun_period_core_json(period: &daeun::DaeunCalculation, day_master: Stem) -> Value {
     let ten_god =
         stem_from_korean(&period.stem).map(|stem| ten_gods::derive_ten_god(day_master, stem));
     json!({
@@ -1011,7 +893,7 @@ fn daeun_summary_core_json(core: &SajuCoreContext) -> Value {
             "missing_inputs": ["gender"],
         });
     };
-    let periods = daeun::calculate_daeun_with_time(
+    let periods = daeun::calculate_daeun_calculation_with_time(
         &core.pillars,
         core.birth_year,
         core.birth_month,
@@ -1264,101 +1146,6 @@ fn daily_v2_context(
     )
 }
 
-fn saju_lead(
-    comp: &interpretation::Interpretation,
-    balance_text: &str,
-    lucky: &lucky::LuckyItems,
-    day_master: Stem,
-) -> Value {
-    let action = comp
-        .sections
-        .iter()
-        .find(|section| section.key == "remedies")
-        .map(|section| section.body.as_str())
-        .unwrap_or(lucky.interpretation.as_str());
-
-    json!({
-        "signal": comp.headline.as_str(),
-        "risk": balance_text,
-        "action": action,
-        "question": format!(
-            "내 {} 기질이 반복해서 선택하는 방식은 무엇이며, 오늘 무엇부터 조정해야 하나요?",
-            day_master.element().korean()
-        ),
-    })
-}
-
-fn attach_legacy_saju_prose(result: &mut Value, core: &SajuCoreContext) {
-    let personality = interpreter::personality(core.day_master);
-    let balance_text = interpreter::element_balance_analysis(&core.balance);
-    let gods_text = interpreter::ten_gods_outlook(&core.pillars, core.has_birth_time);
-    let comp = interpretation::compose_detail(&core.pillars, &core.balance, &core.ten_gods);
-    let interpretation_value = interpretation::to_json(&comp);
-    let lucky_with_prose = lucky::with_interpretation(&core.lucky);
-    let gongmang_with_prose = gongmang::with_interpretation(&core.gongmang);
-    let shinsal_with_prose = core
-        .shinsal
-        .iter()
-        .map(shinsal::with_modern_take)
-        .collect::<Vec<_>>();
-    let lead = saju_lead(&comp, &balance_text, &lucky_with_prose, core.day_master);
-
-    let Some(obj) = result.as_object_mut() else {
-        return;
-    };
-
-    if let Some(balance) = obj
-        .get_mut("element_balance")
-        .and_then(|value| value.as_object_mut())
-    {
-        balance.insert("analysis".into(), json!(balance_text));
-    }
-
-    obj.insert("personality".into(), json!(personality));
-    obj.insert("fortune_outlook".into(), json!(gods_text));
-    obj.insert(
-        "daeun_summary".into(),
-        daeun_summary_json(
-            &core.pillars,
-            core.birth_year,
-            core.birth_month,
-            core.birth_day,
-            core.birth_hour,
-            core.birth_minute,
-            core.normalized_gender,
-        ),
-    );
-    obj.insert("gongmang".into(), gongmang_to_json(&gongmang_with_prose));
-    obj.insert(
-        "shinsal".into(),
-        json!(
-            shinsal_with_prose
-                .iter()
-                .map(shinsal_to_json)
-                .collect::<Vec<_>>()
-        ),
-    );
-    obj.insert("lucky".into(), lucky_to_json(&lucky_with_prose));
-    obj.insert("interpretation".into(), interpretation_value);
-    obj.insert("lead".into(), lead);
-    obj.insert(
-        "legacy_prose".into(),
-        json!({
-            "version": SAJU_LEGACY_PROSE_VERSION,
-            "status": "compatibility",
-            "fields": [
-                "interpretation",
-                "lead",
-                "personality",
-                "fortune_outlook",
-                "element_balance.analysis",
-                "gongmang.interpretation",
-                "lucky.interpretation"
-            ],
-        }),
-    );
-}
-
 impl SajuEngine {
     fn is_lunar_leap_month(input: &Value) -> bool {
         input
@@ -1476,18 +1263,14 @@ impl SajuEngine {
         let Some((year, month, day, hour, minute, _)) = Self::parse_birth_data(input) else {
             return (
                 json!({
-                    "error": "생년월일 정보가 필요합니다",
-                    "scores": {"overall": 75, "love": 70, "career": 75, "health": 72},
-                    "advice": "프로필에 생년월일을 등록하면 더 정확한 운세를 받을 수 있습니다.",
-                    "caution": "오늘도 무리하지 마세요."
+                    "error": "생년월일 정보가 필요합니다"
                 }),
                 version.to_string(),
             );
         };
 
         let user_pillars = saju::calculate_four_pillars_precise(year, month, day, hour, minute);
-        let fortune = daily::calculate_daily(&user_pillars);
-        let lead = daily_lead(&fortune);
+        let fortune = daily::calculate_daily_calculation(&user_pillars);
 
         let result = json!({
             "date": fortune.date,
@@ -1500,9 +1283,6 @@ impl SajuEngine {
                 "career": fortune.scores.career,
                 "health": fortune.scores.health,
             },
-            "advice": fortune.advice,
-            "caution": fortune.caution,
-            "lead": lead,
         });
 
         (result, version.to_string())
@@ -1513,18 +1293,14 @@ impl SajuEngine {
         else {
             return (
                 json!({
-                    "error": "생년월일 정보가 필요합니다",
-                    "scores": {"overall": 75, "love": 70, "career": 75, "health": 72, "wealth": 68},
-                    "advice": "프로필에 생년월일을 등록하면 더 정확한 운세를 받을 수 있습니다.",
-                    "caution": "오늘도 무리하지 마세요."
+                    "error": "생년월일 정보가 필요합니다"
                 }),
                 version.to_string(),
             );
         };
 
         let user_pillars = saju::calculate_four_pillars_precise(year, month, day, hour, minute);
-        let detail = daily::calculate_daily_detail(&user_pillars, has_birth_time);
-        let lead = daily_detail_lead(&detail);
+        let detail = daily::calculate_daily_detail_calculation(&user_pillars);
         let birth = Self::parse_normalized_birth_date(input).expect("birth data parsed above");
         let gender = normalize_gender(input.get("gender").and_then(|v| v.as_str()));
         let (daily_influences, current_daeun, score_delta, _daeun_delta) = daily_v2_context(
@@ -1550,23 +1326,21 @@ impl SajuEngine {
         let love_score = clamp_score(detail.base.scores.love + score_delta);
         let career_score = clamp_score(detail.base.scores.career + score_delta);
         let health_score = clamp_score(detail.base.scores.health + score_delta / 2);
-        let wealth_score = clamp_score(detail.category_details.wealth.score + score_delta);
-        let study_score = clamp_score(detail.category_details.study.score + score_delta / 2);
-        let travel_score = clamp_score(detail.category_details.travel.score + score_delta / 2);
-        let relations_score = clamp_score(detail.category_details.relations.score + score_delta);
+        let wealth_score = clamp_score(detail.category_scores.wealth + score_delta);
+        let study_score = clamp_score(detail.category_scores.study + score_delta / 2);
+        let travel_score = clamp_score(detail.category_scores.travel + score_delta / 2);
+        let relations_score = clamp_score(detail.category_scores.relations + score_delta);
 
-        // v0.0.3 — 일간 + 가장 부족 오행 두 갈래 행운 아이템 (web /today 무료 노출용).
-        let lk = lucky::analyze(&user_pillars, has_birth_time);
+        let lk = lucky::calculate(&user_pillars, has_birth_time);
 
         let hourly: Vec<Value> = detail
-            .hourly_fortunes
+            .hourly_scores
             .iter()
             .map(|h| {
                 json!({
                     "hour_name": h.hour_name,
                     "hour_range": h.hour_range,
                     "score": h.score,
-                    "description": h.description,
                 })
             })
             .collect();
@@ -1583,9 +1357,6 @@ impl SajuEngine {
                 "health": health_score,
                 "wealth": wealth_score,
             },
-            "advice": detail.base.advice,
-            "caution": detail.base.caution,
-            "lead": lead,
             "precision": {
                 "level": if has_birth_time && gender.is_some() { "full" } else { "partial" },
                 "birth_time_status": if has_birth_time { "known" } else { "unknown" },
@@ -1599,13 +1370,13 @@ impl SajuEngine {
             "daily_influences": daily_influences,
             "current_daeun": current_daeun,
             "category_details": {
-                "love": { "score": love_score, "advice": detail.category_details.love.advice },
-                "career": { "score": career_score, "advice": detail.category_details.career.advice },
-                "health": { "score": health_score, "advice": detail.category_details.health.advice },
-                "wealth": { "score": wealth_score, "advice": detail.category_details.wealth.advice },
-                "study": { "score": study_score, "advice": detail.category_details.study.advice },
-                "travel": { "score": travel_score, "advice": detail.category_details.travel.advice },
-                "relations": { "score": relations_score, "advice": detail.category_details.relations.advice },
+                "love": { "score": love_score },
+                "career": { "score": career_score },
+                "health": { "score": health_score },
+                "wealth": { "score": wealth_score },
+                "study": { "score": study_score },
+                "travel": { "score": travel_score },
+                "relations": { "score": relations_score },
             },
             "hourly_fortunes": hourly,
             "lucky_items": {
@@ -1614,15 +1385,7 @@ impl SajuEngine {
                 "number": detail.lucky_items.number,
                 "direction": detail.lucky_items.direction,
             },
-            "lucky": lucky_to_json(&lk),
-            "element_energy": detail.element_energy,
-            "personality_summary": detail.personality_summary,
-            "persona_today": {
-                "strength": detail.persona_today.strength,
-                "caution": detail.persona_today.caution,
-                "action": detail.persona_today.action,
-                "mantra": detail.persona_today.mantra,
-            },
+            "lucky": lucky_core_json(&lk),
         });
 
         (result, version.to_string())
@@ -1636,16 +1399,7 @@ impl SajuEngine {
             );
         };
 
-        let mut result = saju_core_json(&core);
-        let core_snapshot = result.clone();
-
-        attach_legacy_saju_prose(&mut result, &core);
-        enrichment::enrich_saju_result(&mut result);
-        if let Some(obj) = result.as_object_mut() {
-            obj.insert("saju_core".into(), core_snapshot);
-        }
-
-        (result, version.to_string())
+        (saju_core_json(&core), version.to_string())
     }
 
     fn generate_natal_category(
@@ -1654,21 +1408,23 @@ impl SajuEngine {
         input: &Value,
         version: &str,
     ) -> (Value, String) {
-        let (saju_result, saju_version) = self.generate_saju(input, version);
-        if saju_result.get("error").is_some() {
-            return (saju_result, saju_version);
+        let Some(core) = Self::build_saju_core_context(input) else {
+            return (
+                json!({"error": "사주 분석에는 생년월일시 정보가 필요합니다."}),
+                version.to_string(),
+            );
+        };
+
+        let mut result = saju_core_json(&core);
+        if let Some(object) = result.as_object_mut() {
+            object.insert("reading_type".into(), json!(reading_type));
+            object.insert(
+                "domain".into(),
+                json!(reading_type.strip_prefix("saju_").unwrap_or(reading_type)),
+            );
         }
 
-        let Some(result) = natal_categories::compose(reading_type, &saju_result) else {
-            return self.generate_fallback(reading_type, input, version);
-        };
-        let category_version = result
-            .get("engine_version")
-            .and_then(|v| v.as_str())
-            .unwrap_or(version)
-            .to_string();
-
-        (result, category_version)
+        (result, version.to_string())
     }
 
     fn generate_weekly(&self, input: &Value, version: &str) -> (Value, String) {
@@ -1686,7 +1442,7 @@ impl SajuEngine {
         let days: Vec<Value> = (0..7)
             .map(|offset| {
                 let date = today + chrono::Duration::days(offset);
-                let fortune = daily::calculate_daily_for_date(
+                let fortune = daily::calculate_daily_calculation_for_date(
                     &user_pillars,
                     date.year(),
                     date.month(),
@@ -1700,7 +1456,6 @@ impl SajuEngine {
                         "career": fortune.scores.career,
                         "health": fortune.scores.health,
                     },
-                    "advice": fortune.advice,
                     "grade": score_to_grade(fortune.scores.overall),
                 })
             })
@@ -1720,7 +1475,6 @@ impl SajuEngine {
             "period": format!("{} ~ {}", today.format("%Y-%m-%d"), (today + chrono::Duration::days(6)).format("%Y-%m-%d")),
             "average_score": avg_score,
             "days": days,
-            "summary": format!("이번 주 평균 운세 점수는 {}점입니다.", avg_score),
         });
 
         (result, version.to_string())
@@ -1747,8 +1501,12 @@ impl SajuEngine {
         let mut all_scores: Vec<i32> = Vec::new();
 
         for d in 1..=total_days {
-            let fortune =
-                daily::calculate_daily_for_date(&user_pillars, target_year, target_month, d);
+            let fortune = daily::calculate_daily_calculation_for_date(
+                &user_pillars,
+                target_year,
+                target_month,
+                d,
+            );
             all_scores.push(fortune.scores.overall);
             week_scores.push(fortune.scores.overall);
 
@@ -1785,7 +1543,6 @@ impl SajuEngine {
             "best_day": best_day,
             "worst_day": worst_day,
             "weeks": weeks,
-            "summary": format!("{}월 평균 운세 점수는 {}점입니다. 가장 좋은 날은 {}일, 주의할 날은 {}일입니다.", target_month, monthly_avg, best_day, worst_day),
         });
 
         (result, version.to_string())
@@ -1822,8 +1579,7 @@ impl SajuEngine {
                     "current_month": 0,
                     "current_month_summary": {
                         "score": 75,
-                        "grade": "good",
-                        "advice": "프로필에 생년월일을 등록하면 더 정확한 월운을 받을 수 있습니다."
+                        "grade": "good"
                     },
                     "months": []
                 }),
@@ -1851,7 +1607,7 @@ impl SajuEngine {
 
         let current_month = now.month();
 
-        let months_data = monthly::calculate_monthly_fortune(&user_pillars, year);
+        let months_data = monthly::calculate_monthly_calculation(&user_pillars, year);
 
         // 이번 달 summary (current_month가 요청 연도에 속할 때만 유효)
         let current_summary = months_data
@@ -1862,14 +1618,12 @@ impl SajuEngine {
                 json!({
                     "score": m.score,
                     "grade": m.grade,
-                    "advice": m.advice,
                 })
             })
             .unwrap_or_else(|| {
                 json!({
                     "score": 75,
                     "grade": "good",
-                    "advice": "이번 달도 꾸준히 나아가세요.",
                 })
             });
 
@@ -1887,7 +1641,6 @@ impl SajuEngine {
                         "health": m.categories.health,
                         "wealth": m.categories.wealth,
                     },
-                    "advice": m.advice,
                 })
             })
             .collect();
@@ -1926,7 +1679,7 @@ impl SajuEngine {
             birth_minute,
         );
 
-        let periods = daeun::calculate_daeun_with_time(
+        let periods = daeun::calculate_daeun_calculation_with_time(
             &user_pillars,
             birth_year,
             birth_month,
@@ -1948,7 +1701,6 @@ impl SajuEngine {
                     "branch": p.branch,
                     "element": p.element,
                     "score": p.score,
-                    "description": p.description,
                     "is_current": p.is_current,
                 })
             })
@@ -1968,12 +1720,9 @@ impl SajuEngine {
         _input: &Value,
         version: &str,
     ) -> (Value, String) {
-        // compatibility 등 아직 미구현 타입은 기본 응답
         let result = json!({
             "reading_type": reading_type,
-            "summary": "이 기능은 준비 중입니다.",
             "score": 75,
-            "advice": "곧 더 정확한 분석을 제공해 드리겠습니다.",
         });
         (result, version.to_string())
     }
@@ -1983,7 +1732,6 @@ impl SajuEngine {
 struct CompatibilityData {
     score: i32,
     grade: &'static str,
-    analysis: String,
     love: i32,
     communication: i32,
     values: i32,
@@ -2001,7 +1749,6 @@ impl CompatibilityData {
         json!({
             "score": self.score,
             "grade": self.grade,
-            "analysis": self.analysis,
             "categories": {
                 "love": self.love,
                 "communication": self.communication,
@@ -2018,11 +1765,11 @@ impl CompatibilityData {
         let ten_god_list: Vec<Value> = self
             .ten_god_interactions
             .iter()
-            .map(|(sg, tg, _)| {
+            .map(|(sg, tg, score)| {
                 json!({
                     "subject_god": sg.korean(),
                     "target_god": tg.korean(),
-                    "interpretation": ten_god_interaction_text(*sg, *tg),
+                    "score": score,
                 })
             })
             .collect();
@@ -2034,28 +1781,11 @@ impl CompatibilityData {
         json!({
             "score": self.score,
             "grade": self.grade,
-            "analysis": self.analysis,
             "categories": {
-                "love": {
-                    "score": self.love,
-                    "analysis": category_analysis("love", self.love, &self.branch_analysis),
-                    "advice": category_advice("love", self.love),
-                },
-                "communication": {
-                    "score": self.communication,
-                    "analysis": category_analysis("communication", self.communication, &self.branch_analysis),
-                    "advice": category_advice("communication", self.communication),
-                },
-                "values": {
-                    "score": self.values,
-                    "analysis": category_analysis("values", self.values, &self.branch_analysis),
-                    "advice": category_advice("values", self.values),
-                },
-                "lifestyle": {
-                    "score": self.lifestyle,
-                    "analysis": category_analysis("lifestyle", self.lifestyle, &self.branch_analysis),
-                    "advice": category_advice("lifestyle", self.lifestyle),
-                },
+                "love": { "score": self.love },
+                "communication": { "score": self.communication },
+                "values": { "score": self.values },
+                "lifestyle": { "score": self.lifestyle },
             },
             "element_comparison": {
                 "subject": {
@@ -2075,11 +1805,6 @@ impl CompatibilityData {
             },
             "branch_relations": branch_relations,
             "ten_god_interactions": ten_god_list,
-            "advice": {
-                "overall": compatibility_advice_detailed(self.score, "overall"),
-                "caution": compatibility_advice_detailed(self.score, "caution"),
-                "enhancement": format!("{}의 기운이 부족하니 {} 소품을 활용해보세요.", weakest.korean(), lucky_color),
-            },
             "lucky_elements": {
                 "color": lucky_color,
                 "element": weakest.korean(),
@@ -2093,26 +1818,17 @@ impl CompatibilityData {
     fn build_branch_relations(&self) -> Vec<Value> {
         let mut relations = Vec::new();
         for s in &self.branch_analysis.samhap {
-            let (label, desc) = match s {
-                branches::SamhapResult::Full(e) => (
-                    format!("삼합(三合) - {}국", e.korean()),
-                    "세 가지 기운이 하나로 모여 강한 조화를 이룹니다.".to_string(),
-                ),
-                branches::SamhapResult::Half(e) => (
-                    format!("반합(半合) - {}국", e.korean()),
-                    "부분적인 조화가 있어 서로 보완합니다.".to_string(),
-                ),
+            let label = match s {
+                branches::SamhapResult::Full(e) => format!("삼합(三合) - {}국", e.korean()),
+                branches::SamhapResult::Half(e) => format!("반합(半合) - {}국", e.korean()),
             };
-            relations.push(
-                json!({"type": label, "branches": [], "effect": "positive", "description": desc}),
-            );
+            relations.push(json!({"type": label, "branches": [], "effect": "positive"}));
         }
         for y in &self.branch_analysis.yukhap {
             relations.push(json!({
                 "type": "육합(六合)",
                 "branches": [y.pair.0.korean(), y.pair.1.korean()],
                 "effect": "positive",
-                "description": "자연스러운 끌림과 조화의 관계입니다.",
             }));
         }
         for c in &self.branch_analysis.clashes {
@@ -2120,7 +1836,6 @@ impl CompatibilityData {
                 "type": "상충(相沖)",
                 "branches": [c.pair.0.korean(), c.pair.1.korean()],
                 "effect": "negative",
-                "description": "서로 다른 에너지가 부딪혀 갈등이 생길 수 있습니다.",
             }));
         }
         for p in &self.branch_analysis.punishments {
@@ -2129,7 +1844,6 @@ impl CompatibilityData {
                 "type": p.punishment_type.korean(),
                 "branches": br_names,
                 "effect": "negative",
-                "description": "관계에서 미묘한 갈등 요소가 있습니다.",
             }));
         }
         relations
@@ -2226,15 +1940,6 @@ impl SajuEngine {
             ((love * 30 + communication * 25 + values * 25 + lifestyle * 20) / 100).clamp(30, 98);
         let grade = score_to_grade(score);
 
-        let analysis = format!(
-            "{}({})과 {}({})의 궁합입니다. {}",
-            day_master1.korean(),
-            day_master1.element().korean(),
-            day_master2.korean(),
-            day_master2.element().korean(),
-            compatibility_advice(score),
-        );
-
         let target_name = input
             .get("options")
             .and_then(|o| o.get("target_name"))
@@ -2257,7 +1962,6 @@ impl SajuEngine {
         Some(CompatibilityData {
             score,
             grade,
-            analysis,
             love,
             communication,
             values,
@@ -2365,31 +2069,6 @@ fn count_stem_relations(p1: &FourPillars, p2: &FourPillars, h1: bool, h2: bool) 
     (sangsaeng, sanggeuk)
 }
 
-fn ten_god_interaction_text(a: TenGod, b: TenGod) -> &'static str {
-    match (a, b) {
-        (TenGod::Jeonggwan, TenGod::Jeongjae) | (TenGod::Jeongjae, TenGod::Jeonggwan) => {
-            "안정적인 관계 기반이 됩니다."
-        }
-        (TenGod::Sikshin, TenGod::Pyeonin) | (TenGod::Pyeonin, TenGod::Sikshin) => {
-            "창의적 에너지가 교류됩니다."
-        }
-        (TenGod::Jeongin, TenGod::Jeonggwan) | (TenGod::Jeonggwan, TenGod::Jeongin) => {
-            "지적 교감이 깊습니다."
-        }
-        (TenGod::Bigyeon, TenGod::Bigyeon) => "동질감이 강합니다.",
-        (TenGod::Sanggwan, TenGod::Pyeongwan) | (TenGod::Pyeongwan, TenGod::Sanggwan) => {
-            "권위 충돌이 발생할 수 있습니다."
-        }
-        (TenGod::Geupjae, TenGod::Pyeonjae) | (TenGod::Pyeonjae, TenGod::Geupjae) => {
-            "재물 관련 갈등이 있을 수 있습니다."
-        }
-        (TenGod::Sanggwan, TenGod::Jeonggwan) | (TenGod::Jeonggwan, TenGod::Sanggwan) => {
-            "관계에서 마찰이 생길 수 있습니다."
-        }
-        _ => "독특한 상호작용이 있습니다.",
-    }
-}
-
 fn element_to_color(e: Element) -> &'static str {
     match e {
         Element::Wood => "초록색",
@@ -2410,68 +2089,6 @@ fn element_to_direction(e: Element) -> &'static str {
     }
 }
 
-fn category_analysis(category: &str, score: i32, ba: &branches::BranchAnalysis) -> String {
-    match category {
-        "love" if ba.yukhap_count > 0 => format!(
-            "지지에 육합이 {}개 발견되어 자연스러운 끌림이 있습니다.",
-            ba.yukhap_count
-        ),
-        "love" if ba.samhap_count > 0 => "삼합의 조화로 깊은 유대감을 형성합니다.".to_string(),
-        "love" => format!("연애 궁합 점수는 {}점입니다.", score),
-        "communication" if score >= 80 => "천간의 상생 관계가 많아 소통이 원활합니다.".into(),
-        "communication" if score >= 60 => "대화를 통해 이해를 넓힐 수 있는 관계입니다.".into(),
-        "communication" => "소통에 노력이 필요한 관계입니다.".into(),
-        "values" if score >= 80 => "십신 조합이 조화로워 가치관이 잘 맞습니다.".into(),
-        "values" if score >= 60 => "서로 다른 관점이 보완이 되는 관계입니다.".into(),
-        "values" => "가치관 차이를 인정하고 존중하는 것이 중요합니다.".into(),
-        "lifestyle" if score >= 80 => {
-            "오행 밸런스가 상호보완적이어서 함께하면 안정적입니다.".into()
-        }
-        "lifestyle" if score >= 60 => "생활 방식에서 적절한 균형을 찾을 수 있습니다.".into(),
-        "lifestyle" => "생활 습관 차이를 조율하는 노력이 필요합니다.".into(),
-        _ => format!("점수: {}점", score),
-    }
-}
-
-fn category_advice(category: &str, score: i32) -> &'static str {
-    match (category, score) {
-        ("love", 80..=98) => "서로의 감정을 솔직하게 표현하면 더욱 깊어집니다.",
-        ("love", 60..=79) => "작은 관심과 배려가 관계를 한층 발전시킵니다.",
-        ("love", 40..=59) => "서로의 사랑 표현 방식을 이해하려 노력하세요.",
-        ("love", _) => "감정 표현에 더 적극적으로 다가가 보세요.",
-        ("communication", 80..=98) => "열린 대화를 유지하면 더욱 단단해집니다.",
-        ("communication", 60..=79) => "상대의 의견을 경청하는 시간을 가지세요.",
-        ("communication", 40..=59) => "오해를 줄이기 위해 명확한 표현을 연습하세요.",
-        ("communication", _) => "대화의 기회를 의식적으로 만들어 보세요.",
-        ("values", 80..=98) => "장기적 목표를 함께 논의하면 시너지가 납니다.",
-        ("values", 60..=79) => "서로의 우선순위를 존중하며 공통점을 찾으세요.",
-        ("values", 40..=59) => "차이를 인정하고 타협점을 찾아보세요.",
-        ("values", _) => "서로의 세계관을 이해하려는 노력이 필요합니다.",
-        ("lifestyle", 80..=98) => "주말 활동을 함께 계획하면 유대가 깊어집니다.",
-        ("lifestyle", 60..=79) => "각자의 시간과 함께하는 시간의 균형을 맞추세요.",
-        ("lifestyle", 40..=59) => "생활 패턴의 차이를 조율하는 규칙을 만들어 보세요.",
-        ("lifestyle", _) => "서로의 생활 방식을 존중하는 것이 우선입니다.",
-        _ => "서로를 이해하려는 노력이 중요합니다.",
-    }
-}
-
-fn compatibility_advice_detailed(score: i32, advice_type: &str) -> &'static str {
-    match (advice_type, score) {
-        ("overall", 90..=98) => "천생연분에 가까운 궁합입니다. 서로를 더욱 성장시킬 수 있습니다.",
-        ("overall", 80..=89) => "서로의 부족한 부분을 잘 채워주는 훌륭한 궁합입니다.",
-        ("overall", 70..=79) => "안정적이고 편안한 관계를 유지할 수 있습니다.",
-        ("overall", 60..=69) => "노력하면 좋은 관계로 발전할 수 있는 궁합입니다.",
-        ("overall", 50..=59) => "서로 이해하려는 노력이 필요하지만 가능성이 있습니다.",
-        ("overall", 40..=49) => "차이를 인정하고 존중하면 성장할 수 있습니다.",
-        ("overall", _) => "서로 다른 성향이 강하므로 소통과 양보가 중요합니다.",
-        ("caution", 80..=98) => "좋은 궁합이지만 서로를 당연시하지 않도록 주의하세요.",
-        ("caution", 60..=79) => "작은 갈등이 쌓이지 않도록 정기적으로 대화하세요.",
-        ("caution", 40..=59) => "감정적 충돌 시 한 발 물러서는 여유를 가지세요.",
-        ("caution", _) => "서로의 차이를 비난하지 말고 이해하려 노력하세요.",
-        _ => "",
-    }
-}
-
 fn day_master_info(stem: Stem) -> Value {
     json!({
         "korean": stem.korean(),
@@ -2486,76 +2103,6 @@ fn branch_info(branch: Branch) -> Value {
         "hanja": branch.hanja(),
         "animal": branch.animal(),
         "element": branch.element().korean(),
-    })
-}
-
-/// 공망 결과를 web 친화 JSON으로. enum은 한국어/lowercase 키로 평탄화.
-fn gongmang_to_json(g: &gongmang::Gongmang) -> Value {
-    let palaces: Vec<&'static str> = g
-        .affected_palaces
-        .iter()
-        .map(|p| match p {
-            gongmang::Palace::Year => "year",
-            gongmang::Palace::Month => "month",
-            gongmang::Palace::Hour => "hour",
-        })
-        .collect();
-    let ten_gods: Vec<&'static str> = g.affected_ten_gods.iter().map(|t| t.korean()).collect();
-
-    json!({
-        "group_index": g.group_index,
-        "group_name": g.group_name,
-        "empty_branches": g.empty_branches.iter().map(|b| branch_info(*b)).collect::<Vec<_>>(),
-        "affected_palaces": palaces,
-        "affected_ten_gods": ten_gods,
-        "interpretation": g.interpretation,
-    })
-}
-
-/// 단일 신살 → JSON. kind는 영문 슬러그 + 한국어 라벨 둘 다 노출.
-fn shinsal_to_json(s: &shinsal::Shinsal) -> Value {
-    let (kind_slug, kind_korean) = match s.kind {
-        shinsal::ShinsalKind::Geop => ("geop", "겁살"),
-        shinsal::ShinsalKind::Jae => ("jae", "재살"),
-        shinsal::ShinsalKind::Cheon => ("cheon", "천살"),
-        shinsal::ShinsalKind::Ji => ("ji", "지살"),
-        shinsal::ShinsalKind::Dohwa => ("dohwa", "도화살"),
-        shinsal::ShinsalKind::Wol => ("wol", "월살"),
-        shinsal::ShinsalKind::Mangsin => ("mangsin", "망신살"),
-        shinsal::ShinsalKind::Jangseong => ("jangseong", "장성살"),
-        shinsal::ShinsalKind::Banan => ("banan", "반안살"),
-        shinsal::ShinsalKind::Yeokma => ("yeokma", "역마살"),
-        shinsal::ShinsalKind::Yukae => ("yukae", "육해살"),
-        shinsal::ShinsalKind::Hwagae => ("hwagae", "화개살"),
-        shinsal::ShinsalKind::Baekho => ("baekho", "백호살"),
-        shinsal::ShinsalKind::Cheoneul => ("cheoneul", "천을귀인"),
-    };
-    let positions: Vec<&'static str> = s
-        .positions
-        .iter()
-        .map(|p| match p {
-            shinsal::ShinsalPosition::Year => "year",
-            shinsal::ShinsalPosition::Month => "month",
-            shinsal::ShinsalPosition::Day => "day",
-            shinsal::ShinsalPosition::Hour => "hour",
-        })
-        .collect();
-
-    json!({
-        "kind": kind_slug,
-        "kind_korean": kind_korean,
-        "positions": positions,
-        "intensity": s.intensity,
-        "modern_take": s.modern_take,
-    })
-}
-
-/// 행운 아이템 → 한국어 오행 라벨 포함 JSON.
-fn lucky_to_json(l: &lucky::LuckyItems) -> Value {
-    json!({
-        "primary": lucky_triple_to_json(&l.primary),
-        "supplementary": lucky_triple_to_json(&l.supplementary),
-        "interpretation": l.interpretation,
     })
 }
 
@@ -2605,20 +2152,6 @@ fn calculate_compatibility_score(b1: &ElementBalance, b2: &ElementBalance) -> i3
     complement_score.clamp(30, 98)
 }
 
-fn compatibility_advice(score: i32) -> &'static str {
-    match score {
-        90..=98 => "천생연분에 가까운 궁합입니다. 서로를 더욱 빛나게 합니다.",
-        85..=89 => "서로의 부족한 부분을 잘 채워주는 훌륭한 궁합입니다.",
-        80..=84 => "안정적이고 조화로운 관계를 기대할 수 있습니다.",
-        75..=79 => "서로 맞춰가면 좋은 관계로 발전할 수 있습니다.",
-        70..=74 => "무난한 궁합이지만 작은 노력으로 더 좋아질 수 있습니다.",
-        60..=69 => "차이가 있지만 서로 이해하면 성장할 수 있는 관계입니다.",
-        50..=59 => "성격 차이가 있을 수 있으나 이해와 배려로 극복 가능합니다.",
-        40..=49 => "서로 다른 점이 많지만 그만큼 배울 수 있는 관계입니다.",
-        _ => "서로 다른 성향이 강하므로 소통과 양보가 중요합니다.",
-    }
-}
-
 /// 점수를 등급 문자열로 변환
 fn score_to_grade(score: i32) -> &'static str {
     match score {
@@ -2631,8 +2164,7 @@ fn score_to_grade(score: i32) -> &'static str {
 
 #[cfg(test)]
 mod content_depth_tests {
-    //! v0.0.3 콘텐츠 고도화 — saju/daily_detail JSON 응답에 신규 필드 anchor 잠금.
-    //! 다운스트림(lunawave web) UI가 의지하는 키 이름이 무심코 사라지지 않게 한다.
+    //! Calculation-only JSON contract locks.
 
     use super::*;
     use serde_json::json;
@@ -2659,10 +2191,7 @@ mod content_depth_tests {
                 .is_some_and(|a| a.len() == 2),
             "공망 지지는 항상 2개"
         );
-        assert!(
-            gm.get("interpretation").is_some(),
-            "gongmang.interpretation"
-        );
+        assert!(gm.get("interpretation").is_none(), "gongmang prose");
 
         let ss = result
             .get("shinsal")
@@ -2673,7 +2202,7 @@ mod content_depth_tests {
             assert!(item.get("kind").is_some(), "각 신살에 kind 슬러그");
             assert!(item.get("kind_korean").is_some(), "각 신살에 kind_korean");
             assert!(item.get("positions").is_some(), "각 신살에 positions");
-            assert!(item.get("modern_take").is_some(), "각 신살에 modern_take");
+            assert!(item.get("modern_take").is_none(), "각 신살 prose");
         }
 
         let lk = result.get("lucky").expect("lucky 필드 필수");
@@ -2689,7 +2218,7 @@ mod content_depth_tests {
         );
         assert!(primary.get("direction").is_some());
         assert!(lk.get("supplementary").is_some());
-        assert!(lk.get("interpretation").is_some());
+        assert!(lk.get("interpretation").is_none());
     }
 
     #[test]
@@ -2709,42 +2238,27 @@ mod content_depth_tests {
     }
 
     #[test]
-    fn daily_response_includes_structured_lead() {
+    fn daily_response_is_calculation_only() {
         let (result, version) = SajuEngine.generate("daily", &saju_input_with_time());
 
         assert_eq!(version, SAJU_ENGINE_VERSION);
-        let lead = result.get("lead").expect("daily.lead 필드 필수");
-        assert!(
-            lead.get("signal")
-                .and_then(|v| v.as_str())
-                .is_some_and(|v| v.contains("일간"))
-        );
-        assert_eq!(lead.get("risk"), result.get("caution"));
-        assert_eq!(lead.get("action"), result.get("advice"));
-        assert!(
-            lead.get("question")
-                .and_then(|v| v.as_str())
-                .is_some_and(|v| v.contains("무엇을 먼저 조정"))
-        );
+        assert!(result["scores"]["overall"].is_number());
+        assert!(result.get("lead").is_none());
+        assert!(result.get("advice").is_none());
+        assert!(result.get("caution").is_none());
     }
 
     #[test]
-    fn daily_detail_response_includes_structured_lead_from_persona_today() {
+    fn daily_detail_response_is_calculation_only() {
         let (result, version) = SajuEngine.generate("daily_detail", &saju_input_with_time());
 
         assert_eq!(version, SAJU_ENGINE_VERSION);
-        let lead = result.get("lead").expect("daily_detail.lead 필드 필수");
-        let persona = result
-            .get("persona_today")
-            .expect("daily_detail.persona_today 필드 필수");
-        assert_eq!(lead.get("signal"), persona.get("strength"));
-        assert_eq!(lead.get("risk"), persona.get("caution"));
-        assert_eq!(lead.get("action"), persona.get("action"));
-        assert!(
-            lead.get("question")
-                .and_then(|v| v.as_str())
-                .is_some_and(|v| v.contains("실제 행동"))
-        );
+        assert!(result.get("lead").is_none());
+        assert!(result.get("advice").is_none());
+        assert!(result.get("caution").is_none());
+        assert!(result.get("persona_today").is_none());
+        assert!(result.get("personality_summary").is_none());
+        assert!(result["category_details"]["love"].get("advice").is_none());
     }
 
     #[test]
@@ -2851,28 +2365,20 @@ mod content_depth_tests {
     }
 
     #[test]
-    fn saju_compat_response_keeps_legacy_prose_and_embeds_core_snapshot() {
+    fn saju_response_is_core_payload_without_legacy_prose() {
         let (result, version) = SajuEngine.generate("saju", &saju_input_with_time());
 
         assert_eq!(version, SAJU_ENGINE_VERSION);
-        assert!(result.get("interpretation").is_some());
-        assert!(result.get("lead").is_some());
-        assert!(result.get("personality").is_some());
-        assert!(result.get("fortune_outlook").is_some());
-        assert_eq!(result["legacy_prose"]["status"], "compatibility");
-        assert_eq!(result["legacy_prose"]["version"], SAJU_LEGACY_PROSE_VERSION);
-
-        let core = result.get("saju_core").expect("saju_core snapshot");
-        assert_eq!(core["schema_version"], SAJU_CORE_SCHEMA_VERSION);
-        assert_eq!(core["day_master"], result["day_master"]);
-        assert_eq!(core["dominant_element"], result["dominant_element"]);
-        assert_eq!(core["weakest_element"], result["weakest_element"]);
-        assert_eq!(core["signals"], result["signals"]);
-        assert!(core.get("interpretation").is_none());
-        assert!(core.get("lead").is_none());
-        assert!(core["element_balance"].get("analysis").is_none());
-        assert!(core["gongmang"].get("interpretation").is_none());
-        assert!(core["lucky"].get("interpretation").is_none());
+        assert_eq!(result["schema_version"], SAJU_CORE_SCHEMA_VERSION);
+        assert!(result.get("saju_core").is_none());
+        assert!(result.get("legacy_prose").is_none());
+        assert!(result.get("interpretation").is_none());
+        assert!(result.get("lead").is_none());
+        assert!(result.get("personality").is_none());
+        assert!(result.get("fortune_outlook").is_none());
+        assert!(result["element_balance"].get("analysis").is_none());
+        assert!(result["gongmang"].get("interpretation").is_none());
+        assert!(result["lucky"].get("interpretation").is_none());
     }
 
     #[test]
@@ -3083,55 +2589,27 @@ mod content_depth_tests {
     }
 
     #[test]
-    fn saju_response_includes_structured_lead_from_remedies() {
+    fn saju_response_excludes_backend_copy_fields() {
         let (result, version) = SajuEngine.generate("saju", &saju_input_with_time());
 
         assert_eq!(version, SAJU_ENGINE_VERSION);
-        let lead = result.get("lead").expect("saju.lead 필드 필수");
-        let interpretation = result
-            .get("interpretation")
-            .expect("saju.interpretation 필드 필수");
-        let remedies = interpretation
-            .get("sections")
-            .and_then(|v| v.as_array())
-            .and_then(|sections| {
-                sections
-                    .iter()
-                    .find(|section| section.get("key").and_then(|v| v.as_str()) == Some("remedies"))
-            })
-            .expect("saju.interpretation.sections remedies 필수");
-        let balance = result
-            .get("element_balance")
-            .expect("saju.element_balance 필드 필수");
-
-        assert_eq!(lead.get("signal"), interpretation.get("headline"));
-        assert_eq!(lead.get("risk"), balance.get("analysis"));
-        assert_eq!(lead.get("action"), remedies.get("body"));
-        assert!(
-            lead.get("question")
-                .and_then(|v| v.as_str())
-                .is_some_and(|v| v.contains("반복해서 선택"))
-        );
+        assert!(result.get("interpretation").is_none());
+        assert!(result.get("headline").is_none());
+        assert!(result.get("sections").is_none());
+        assert!(result.get("ai_prompts").is_none());
+        assert!(result.get("lead").is_none());
     }
 
     #[test]
     fn natal_category_reading_is_generated_by_saju_engine() {
         let (result, version) = SajuEngine.generate("saju_wealth", &saju_input_with_time());
 
-        assert_eq!(version, "saju-wealth-v0.1.0");
-        assert!(
-            result
-                .get("headline")
-                .and_then(|v| v.as_str())
-                .is_some_and(|v| !v.is_empty())
-        );
-        assert_eq!(
-            result
-                .get("sections")
-                .and_then(|v| v.as_array())
-                .map(Vec::len),
-            Some(4)
-        );
+        assert_eq!(version, SAJU_ENGINE_VERSION);
+        assert_eq!(result["reading_type"], "saju_wealth");
+        assert_eq!(result["domain"], "wealth");
+        assert_eq!(result["schema_version"], SAJU_CORE_SCHEMA_VERSION);
+        assert!(result.get("headline").is_none());
+        assert!(result.get("sections").is_none());
     }
 
     #[test]

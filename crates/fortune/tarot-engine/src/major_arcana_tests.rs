@@ -124,10 +124,10 @@ mod tests {
         }
     }
 
-    // ── 3. engine JSON 응답에 meaning_upright/meaning_reversed 두 필드 노출 ─
+    // ── 3. engine JSON 응답은 카드 정체성/방향 계산값만 노출 ─
 
     #[test]
-    fn engine_response_contains_both_meaning_fields() {
+    fn engine_response_excludes_meaning_fields() {
         let engine = TarotEngine;
         let input = json!({
             "birth_date": "1990-06-15",
@@ -140,34 +140,21 @@ mod tests {
             let (result, _) = engine.generate(rt, &input);
             let cards = result["cards"].as_array().expect("cards 배열 필요");
             for card in cards {
+                assert!(card.get("meaning").is_none(), "{rt}: meaning 필드 금지");
                 assert!(
-                    card["meaning_upright"].is_string(),
-                    "{rt}: meaning_upright 필드 누락 또는 string 아님"
+                    card.get("meaning_upright").is_none(),
+                    "{rt}: meaning_upright 필드 금지"
                 );
                 assert!(
-                    card["meaning_reversed"].is_string(),
-                    "{rt}: meaning_reversed 필드 누락 또는 string 아님"
-                );
-                assert!(
-                    !card["meaning_upright"].as_str().unwrap().is_empty(),
-                    "{rt}: meaning_upright 비어있음"
-                );
-                assert!(
-                    !card["meaning_reversed"].as_str().unwrap().is_empty(),
-                    "{rt}: meaning_reversed 비어있음"
-                );
-                // 두 필드가 서로 달라야 함
-                assert_ne!(
-                    card["meaning_upright"], card["meaning_reversed"],
-                    "{rt}: meaning_upright == meaning_reversed — 두 톤 분리 실패"
+                    card.get("meaning_reversed").is_none(),
+                    "{rt}: meaning_reversed 필드 금지"
                 );
             }
         }
     }
 
     #[test]
-    fn engine_meaning_field_matches_is_reversed() {
-        // is_reversed에 따라 meaning 단일 필드가 올바른 톤을 반환하는지 확인
+    fn engine_reversal_keeps_orientation_fact_only() {
         let engine = TarotEngine;
         let input = json!({
             "birth_date": "1990-06-15",
@@ -178,17 +165,9 @@ mod tests {
         let (result, _) = engine.generate("tarot_three", &input);
         let cards = result["cards"].as_array().unwrap();
         for card in cards {
-            let is_rev = card["is_reversed"].as_bool().unwrap();
-            let meaning = card["meaning"].as_str().unwrap();
-            let expected = if is_rev {
-                card["meaning_reversed"].as_str().unwrap()
-            } else {
-                card["meaning_upright"].as_str().unwrap()
-            };
-            assert_eq!(
-                meaning, expected,
-                "is_reversed={is_rev}일 때 meaning이 올바른 톤을 가리켜야 함"
-            );
+            assert!(card["is_reversed"].is_boolean());
+            assert!(card.get("meaning").is_none());
+            assert!(card.get("interpretation").is_none());
         }
     }
 }

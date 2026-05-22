@@ -1,4 +1,4 @@
-use serde_json::json;
+use serde_json::{Value, json};
 use ziwei_engine::{
     Branch, ZIWEI_PROFILE_ID, ZIWEI_PROFILE_VERSION, ZiweiEngine, ZiweiEngineRequest,
     generate_ziwei_chart, generate_ziwei_reading,
@@ -19,6 +19,44 @@ fn target_year_input() -> serde_json::Value {
         "calendar_type": "solar",
         "target_year": 2026
     })
+}
+
+const PROSE_KEYS: &[&str] = &[
+    "interpretation",
+    "interpretation_policy",
+    "lead",
+    "analysis",
+    "advice",
+    "description",
+    "meaning",
+    "prompt",
+    "prompts",
+    "headline",
+    "sections",
+    "overall_summary",
+];
+
+fn assert_no_prose_keys(value: &Value) {
+    fn visit(path: &str, value: &Value) {
+        match value {
+            Value::Object(map) => {
+                for key in PROSE_KEYS {
+                    assert!(!map.contains_key(*key), "prose key {key} at {path}");
+                }
+                for (key, child) in map {
+                    visit(&format!("{path}.{key}"), child);
+                }
+            }
+            Value::Array(items) => {
+                for (index, child) in items.iter().enumerate() {
+                    visit(&format!("{path}[{index}]"), child);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    visit("$", value);
 }
 
 #[test]
@@ -53,6 +91,7 @@ fn ziwei_returns_object_shape() {
         result["calculation_profile"]["version"],
         ZIWEI_PROFILE_VERSION
     );
+    assert_no_prose_keys(&result);
 }
 
 #[test]
@@ -86,6 +125,14 @@ fn public_api_returns_typed_chart() {
     assert_eq!(
         response.chart.calculation_profile.compatibility_target,
         "iztro-compatible"
+    );
+    assert!(
+        response
+            .chart
+            .calculation_profile
+            .source_policies
+            .iter()
+            .all(|policy| policy.role != "interpretation_reference_only")
     );
     assert_eq!(response.result_json["chart_type"], "ziwei");
 }
@@ -139,6 +186,18 @@ fn json_contract_exposes_policy_and_localized_objects() {
     assert_eq!(
         result["calculation_profile"]["unsupported_policy"],
         "emit_explicit_pending_policy_for_tables_without_authoritative_fixture_lock"
+    );
+    assert!(
+        result["calculation_profile"]
+            .get("interpretation_policy")
+            .is_none()
+    );
+    assert!(
+        result["calculation_profile"]["source_policies"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|policy| policy["role"] != "interpretation_reference_only")
     );
     assert!(result["life_palace"]["code"].as_str().is_some());
     assert!(result["life_palace"]["ko"].as_str().is_some());

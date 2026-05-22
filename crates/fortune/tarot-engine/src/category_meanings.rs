@@ -20,6 +20,7 @@ pub fn is_valid_category(category: &str) -> bool {
 /// - `category`: "love" | "career" | "wealth" | "health" | "general".
 ///   다른 값은 None — 호출처에서 fallback해야 함.
 /// - `is_reversed`: 정/역 분기.
+#[allow(dead_code)]
 pub fn major_category_meaning(
     card_id: u8,
     category: &str,

@@ -4,7 +4,6 @@ use std::fmt;
 use crate::category_meanings::is_valid_category;
 use crate::draw::DRAW_POOL_SIZE;
 use crate::engine::{TarotEngine, is_valid_reading_type};
-use crate::interpretation_enrichment::enrich_tarot_result;
 use crate::types::SpreadType;
 
 #[derive(Debug, Clone, Default)]
@@ -87,13 +86,21 @@ pub fn generate_tarot_reading(
 
     let input = build_engine_input(&request, category);
     let engine = TarotEngine;
-    let (mut result_json, _engine_version) = engine.generate(request.reading_type, &input);
-    let engine_version = enrich_tarot_result(&mut result_json, category);
+    let (mut result_json, engine_version) = engine.generate(request.reading_type, &input);
+    attach_engine_version(&mut result_json, &engine_version);
 
     Ok(TarotEngineResponse {
         result_json,
         engine_version,
     })
+}
+
+fn attach_engine_version(result_json: &mut Value, engine_version: &str) {
+    if let Some(object) = result_json.as_object_mut() {
+        object
+            .entry("engine_version")
+            .or_insert_with(|| json!(engine_version));
+    }
 }
 
 fn build_engine_input(request: &TarotEngineRequest<'_>, category: Option<&str>) -> Value {
@@ -158,7 +165,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn high_level_public_daily_generates_enriched_result() {
+    fn high_level_public_daily_generates_calculation_only_result() {
         let response = generate_public_daily_tarot(Some("love"), 1).unwrap();
 
         assert_eq!(response.result_json["spread_type"], "tarot_daily");
@@ -166,9 +173,24 @@ mod tests {
             response.result_json["engine_version"],
             response.engine_version
         );
-        assert_eq!(response.result_json["category"], "love");
-        assert!(response.result_json["interpretation_framework"].is_object());
-        assert!(response.result_json["cards"][0]["source_archetype"].is_string());
+        assert_eq!(response.result_json["reading_facts"]["category"], "love");
+        assert!(
+            response
+                .result_json
+                .get("interpretation_framework")
+                .is_none()
+        );
+        assert!(response.result_json.get("overall_summary").is_none());
+        assert!(
+            response.result_json["cards"][0]
+                .get("interpretation")
+                .is_none()
+        );
+        assert!(
+            response.result_json["cards"][0]
+                .get("preview_text")
+                .is_none()
+        );
     }
 
     #[test]

@@ -1,14 +1,23 @@
+#![allow(dead_code)]
+
 use super::elements::{self, ElementRelation};
 use super::pillars;
 use super::types::{Element, FourPillars, Stem};
 
 /// 월운 단일 달 결과
-pub struct MonthlyFortune {
+struct MonthlyFortune {
     pub month: u32,
     pub score: i32,
     pub grade: String,
     pub categories: MonthlyCategories,
     pub advice: String,
+}
+
+pub struct MonthlyCalculation {
+    pub month: u32,
+    pub score: i32,
+    pub grade: String,
+    pub categories: MonthlyCategories,
 }
 
 pub struct MonthlyCategories {
@@ -23,7 +32,10 @@ pub struct MonthlyCategories {
 ///
 /// 각 월의 월주 천간(월간)과 사용자 일간(Day Master)의 오행 관계를 기준으로
 /// 카테고리별 점수를 생성한다.
-pub fn calculate_monthly_fortune(user_pillars: &FourPillars, year: i32) -> Vec<MonthlyFortune> {
+pub fn calculate_monthly_calculation(
+    user_pillars: &FourPillars,
+    year: i32,
+) -> Vec<MonthlyCalculation> {
     let day_master = user_pillars.day.stem;
 
     (1u32..=12)
@@ -50,10 +62,9 @@ pub fn calculate_monthly_fortune(user_pillars: &FourPillars, year: i32) -> Vec<M
             let health = category_score(overall, day_master, month_p.stem, 2, stem_relation);
             let wealth = category_score(overall, day_master, month_p.stem, 3, stem_relation);
 
-            let advice = monthly_advice(stem_relation, day_master, month);
             let grade = score_to_grade(overall).to_string();
 
-            MonthlyFortune {
+            MonthlyCalculation {
                 month,
                 score: overall,
                 grade,
@@ -64,8 +75,35 @@ pub fn calculate_monthly_fortune(user_pillars: &FourPillars, year: i32) -> Vec<M
                     health,
                     wealth,
                 },
-                advice,
             }
+        })
+        .collect()
+}
+
+fn calculate_monthly_fortune(user_pillars: &FourPillars, year: i32) -> Vec<MonthlyFortune> {
+    let day_master = user_pillars.day.stem;
+
+    calculate_monthly_calculation(user_pillars, year)
+        .into_iter()
+        .map(|month| MonthlyFortune {
+            advice: monthly_advice(
+                elements::relation(
+                    day_master.element(),
+                    pillars::month_pillar(
+                        pillars::year_pillar(year, month.month, 1).stem,
+                        month.month,
+                        1,
+                    )
+                    .stem
+                    .element(),
+                ),
+                day_master,
+                month.month,
+            ),
+            month: month.month,
+            score: month.score,
+            grade: month.grade,
+            categories: month.categories,
         })
         .collect()
 }

@@ -3,11 +3,8 @@ use serde_json::{Value, json};
 use crate::cards;
 use crate::category_meanings;
 use crate::draw;
-use crate::interpreter;
 use crate::profile;
-use crate::types::{
-    ArcanaType, DrawnCard, SpreadType, Suit, TarotCard, TarotElement, TarotReading,
-};
+use crate::types::{ArcanaType, DrawnCard, SpreadType, Suit, TarotCard, TarotElement};
 use sha2::{Digest, Sha256};
 
 pub struct TarotEngine;
@@ -125,17 +122,6 @@ impl TarotEngine {
             let drawn = &all_cards[pick_idx];
             let card = cards::get_card(drawn.card_id);
             if let Some(card) = card {
-                let full_meaning = if drawn.is_reversed {
-                    card.reversed_meaning
-                } else {
-                    card.upright_meaning
-                };
-                let preview_text = if full_meaning.chars().count() > 30 {
-                    let truncated: String = full_meaning.chars().take(30).collect();
-                    format!("{}...", truncated)
-                } else {
-                    full_meaning.to_string()
-                };
                 let direction = if drawn.is_reversed {
                     "역방향"
                 } else {
@@ -154,7 +140,6 @@ impl TarotEngine {
                         "card_number": card.number,
                         "is_reversed": drawn.is_reversed,
                         "direction": direction,
-                        "preview_text": preview_text,
                     }]
                 });
                 return (result, version);
@@ -225,32 +210,17 @@ impl TarotEngine {
             drawn_cards
         };
 
-        // 해석 (사주 무관). options.category가 있으면 카테고리별 본문 사용
-        // (메이저만), 없거나 매칭 안 되는 마이너는 cards.rs 일반 톤 fallback.
-        // 카테고리 후보: "love" | "career" | "wealth" | "health" | "general".
         let raw_category = input
             .get("options")
             .and_then(|o| o.get("category"))
             .and_then(|v| v.as_str());
         let category = raw_category.filter(|value| category_meanings::is_valid_category(value));
 
-        let mut reading = TarotReading {
-            spread_type,
-            cards: drawn_cards,
-            interpretations: Vec::new(),
-            overall_message: String::new(),
-        };
-
-        let basics = interpreter::interpret_with_category(&mut reading, category);
-
-        // JSON 결과 구성 — interpretation 단일 키만 유지. saju/mixed/basic 분기 키 없음.
-        let cards_json: Vec<Value> = reading
-            .cards
+        let cards_json: Vec<Value> = drawn_cards
             .iter()
             .enumerate()
             .map(|(i, drawn)| {
                 let card = cards::get_card(drawn.card_id);
-                let interpretation = basics.get(i).cloned().unwrap_or_default();
 
                 if let Some(card) = card {
                     json!({
@@ -264,14 +234,8 @@ impl TarotEngine {
                         "suit": card.suit.map(|s| format!("{:?}", s)),
                         "number": card.number,
                         "is_reversed": drawn.is_reversed,
-                        "keywords": card.keywords,
                         "element": tarot_element_code(card.element),
                         "ohang": card.ohang.korean(),
-                        "meaning": if drawn.is_reversed { card.reversed_meaning } else { card.upright_meaning },
-                        // 클라이언트가 is_reversed에 따라 직접 선택할 수 있도록 두 톤을 모두 노출한다
-                        "meaning_upright": card.upright_meaning,
-                        "meaning_reversed": card.reversed_meaning,
-                        "interpretation": interpretation,
                     })
                 } else {
                     json!({
@@ -302,13 +266,12 @@ impl TarotEngine {
                 draw_index,
                 draw_pool,
                 draw_pool_size,
-                &reading.cards.iter().map(|card| card.position as usize).collect::<Vec<_>>(),
+                &drawn_cards.iter().map(|card| card.position as usize).collect::<Vec<_>>(),
                 calendar_type
             ),
             "cards": cards_json,
-            "card_relationships": card_relationships_json(&reading.cards),
-            "reading_facts": reading_facts_json(&reading.cards, category, raw_category),
-            "overall_summary": reading.overall_message,
+            "card_relationships": card_relationships_json(&drawn_cards),
+            "reading_facts": reading_facts_json(&drawn_cards, category, raw_category),
         });
 
         (result, version)
@@ -535,7 +498,7 @@ mod tests {
         assert_eq!(result["spread_name"], "원카드");
         assert!(result["cards"].is_array());
         assert_eq!(result["cards"].as_array().unwrap().len(), 1);
-        assert!(result["overall_summary"].is_string());
+        assert!(result.get("overall_summary").is_none());
 
         // 사주 관련 필드 부재 검증
         assert!(result.get("saju_connection").is_none());
@@ -543,7 +506,7 @@ mod tests {
         assert!(card.get("saju_interpretation").is_none());
         assert!(card.get("mixed_interpretation").is_none());
         assert!(card.get("basic_interpretation").is_none());
-        assert!(card.get("interpretation").is_some());
+        assert!(card.get("interpretation").is_none());
     }
 
     #[test]
@@ -687,7 +650,7 @@ mod tests {
         assert!(card["card_number"].is_number());
         assert!(card["is_reversed"].is_boolean());
         assert!(card["direction"].is_string());
-        assert!(card["preview_text"].is_string());
+        assert!(card.get("preview_text").is_none());
 
         assert!(result.get("saju_connection").is_none());
         assert!(result.get("overall_summary").is_none());
@@ -735,11 +698,11 @@ mod tests {
         assert!(card["arcana"].is_string());
         assert!(card["number"].is_number());
         assert!(card["is_reversed"].is_boolean());
-        assert!(card["keywords"].is_array());
+        assert!(card.get("keywords").is_none());
         assert!(card["element"].is_string());
         assert!(card["ohang"].is_string());
-        assert!(card["meaning"].is_string());
-        assert!(card["interpretation"].is_string());
+        assert!(card.get("meaning").is_none());
+        assert!(card.get("interpretation").is_none());
         assert_eq!(result["deck_contract"]["deck_size"], 78);
         assert_eq!(result["deck_contract"]["draw_pool"], "major_arcana_22");
         assert_eq!(

@@ -23,6 +23,8 @@
 //! 색상은 한국어 의미 키워드만 반환 — 구체적 hex 코드는 소비자(lunawave web)
 //! 의 디자인 시스템에 위임 (saju-engine을 다른 컨슈머에서도 재사용 가능하게).
 
+#![allow(dead_code)]
+
 use crate::types::{Element, ElementBalance, FourPillars};
 use serde::Serialize;
 

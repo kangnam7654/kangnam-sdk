@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use super::elements::{self, ElementRelation};
 use super::interpreter;
 use super::pillars;
@@ -6,7 +8,7 @@ use super::types::{Element, ElementBalance, FourPillars, Pillar, Stem, TenGod};
 use chrono::Utc;
 
 /// 오늘의 운세 점수 및 조언 생성
-pub struct DailyFortune {
+struct DailyFortune {
     pub date: String,
     pub today_pillar: Pillar,
     pub day_master: Stem,
@@ -23,8 +25,129 @@ pub struct DailyScores {
     pub health: i32,
 }
 
+/// Calculation-only daily fortune facts. This is the path used by
+/// `SajuEngine::generate`; interpretation copy is intentionally absent.
+pub struct DailyCalculation {
+    pub date: String,
+    pub today_pillar: Pillar,
+    pub day_master: Stem,
+    pub relation: ElementRelation,
+    pub scores: DailyScores,
+}
+
+pub struct DailyCategoryScores {
+    pub love: i32,
+    pub career: i32,
+    pub health: i32,
+    pub wealth: i32,
+    pub study: i32,
+    pub travel: i32,
+    pub relations: i32,
+}
+
+pub struct HourlyScore {
+    pub hour_name: String,
+    pub hour_range: String,
+    pub score: i32,
+}
+
+pub struct DailyDetailCalculation {
+    pub base: DailyCalculation,
+    pub category_scores: DailyCategoryScores,
+    pub hourly_scores: Vec<HourlyScore>,
+    pub lucky_items: LuckyItems,
+}
+
+pub fn calculate_daily_calculation_for_date(
+    user_pillars: &FourPillars,
+    year: i32,
+    month: u32,
+    day: u32,
+) -> DailyCalculation {
+    let today_pillar = pillars::day_pillar(year, month, day);
+    let day_master = user_pillars.day.stem;
+    let relation = elements::relation(day_master.element(), today_pillar.stem.element());
+    let base = relation.daily_score_base();
+    let branch_relation = elements::relation(
+        user_pillars.day.branch.element(),
+        today_pillar.branch.element(),
+    );
+    let branch_adj = match branch_relation {
+        ElementRelation::Generated => 5,
+        ElementRelation::Same => 3,
+        ElementRelation::Generates => -2,
+        ElementRelation::Controls => 0,
+        ElementRelation::Controlled => -5,
+    };
+    let overall = (base + branch_adj).clamp(30, 98);
+    let love = category_score(overall, day_master, today_pillar.stem, 0);
+    let career = category_score(overall, day_master, today_pillar.stem, 1);
+    let health = category_score(overall, day_master, today_pillar.stem, 2);
+
+    DailyCalculation {
+        date: format!("{year:04}-{month:02}-{day:02}"),
+        today_pillar,
+        day_master,
+        relation,
+        scores: DailyScores {
+            overall,
+            love,
+            career,
+            health,
+        },
+    }
+}
+
+pub fn calculate_daily_calculation(user_pillars: &FourPillars) -> DailyCalculation {
+    use chrono::Datelike;
+    let kst = chrono::FixedOffset::east_opt(9 * 3600).unwrap();
+    let today = Utc::now().with_timezone(&kst).date_naive();
+    calculate_daily_calculation_for_date(user_pillars, today.year(), today.month(), today.day())
+}
+
+pub fn calculate_daily_detail_calculation_for_date(
+    user_pillars: &FourPillars,
+    year: i32,
+    month: u32,
+    day: u32,
+) -> DailyDetailCalculation {
+    let base = calculate_daily_calculation_for_date(user_pillars, year, month, day);
+    let day_master = user_pillars.day.stem;
+    let wealth = category_score(base.scores.overall, day_master, base.today_pillar.stem, 3);
+    let study = category_score(base.scores.overall, day_master, base.today_pillar.stem, 4);
+    let travel = category_score(base.scores.overall, day_master, base.today_pillar.stem, 5);
+    let relations = category_score(base.scores.overall, day_master, base.today_pillar.stem, 6);
+
+    DailyDetailCalculation {
+        category_scores: DailyCategoryScores {
+            love: base.scores.love,
+            career: base.scores.career,
+            health: base.scores.health,
+            wealth,
+            study,
+            travel,
+            relations,
+        },
+        hourly_scores: calculate_hourly_scores(day_master, &base.today_pillar),
+        lucky_items: calculate_lucky_items(day_master, base.today_pillar.stem),
+        base,
+    }
+}
+
+pub fn calculate_daily_detail_calculation(user_pillars: &FourPillars) -> DailyDetailCalculation {
+    use chrono::Datelike;
+    let kst = chrono::FixedOffset::east_opt(9 * 3600).unwrap();
+    let today = Utc::now().with_timezone(&kst).date_naive();
+    calculate_daily_detail_calculation_for_date(
+        user_pillars,
+        today.year(),
+        today.month(),
+        today.day(),
+    )
+}
+
 /// 특정 날짜의 운세 계산 (캘린더 용도)
-pub fn calculate_daily_for_date(
+fn calculate_daily_for_date(
     user_pillars: &FourPillars,
     year: i32,
     month: u32,
@@ -79,7 +202,7 @@ pub fn calculate_daily_for_date(
 }
 
 /// 오늘의 운세 계산 (KST 기준)
-pub fn calculate_daily(user_pillars: &FourPillars) -> DailyFortune {
+fn calculate_daily(user_pillars: &FourPillars) -> DailyFortune {
     use chrono::Datelike;
     let kst = chrono::FixedOffset::east_opt(9 * 3600).unwrap();
     let today = Utc::now().with_timezone(&kst).date_naive();
@@ -2736,7 +2859,7 @@ fn daily_caution(relation: ElementRelation, day_master: Stem, seed: u64) -> Stri
 // ========== daily_detail (유료 15P 상세 운세) ==========
 
 /// 상세 운세 전체 결과
-pub struct DailyDetailFortune {
+struct DailyDetailFortune {
     pub base: DailyFortune,
     pub category_details: CategoryDetails,
     pub hourly_fortunes: Vec<HourlyFortune>,
@@ -2754,7 +2877,7 @@ pub struct DailyDetailFortune {
 ///
 /// /saju의 본명 성격(평생 같음)과 분리되는 시점 콘텐츠 — 매일 천간이 바뀌니
 /// strength/caution/action은 매일 다르게 나오고, mantra만 일간 톤으로 일관 유지.
-pub struct PersonaToday {
+struct PersonaToday {
     /// "오늘 너의 강점" — 십신 조합으로 도출.
     pub strength: String,
     /// "오늘 조심할 패턴" — 같은 십신의 약점 측면.
@@ -2767,7 +2890,7 @@ pub struct PersonaToday {
 
 /// 카테고리별 상세 조언. 결혼·자녀는 본명(평생) 카테고리이고 일별 변동
 /// 의미가 약해서 일운(daily)에는 노출하지 않는다.
-pub struct CategoryDetails {
+struct CategoryDetails {
     pub love: CategoryDetail,
     pub career: CategoryDetail,
     pub health: CategoryDetail,
@@ -2777,13 +2900,13 @@ pub struct CategoryDetails {
     pub relations: CategoryDetail,
 }
 
-pub struct CategoryDetail {
+struct CategoryDetail {
     pub score: i32,
     pub advice: String,
 }
 
 /// 시간대별 운세
-pub struct HourlyFortune {
+struct HourlyFortune {
     pub hour_name: String,
     pub hour_range: String,
     pub score: i32,
@@ -2799,10 +2922,7 @@ pub struct LuckyItems {
 }
 
 /// 상세 운세 계산 (KST 기준)
-pub fn calculate_daily_detail(
-    user_pillars: &FourPillars,
-    has_birth_time: bool,
-) -> DailyDetailFortune {
+fn calculate_daily_detail(user_pillars: &FourPillars, has_birth_time: bool) -> DailyDetailFortune {
     use chrono::Datelike;
     let kst = chrono::FixedOffset::east_opt(9 * 3600).unwrap();
     let today = Utc::now().with_timezone(&kst).date_naive();
@@ -2816,7 +2936,7 @@ pub fn calculate_daily_detail(
 }
 
 /// 특정 날짜의 상세 운세 계산
-pub fn calculate_daily_detail_for_date(
+fn calculate_daily_detail_for_date(
     user_pillars: &FourPillars,
     has_birth_time: bool,
     year: i32,
@@ -3003,6 +3123,48 @@ fn persona_mantra(day_master: Stem) -> &'static str {
 }
 
 /// 12시진 시간대별 운세
+fn calculate_hourly_scores(day_master: Stem, today_pillar: &Pillar) -> Vec<HourlyScore> {
+    const HOURS: [(u32, &str, &str); 12] = [
+        (0, "자시(子時)", "23:00-01:00"),
+        (2, "축시(丑時)", "01:00-03:00"),
+        (4, "인시(寅時)", "03:00-05:00"),
+        (6, "묘시(卯時)", "05:00-07:00"),
+        (8, "진시(辰時)", "07:00-09:00"),
+        (10, "사시(巳時)", "09:00-11:00"),
+        (12, "오시(午時)", "11:00-13:00"),
+        (14, "미시(未時)", "13:00-15:00"),
+        (16, "신시(申時)", "15:00-17:00"),
+        (18, "유시(酉時)", "17:00-19:00"),
+        (20, "술시(戌時)", "19:00-21:00"),
+        (22, "해시(亥時)", "21:00-23:00"),
+    ];
+
+    HOURS
+        .iter()
+        .map(|&(hour, name, range)| {
+            let hour_pillar = pillars::hour_pillar(today_pillar.stem, hour);
+            let hour_elem = hour_pillar.stem.element();
+            let day_elem = day_master.element();
+            let rel = elements::relation(day_elem, hour_elem);
+            let base_score = rel.daily_score_base();
+            let branch_rel = elements::relation(day_master.element(), hour_pillar.branch.element());
+            let adj = match branch_rel {
+                ElementRelation::Generated => 3,
+                ElementRelation::Same => 2,
+                ElementRelation::Generates => -1,
+                ElementRelation::Controls => 0,
+                ElementRelation::Controlled => -3,
+            };
+
+            HourlyScore {
+                hour_name: name.to_string(),
+                hour_range: range.to_string(),
+                score: (base_score + adj).clamp(30, 98),
+            }
+        })
+        .collect()
+}
+
 fn calculate_hourly_fortunes(day_master: Stem, today_pillar: &Pillar) -> Vec<HourlyFortune> {
     const HOURS: [(u32, &str, &str); 12] = [
         (0, "자시(子時)", "23:00-01:00"),

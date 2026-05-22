@@ -7,8 +7,7 @@
 //! The MVP scope intentionally locks the structural chart contract first:
 //! 12 palaces, life/body palaces, five-element bureau, Ziwei/Tianfu positions,
 //! 14 major stars, selected auxiliary/malefic stars, four transformations,
-//! sanfang-sizheng triads, decade cycles, and product-facing interpretation
-//! facts.
+//! sanfang-sizheng triads, decade cycles, and domain facts.
 
 #![deny(unsafe_code)]
 

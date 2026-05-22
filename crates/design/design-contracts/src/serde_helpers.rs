@@ -77,8 +77,10 @@ pub mod double_option {
 macro_rules! locked_true {
     (
         $(#[$attr:meta])*
-        $vis:vis struct $name:ident
-        ; field_name = $field:literal
+        $vis:vis struct $name:ident;
+        $(,)?
+        field_name = $field:literal
+        $(,)?
     ) => {
         $(#[$attr])*
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -208,7 +210,7 @@ mod tests {
 
     crate::locked_true!(
         /// Test-only locked-true marker.
-        pub(super) struct TestOk;
+        pub(super) struct TestOk;,
         field_name = "ok"
     );
 

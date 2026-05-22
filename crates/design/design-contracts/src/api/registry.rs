@@ -208,7 +208,7 @@ pub struct HealthResponse {
 
 crate::locked_true!(
     /// `ok: true` literal on `/api/health` — see [`crate::locked_true`].
-    pub struct HealthOk;
+    pub struct HealthOk;,
     field_name = "ok"
 );
 

@@ -323,7 +323,7 @@ pub struct ShutdownResult {
 
 crate::locked_true!(
     /// `accepted: true` literal on `ShutdownResult` — see [`crate::locked_true`].
-    pub struct ShutdownAccepted;
+    pub struct ShutdownAccepted;,
     field_name = "accepted"
 );
 

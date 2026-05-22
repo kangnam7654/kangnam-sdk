@@ -188,7 +188,7 @@ crate::locked_true!(
     /// extra fields beyond the `ok` flag, so the `ok` field itself uses
     /// this locked-true marker (vs the standalone [`crate::common::OkResponse`]
     /// envelope used when `{ ok: true }` is the entire response body).
-    pub struct ConnectorExecuteOk;
+    pub struct ConnectorExecuteOk;,
     field_name = "ok"
 );
 

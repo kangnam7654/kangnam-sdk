@@ -12,15 +12,45 @@ pub struct UserSajuContext {
 
 impl UserSajuContext {
     pub fn from_stem(stem: saju_engine::Stem) -> Self {
-        let keywords = stem.psyche_keywords();
+        let keywords = stem_psyche_keywords(stem);
         Self {
             day_master_korean: stem.korean().to_string(),
             day_master_hanja: stem.hanja().to_string(),
             day_master_element: stem.element().korean().to_string(),
             day_master_polarity: stem.polarity().korean().to_string(),
-            day_master_symbol: stem.symbol().to_string(),
+            day_master_symbol: stem_symbol(stem).to_string(),
             day_master_psyche: keywords.map(str::to_string),
         }
+    }
+}
+
+fn stem_symbol(stem: saju_engine::Stem) -> &'static str {
+    match stem {
+        saju_engine::Stem::Gap => "큰 소나무",
+        saju_engine::Stem::Eul => "넝쿨과 화초",
+        saju_engine::Stem::Byeong => "한낮의 태양",
+        saju_engine::Stem::Jeong => "촛불과 별빛",
+        saju_engine::Stem::Mu => "거대한 산",
+        saju_engine::Stem::Gi => "비옥한 논밭",
+        saju_engine::Stem::Gyeong => "다듬지 않은 무쇠",
+        saju_engine::Stem::Sin => "정련된 보석",
+        saju_engine::Stem::Im => "깊은 바다",
+        saju_engine::Stem::Gye => "이슬과 옹달샘",
+    }
+}
+
+fn stem_psyche_keywords(stem: saju_engine::Stem) -> [&'static str; 3] {
+    match stem {
+        saju_engine::Stem::Gap => ["곧은 의지", "창의적 추진", "리더의 직진"],
+        saju_engine::Stem::Eul => ["유연한 적응", "끈질긴 생명력", "부드러운 침투"],
+        saju_engine::Stem::Byeong => ["명랑한 열정", "강한 존재감", "만물을 비추는 빛"],
+        saju_engine::Stem::Jeong => ["집중된 따뜻함", "은은한 헌신", "어둠 속 희망"],
+        saju_engine::Stem::Mu => ["우직한 포용", "흔들리지 않는 중재", "신뢰의 무게"],
+        saju_engine::Stem::Gi => ["섬세한 배려", "생명을 기르는 자양", "실용적 지혜"],
+        saju_engine::Stem::Gyeong => ["결단의 단호함", "우직한 파괴력", "가공되지 않은 순수"],
+        saju_engine::Stem::Sin => ["정교한 감각", "선명한 기준", "섬세한 완성"],
+        saju_engine::Stem::Im => ["큰 흐름", "깊은 사유", "유연한 확장"],
+        saju_engine::Stem::Gye => ["맑은 직관", "섬세한 통찰", "조용한 지혜"],
     }
 }
 

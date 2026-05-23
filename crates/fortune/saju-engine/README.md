@@ -4,7 +4,7 @@ Korean four-pillars (사주팔자) astrology computation engine — pure Rust, n
 
 ## Purpose
 
-Library for computing Korean four-pillars astrology: given a birth date and time, returns typed values (`FourPillars`, `ElementBalance`, `TenGod`, …) plus Korean interpretation text for daily, monthly, and daeun (대운 10-year luck period) fortunes. Rule-based, no LLM, no network calls. All dates are KST (UTC+9).
+Library for computing Korean four-pillars astrology: given a birth date and time, returns typed values (`FourPillars`, `ElementBalance`, `TenGod`, …) and calculation-only JSON facts for daily, monthly, and daeun (대운 10-year luck period) readings. Rule-based, no LLM, no network calls. All dates are KST (UTC+9). User-facing interpretation belongs in the consuming backend/service layer.
 
 ## Calculation Profile
 
@@ -62,7 +62,7 @@ assert_eq!(total, 8);
 - `calculate_four_pillars(year, month, day, hour) -> FourPillars`
 - `ElementBalance::from_pillars(pillars) -> ElementBalance`
 - `types` module — `Stem`, `Branch`, `Element`, `Polarity`, `TenGod`, `Pillar`, `FourPillars`, `ElementBalance`.
-- `pillars`, `elements`, `ten_gods`, `branches`, `interpreter`, `daily`, `monthly`, `daeun`, `tables` submodules — direct access for finer control.
+- `pillars`, `elements`, `ten_gods`, `branches`, `daily`, `monthly`, `daeun`, `tables` submodules — direct access for finer control.
 
 ```rust
 use saju_engine::{generate_saju_reading, SajuEngineRequest};

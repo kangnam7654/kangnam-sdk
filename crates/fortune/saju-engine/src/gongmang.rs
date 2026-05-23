@@ -1,4 +1,4 @@
-//! 공망(空亡) — 일주 기준 60갑자 그룹의 빈 지지 2개와 그 통변.
+//! 공망(空亡) — 일주 기준 60갑자 그룹의 빈 지지 2개.
 //!
 //! 천간 10과 지지 12가 순서대로 짝을 지으면 천간이 한 바퀴 돌 때마다 지지
 //! 2개가 짝을 못 찾고 남는다. 60갑자를 10개씩 6 그룹(순/旬)으로 나눴을 때
@@ -10,12 +10,6 @@
 //! - 갑오순(甲午旬, 일주 idx 30~39) → 공망 진(辰)·사(巳)
 //! - 갑진순(甲辰旬, 일주 idx 40~49) → 공망 인(寅)·묘(卯)
 //! - 갑인순(甲寅旬, 일주 idx 50~59) → 공망 자(子)·축(丑)
-//!
-//! 통변 톤: "결핍 = 단정"이 아니라 "결핍 = 인생의 과제" 프레이밍.
-//! Gemini 사주 보고서 §4 참고.
-
-#![allow(dead_code)]
-
 use crate::ten_gods::derive_ten_god;
 use crate::types::{Branch, FourPillars, Pillar, Stem, TenGod};
 use serde::Serialize;
@@ -28,45 +22,7 @@ pub enum Palace {
     Hour,
 }
 
-impl Palace {
-    pub fn korean(self) -> &'static str {
-        match self {
-            Palace::Year => "연주",
-            Palace::Month => "월주",
-            Palace::Hour => "시주",
-        }
-    }
-
-    /// 각 기둥이 결핍될 때 의미하는 영역 (UI 카피용).
-    pub fn lifestage_meaning(self) -> &'static str {
-        match self {
-            Palace::Year => "조상·유년기·국가적 환경",
-            Palace::Month => "부모·청년기·직업 환경",
-            Palace::Hour => "자녀·말년·결과물",
-        }
-    }
-}
-
-/// 공망 분석 결과.
-#[derive(Debug, Clone, Serialize)]
-pub struct Gongmang {
-    /// 일주가 속한 60갑자 그룹 인덱스 (0 = 갑자순, 5 = 갑인순).
-    pub group_index: u8,
-    /// 그룹 이름 (예: "갑자순(甲子旬)").
-    pub group_name: &'static str,
-    /// 그룹의 공망 지지 2개.
-    pub empty_branches: [Branch; 2],
-    /// 사주 원국에서 공망 지지가 자리한 기둥 (일주 제외).
-    /// 비어있으면 사주 원국 안에서는 공망의 작용이 잠재 상태.
-    pub affected_palaces: Vec<Palace>,
-    /// 공망 지지의 본기 천간 기준 십성 (일간과의 상대 관계).
-    /// "이 영역의 욕구는 강하지만 채워지지 않는다" 라는 통변의 근거.
-    pub affected_ten_gods: Vec<TenGod>,
-    /// "결핍 → 삶의 과제" 프레이밍 통변 카피 (한 단락).
-    pub interpretation: String,
-}
-
-/// 공망 계산값. 사용자-facing 통변은 포함하지 않는다.
+/// 공망 계산값. 사용자-facing prose는 포함하지 않는다.
 #[derive(Debug, Clone, Serialize)]
 pub struct GongmangFacts {
     /// 일주가 속한 60갑자 그룹 인덱스 (0 = 갑자순, 5 = 갑인순).
@@ -81,7 +37,7 @@ pub struct GongmangFacts {
     pub affected_ten_gods: Vec<TenGod>,
 }
 
-/// 일주(`pillars.day`)에서 공망을 산출하고 사주 원국과 비교하여 통변 생성.
+/// 일주(`pillars.day`)에서 공망을 산출하고 사주 원국과 비교한다.
 ///
 /// `has_birth_time = false` 이면 시주를 비교 대상에서 제외 (출생 시각 미상 케이스).
 pub fn calculate(pillars: &FourPillars, has_birth_time: bool) -> GongmangFacts {
@@ -115,31 +71,6 @@ pub fn calculate(pillars: &FourPillars, has_birth_time: bool) -> GongmangFacts {
         affected_palaces,
         affected_ten_gods,
     }
-}
-
-pub fn with_interpretation(facts: &GongmangFacts) -> Gongmang {
-    let interpretation = compose_interpretation(
-        facts.group_name,
-        &facts.empty_branches,
-        &facts.affected_palaces,
-        &facts.affected_ten_gods,
-    );
-
-    Gongmang {
-        group_index: facts.group_index,
-        group_name: facts.group_name,
-        empty_branches: facts.empty_branches,
-        affected_palaces: facts.affected_palaces.clone(),
-        affected_ten_gods: facts.affected_ten_gods.clone(),
-        interpretation,
-    }
-}
-
-/// 일주(`pillars.day`)에서 공망을 산출하고 사주 원국과 비교하여 legacy 통변 생성.
-///
-/// `has_birth_time = false` 이면 시주를 비교 대상에서 제외 (출생 시각 미상 케이스).
-pub fn analyze(pillars: &FourPillars, has_birth_time: bool) -> Gongmang {
-    with_interpretation(&calculate(pillars, has_birth_time))
 }
 
 /// 일주가 60갑자 어느 그룹(순, 旬)에 속하는지.
@@ -197,67 +128,6 @@ fn branch_primary_stem(branch: Branch) -> Stem {
         Branch::Sul => Stem::Mu,     // 술 → 무토 (양토)
         Branch::Hae => Stem::Im,     // 해 → 임수 (양수)
     }
-}
-
-/// 십성을 인생 영역(육친·기능)으로 그룹핑.
-fn ten_god_realm(tg: TenGod) -> &'static str {
-    match tg {
-        TenGod::Bigyeon | TenGod::Geupjae => "자기·동료·형제",
-        TenGod::Sikshin | TenGod::Sanggwan => "표현·자식·창의",
-        TenGod::Pyeonjae | TenGod::Jeongjae => "재물·현실·아버지",
-        TenGod::Pyeongwan | TenGod::Jeonggwan => "명예·직장·규범",
-        TenGod::Pyeonin | TenGod::Jeongin => "학문·문서·어머니",
-    }
-}
-
-fn compose_interpretation(
-    group_name: &str,
-    empty: &[Branch; 2],
-    palaces: &[Palace],
-    ten_gods: &[TenGod],
-) -> String {
-    let empty_str = format!(
-        "{}({})·{}({})",
-        empty[0].korean(),
-        empty[0].animal(),
-        empty[1].korean(),
-        empty[1].animal(),
-    );
-
-    let head = format!("일주가 {group_name}에 속하여 공망 지지는 {empty_str}입니다. ",);
-
-    let palace_part = if palaces.is_empty() {
-        "사주 원국 안에는 공망 지지가 자리하지 않아 결핍의 작용이 잠재 상태로 머무릅니다. "
-            .to_string()
-    } else {
-        let names = palaces
-            .iter()
-            .map(|p| p.korean())
-            .collect::<Vec<_>>()
-            .join("·");
-        let stages = palaces
-            .iter()
-            .map(|p| p.lifestage_meaning())
-            .collect::<Vec<_>>()
-            .join(", ");
-        format!(
-            "원국 {names} 자리에 공망이 들어 {stages} 영역에서 채워지지 않는 갈증이 인생의 과제로 남습니다. ",
-        )
-    };
-
-    // 십성 영역을 중복 제거해 보여줌 (두 공망 지지가 같은 영역일 수 있음).
-    let mut realms: Vec<&str> = ten_gods.iter().map(|tg| ten_god_realm(*tg)).collect();
-    realms.dedup();
-    let realm_part = if realms.is_empty() {
-        String::new()
-    } else {
-        format!(
-            "공망 영역의 본기는 {} 영역에 닿아, 이 영역의 욕구는 강하지만 손에 잘 잡히지 않는 형태로 발현됩니다. 결핍을 채우려는 집착보다 그 영역을 ‘인생의 과제’로 받아들여 의식적으로 다루는 자세가 운의 흐름을 부드럽게 합니다.",
-            realms.join("·")
-        )
-    };
-
-    format!("{head}{palace_part}{realm_part}")
 }
 
 #[cfg(test)]
@@ -354,10 +224,9 @@ mod tests {
             day: Pillar::new(Stem::Gap, Branch::Ja),
             hour: Pillar::new(Stem::Eul, Branch::Chuk),
         };
-        let g = analyze(&pillars, true);
+        let g = calculate(&pillars, true);
         assert_eq!(g.group_index, 0);
         assert_eq!(g.affected_palaces, vec![Palace::Year, Palace::Month]);
-        assert!(!g.interpretation.is_empty());
     }
 
     /// has_birth_time = false 이면 시지 공망은 무시.
@@ -369,12 +238,12 @@ mod tests {
             day: Pillar::new(Stem::Gap, Branch::Ja),
             hour: Pillar::new(Stem::Eul, Branch::Hae), // 시지가 공망인데
         };
-        let g = analyze(&pillars, false);
+        let g = calculate(&pillars, false);
         assert!(!g.affected_palaces.contains(&Palace::Hour));
         assert!(g.affected_palaces.contains(&Palace::Year));
     }
 
-    /// 공망이 사주 원국에 안 잡히면 affected_palaces가 비고 잠재 상태 카피.
+    /// 공망이 사주 원국에 안 잡히면 affected_palaces가 비어야 한다.
     #[test]
     fn empty_palaces_when_no_branch_match() {
         let pillars = FourPillars {
@@ -384,7 +253,7 @@ mod tests {
             hour: Pillar::new(Stem::Byeong, Branch::Myo),
         };
         // 일지 인은 공망 검사 대상 아님(자기 일주). 연지 자, 월지 축이 공망에 걸림 → 잡힘.
-        let g = analyze(&pillars, true);
+        let g = calculate(&pillars, true);
         assert_eq!(g.affected_palaces, vec![Palace::Year, Palace::Month]);
     }
 

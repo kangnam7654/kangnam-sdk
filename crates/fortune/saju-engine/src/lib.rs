@@ -43,8 +43,6 @@ pub mod daily;
 pub mod elements;
 pub mod engine;
 mod gongmang;
-#[allow(dead_code)]
-mod interpreter;
 mod lucky;
 pub mod monthly;
 pub mod pillars;

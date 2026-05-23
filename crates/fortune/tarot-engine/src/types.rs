@@ -1,5 +1,4 @@
 use serde::Serialize;
-use std::fmt;
 
 /// 아르카나 종류
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -50,7 +49,7 @@ impl Ohang {
 }
 
 /// 타로 카드 한 장의 정의
-#[derive(Clone, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct TarotCard {
     /// 카드 고유 번호 (0~77)
     pub id: u8,
@@ -64,37 +63,10 @@ pub struct TarotCard {
     pub suit: Option<Suit>,
     /// 카드 번호 (메이저: 0~21, 마이너: 1~14)
     pub number: u8,
-    /// 핵심 키워드 목록
-    #[serde(skip)]
-    #[allow(dead_code)]
-    pub(crate) keywords: &'static [&'static str],
-    /// 정방향 의미
-    #[serde(skip)]
-    #[allow(dead_code)]
-    pub(crate) upright_meaning: &'static str,
-    /// 역방향 의미
-    #[serde(skip)]
-    #[allow(dead_code)]
-    pub(crate) reversed_meaning: &'static str,
     /// 서양 4원소
     pub element: TarotElement,
     /// 대응하는 오행
     pub ohang: Ohang,
-}
-
-impl fmt::Debug for TarotCard {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("TarotCard")
-            .field("id", &self.id)
-            .field("name_ko", &self.name_ko)
-            .field("name_en", &self.name_en)
-            .field("arcana", &self.arcana)
-            .field("suit", &self.suit)
-            .field("number", &self.number)
-            .field("element", &self.element)
-            .field("ohang", &self.ohang)
-            .finish()
-    }
 }
 
 /// 스프레드 종류
@@ -166,18 +138,4 @@ pub struct DrawnCard {
     pub position_name: String,
     /// 역방향 여부
     pub is_reversed: bool,
-}
-
-/// 타로 리딩 결과
-#[derive(Debug, Clone, Serialize)]
-#[allow(dead_code)]
-pub(crate) struct TarotReading {
-    /// 스프레드 종류
-    pub(crate) spread_type: SpreadType,
-    /// 뽑힌 카드들
-    pub(crate) cards: Vec<DrawnCard>,
-    /// 카드별 해석 텍스트
-    pub(crate) interpretations: Vec<String>,
-    /// 종합 메시지
-    pub(crate) overall_message: String,
 }

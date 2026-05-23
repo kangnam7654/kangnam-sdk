@@ -1,7 +1,7 @@
 //! 행운 아이템(色·數·方位) 산출 — 일간 기반 주조(主調)와 균형 기반 보충(補).
 //!
-//! 두 세트를 함께 제공하여 UI가 "당신의 본질 색상" + "이번 시기 채울 색상"
-//! 두 갈래를 노출할 수 있게 한다.
+//! 두 세트를 함께 제공하여 소비자 서비스가 계산값을 바탕으로 자체 해석을
+//! 붙일 수 있게 한다.
 //!
 //! - **주조(primary)**: 일간(`day.stem`)의 오행 → 자아의 핵심을 드러내는 색·수·방위.
 //! - **보충(supplementary)**: 사주 8글자 중 가장 부족한 오행 → 균형 회복의 행운.
@@ -22,8 +22,6 @@
 //!
 //! 색상은 한국어 의미 키워드만 반환 — 구체적 hex 코드는 소비자(lunawave web)
 //! 의 디자인 시스템에 위임 (saju-engine을 다른 컨슈머에서도 재사용 가능하게).
-
-#![allow(dead_code)]
 
 use crate::types::{Element, ElementBalance, FourPillars};
 use serde::Serialize;
@@ -59,18 +57,7 @@ impl LuckyTriple {
     }
 }
 
-/// 행운 아이템 — 주조(primary) + 보충(supplementary) 한 쌍.
-#[derive(Debug, Clone, Serialize)]
-pub struct LuckyItems {
-    /// 일간 오행 기반 — 자아·본질 색.
-    pub primary: LuckyTriple,
-    /// 가장 부족한 오행 기반 — 균형 회복 색. 진짜 용신은 v0.1.x.
-    pub supplementary: LuckyTriple,
-    /// 두 세트를 묶은 한 단락 통변. UI에서 그대로 노출 가능.
-    pub interpretation: String,
-}
-
-/// 일간 + 오행 균형으로 도출한 행운 아이템 계산값. 통변 카피는 포함하지 않는다.
+/// 일간 + 오행 균형으로 도출한 행운 아이템 계산값. 사용자-facing prose는 포함하지 않는다.
 #[derive(Debug, Clone, Serialize)]
 pub struct LuckyCoreItems {
     /// 일간 오행 기반 — 자아·본질 색.
@@ -91,49 +78,6 @@ pub fn calculate(pillars: &FourPillars, has_birth_time: bool) -> LuckyCoreItems 
     LuckyCoreItems {
         primary,
         supplementary,
-    }
-}
-
-pub fn with_interpretation(core: &LuckyCoreItems) -> LuckyItems {
-    let interpretation = compose_interpretation(&core.primary, &core.supplementary);
-
-    LuckyItems {
-        primary: core.primary.clone(),
-        supplementary: core.supplementary.clone(),
-        interpretation,
-    }
-}
-
-/// 일간 + 오행 균형으로 행운 아이템과 legacy 통변을 함께 도출.
-pub fn analyze(pillars: &FourPillars, has_birth_time: bool) -> LuckyItems {
-    with_interpretation(&calculate(pillars, has_birth_time))
-}
-
-fn compose_interpretation(primary: &LuckyTriple, supplementary: &LuckyTriple) -> String {
-    if primary.element == supplementary.element {
-        // 매우 드문 케이스 — 일간 오행이 가장 부족.
-        format!(
-            "본질의 색이자 동시에 채워야 할 색이 {}({})입니다. \
-             이 색·숫자·방위를 일상에 의식적으로 들이는 것이 자기 자신을 \
-             더 분명하게 드러내고 받쳐주는 길이 됩니다.",
-            primary.color, primary.direction,
-        )
-    } else {
-        format!(
-            "본질을 드러내는 주조(主調)는 {}({})—{} 방위·{}·{}입니다. \
-             그 위에 균형을 받쳐줄 보충(補)으로 {}({})—{} 방위·{}·{}을 곁들이면 \
-             기운의 한쪽 쏠림이 부드럽게 풀립니다.",
-            primary.color,
-            primary.element.korean(),
-            primary.direction,
-            primary.numbers[0],
-            primary.numbers[1],
-            supplementary.color,
-            supplementary.element.korean(),
-            supplementary.direction,
-            supplementary.numbers[0],
-            supplementary.numbers[1],
-        )
     }
 }
 
@@ -183,7 +127,7 @@ mod tests {
             (Stem::Gap, Branch::Ja),
             (Stem::Eul, Branch::Chuk),
         );
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         assert_eq!(r.primary.element, Element::Wood);
         assert_eq!(r.primary.color, "청색");
         assert_eq!(r.primary.direction, "동(東)");
@@ -200,28 +144,10 @@ mod tests {
             (Stem::Gap, Branch::In),
             (Stem::Eul, Branch::Chuk),
         );
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         assert_eq!(r.primary.element, Element::Wood);
         assert_eq!(r.supplementary.element, Element::Fire);
         assert_eq!(r.supplementary.color, "적색");
-    }
-
-    /// 통변 카피가 비어있지 않다.
-    #[test]
-    fn interpretation_present() {
-        let p = pillars(
-            (Stem::Im, Branch::Sin),
-            (Stem::Gye, Branch::Yu),
-            (Stem::Gap, Branch::Ja),
-            (Stem::Eul, Branch::Chuk),
-        );
-        let r = analyze(&p, true);
-        assert!(!r.interpretation.is_empty());
-        // 두 세트가 다르면 "주조"와 "보충" 두 단어가 모두 들어간다.
-        if r.primary.element != r.supplementary.element {
-            assert!(r.interpretation.contains("주조"));
-            assert!(r.interpretation.contains("보충"));
-        }
     }
 
     /// has_birth_time = false 에서도 oranje. weakest 계산이 시주 제외 가능.
@@ -233,7 +159,7 @@ mod tests {
             (Stem::Gap, Branch::Ja),
             (Stem::Eul, Branch::Chuk),
         );
-        let r = analyze(&p, false);
+        let r = calculate(&p, false);
         assert_eq!(r.primary.element, Element::Wood);
         // supplementary는 결정적 — element는 어느 것이든 5오행 중 하나여야.
         assert!(matches!(

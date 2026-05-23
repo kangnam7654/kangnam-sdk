@@ -4,10 +4,6 @@
 //! - 12신살 12종: 겁살·재살·천살·지살·도화(=년살)·월살·망신살·장성살·반안살·역마살·육해살·화개살
 //! - 백호살(白虎殺) — 7갑자 매칭형
 //! - 천을귀인(天乙貴人) — 일간별 두 지지
-//!
-//! 통변 톤은 Gemini 사주 보고서 §6의 "현대적 재해석" 라인을 그대로 흡수.
-//! "흉살 = 단정"이 아니라 "현대 직업·매력 자본"으로 읽는다.
-//!
 //! ## 알고리즘 메모
 //!
 //! **12신살**은 **년지(年支)** 가 속한 삼합(三合)의 첫 글자에서 -3한 위치를
@@ -26,8 +22,6 @@
 //! 등장하면 발현: 갑진·을미·병술·정축·무진·임술·계축.
 //!
 //! **천을귀인**은 일간(`day.stem`) 기준 두 지지가 어느 기둥에든 등장하면 발현.
-
-#![allow(dead_code)]
 
 use crate::types::{Branch, FourPillars, Pillar, Stem};
 use serde::Serialize;
@@ -65,107 +59,6 @@ pub enum ShinsalKind {
     Cheoneul,
 }
 
-impl ShinsalKind {
-    pub fn korean(self) -> &'static str {
-        match self {
-            ShinsalKind::Geop => "겁살",
-            ShinsalKind::Jae => "재살",
-            ShinsalKind::Cheon => "천살",
-            ShinsalKind::Ji => "지살",
-            ShinsalKind::Dohwa => "도화살",
-            ShinsalKind::Wol => "월살",
-            ShinsalKind::Mangsin => "망신살",
-            ShinsalKind::Jangseong => "장성살",
-            ShinsalKind::Banan => "반안살",
-            ShinsalKind::Yeokma => "역마살",
-            ShinsalKind::Yukae => "육해살",
-            ShinsalKind::Hwagae => "화개살",
-            ShinsalKind::Baekho => "백호살",
-            ShinsalKind::Cheoneul => "천을귀인",
-        }
-    }
-
-    /// 보고서 §6의 "현대적 재해석" 통변 카피.
-    pub fn modern_take(self) -> &'static str {
-        match self {
-            ShinsalKind::Geop => {
-                "환경의 외력에 의해 자원이나 기회가 강제로 박탈되는 패턴이 반복될 수 \
-                 있습니다. 한 바구니에 모든 것을 담지 않는 분산 전략과 유사시 대비책 \
-                 마련이 겁살을 현대적 회복력으로 전환하는 핵심입니다."
-            }
-            ShinsalKind::Jae => {
-                "갈등·분쟁·법적 송사와 맞닥뜨릴 민감도가 높습니다. 회피와 정면 돌파 \
-                 사이에서 양극단으로 반응하는 경향이 있어, 갈등 초기에 중간 경로를 \
-                 설계하는 협상 역량이 재살의 에너지를 다스리는 열쇠입니다."
-            }
-            ShinsalKind::Cheon => {
-                "개인의 통제 범위를 벗어난 외부 변수 — 경기 침체, 조직 구조조정, \
-                 예측 불가 사건 — 앞에서 흔들리기 쉬운 자리입니다. 불가항력을 받아들이고 \
-                 빠르게 재편성하는 회복탄력성이 천살의 고통을 성장 자본으로 바꿉니다."
-            }
-            ShinsalKind::Ji => {
-                "스스로 원해서라기보다 상황에 이끌려 이사·전직·환경 변화를 겪는 수동적 \
-                 이동 패턴입니다. 역마살이 능동적 확장이라면 지살은 변화의 파도에 올라타는 \
-                 적응력 — 저항보다 유연한 편승이 훨씬 나은 결과를 냅니다."
-            }
-            ShinsalKind::Dohwa => {
-                "대중을 사로잡는 매력 자본과 스타성. 연예·인플루언서·마케팅·정치에서 \
-                 대체하기 어려운 무기로 작용하나, 사주 구성이 불리할 때는 이성 관계 \
-                 구설로 흐를 수 있어 자기 표현의 결을 정돈하는 자세가 필요합니다."
-            }
-            ShinsalKind::Wol => {
-                "바깥보다 안으로 향하는 에너지가 강한 침잠기가 주기적으로 찾아옵니다. \
-                 겉으로는 정체처럼 보이지만 실제로는 내공이 축적되는 시간으로, \
-                 이 고독한 집중 구간을 전략적으로 활용하면 다음 도약의 발판이 됩니다."
-            }
-            ShinsalKind::Mangsin => {
-                "예상치 못한 순간에 평판이나 체면이 걸리는 상황에 노출될 수 있습니다. \
-                 SNS 시대에는 자기 노출의 양면성이 증폭되어, 솔직함이 강점이 되기도 \
-                 위험 요인이 되기도 합니다. 표현 전에 한 번 더 검토하는 습관이 보호막입니다."
-            }
-            ShinsalKind::Jangseong => {
-                "무리의 중심에 서서 책임을 지는 자리. 결단력 있는 리더십이 자연스럽고, \
-                 주변과의 마찰은 피하기 어렵지만 흐트러진 판을 정리하는 데 강합니다."
-            }
-            ShinsalKind::Banan => {
-                "명예·학위·자격증을 비교적 일찍 손에 쥐는 출세 기운. 빠른 안착과 \
-                 정리정돈의 능력이 강점이지만, 지위가 올라갈수록 허세를 경계해야 \
-                 추락을 피합니다."
-            }
-            ShinsalKind::Yeokma => {
-                "고향과 익숙함을 떠나 넓게 움직이는 활력. 외교·다국적·무역·IT 통신·\
-                 세일즈처럼 활동 반경이 넓은 영역에서 강한 성과로 환원되는 길살입니다."
-            }
-            ShinsalKind::Yukae => {
-                "한 번에 크게 무너지는 재앙보다 작은 문제들이 끝없이 이어지는 만성 소모 \
-                 패턴이 특징입니다. 장기 누적 스트레스를 '배경 소음'으로 관리하는 \
-                 시스템화와 주기적 리셋 루틴이 육해살의 피로를 효율로 전환합니다."
-            }
-            ShinsalKind::Hwagae => {
-                "내면의 고독과 깊이를 동력으로 학문·예술·종교·콘텐츠 영역에서 \
-                 큰 잠재력을 발휘합니다. 화려한 무대 뒤의 집중된 시간이 결과의 무게를 \
-                 만들어주는 자리입니다."
-            }
-            ShinsalKind::Baekho => {
-                "장애를 정면으로 돌파하는 폭발적 에너지와 카리스마. 외과의·검사·운동\
-                 선수·자수성가형 사업가에게 발현되는 강한 추진력이며, 큰 책임을 \
-                 감당할 때 가장 빛납니다."
-            }
-            ShinsalKind::Cheoneul => {
-                "가장 어두운 순간에 결정적 도움이 도래하는 사주 내 안전장치. 큰 위기를 \
-                 회복의 변곡점으로 바꾸는 조력자 에너지로, 흉운에서도 바닥을 치지 \
-                 않게 받쳐줍니다."
-            }
-        }
-    }
-
-    /// 흉살 계열인지(전통적 분류). UI에서 톤 차별화에 사용 가능.
-    /// 천을귀인만 순길(純吉). 나머지는 전통적으로 흉 또는 중간 — 본 엔진 통변은 현대적 재해석 톤.
-    pub fn is_traditionally_inauspicious(self) -> bool {
-        !matches!(self, ShinsalKind::Cheoneul)
-    }
-}
-
 /// 신살이 자리한 사주 기둥.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum ShinsalPosition {
@@ -175,30 +68,7 @@ pub enum ShinsalPosition {
     Hour,
 }
 
-impl ShinsalPosition {
-    pub fn korean(self) -> &'static str {
-        match self {
-            ShinsalPosition::Year => "연주",
-            ShinsalPosition::Month => "월주",
-            ShinsalPosition::Day => "일주",
-            ShinsalPosition::Hour => "시주",
-        }
-    }
-}
-
-/// 발현된 신살 1종에 대한 정보.
-#[derive(Debug, Clone, Serialize)]
-pub struct Shinsal {
-    pub kind: ShinsalKind,
-    /// 사주 원국에서 신살이 자리한 기둥들 (1개 이상).
-    pub positions: Vec<ShinsalPosition>,
-    /// 단순화된 강도 = positions.len(). 1=잠재, 2=중, 3+=강.
-    pub intensity: u8,
-    /// 보고서 §6 톤의 현대적 통변 (UI에서 그대로 노출 가능).
-    pub modern_take: &'static str,
-}
-
-/// 발현된 신살의 계산 결과. 사용자-facing 통변은 포함하지 않는다.
+/// 발현된 신살의 계산 결과. 사용자-facing prose는 포함하지 않는다.
 #[derive(Debug, Clone, Serialize)]
 pub struct ShinsalFacts {
     pub kind: ShinsalKind,
@@ -276,23 +146,6 @@ pub fn calculate(pillars: &FourPillars, has_birth_time: bool) -> Vec<ShinsalFact
 
     out
 }
-
-pub fn with_modern_take(facts: &ShinsalFacts) -> Shinsal {
-    Shinsal {
-        kind: facts.kind,
-        positions: facts.positions.clone(),
-        intensity: facts.intensity,
-        modern_take: facts.kind.modern_take(),
-    }
-}
-
-pub fn analyze(pillars: &FourPillars, has_birth_time: bool) -> Vec<Shinsal> {
-    calculate(pillars, has_birth_time)
-        .iter()
-        .map(with_modern_take)
-        .collect()
-}
-
 /// 년지가 속한 삼합의 겁살(劫殺) 위치 = 12신살 인덱스 0의 자리.
 /// 삼합 첫 글자 idx에서 -3한 위치(= 정충관계).
 fn kkupsal_index_for_year(year_branch: Branch) -> usize {
@@ -409,7 +262,7 @@ mod tests {
             (Stem::Byeong, Branch::In),
             (Stem::Jeong, Branch::Myo),
         );
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         let dohwa = r
             .iter()
             .find(|s| s.kind == ShinsalKind::Dohwa)
@@ -427,7 +280,7 @@ mod tests {
             (Stem::Byeong, Branch::Ja),
             (Stem::Jeong, Branch::Myo),
         );
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         let yeokma = r
             .iter()
             .find(|s| s.kind == ShinsalKind::Yeokma)
@@ -444,7 +297,7 @@ mod tests {
             (Stem::Byeong, Branch::O), // 일지에 오
             (Stem::Jeong, Branch::Myo),
         );
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         let js = r
             .iter()
             .find(|s| s.kind == ShinsalKind::Jangseong)
@@ -461,7 +314,7 @@ mod tests {
             (Stem::Byeong, Branch::Ja),
             (Stem::Jeong, Branch::Mi), // 시지에 미
         );
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         let bn = r
             .iter()
             .find(|s| s.kind == ShinsalKind::Banan)
@@ -478,7 +331,7 @@ mod tests {
             (Stem::Byeong, Branch::Sul), // 일지에 술
             (Stem::Jeong, Branch::Myo),
         );
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         let hg = r
             .iter()
             .find(|s| s.kind == ShinsalKind::Hwagae)
@@ -506,7 +359,7 @@ mod tests {
                 (Stem::Byeong, Branch::In),
                 (Stem::Jeong, Branch::In),
             );
-            let r = analyze(&p, true);
+            let r = calculate(&p, true);
             let found = r.iter().any(|s| s.kind == ShinsalKind::Dohwa);
             assert!(
                 found,
@@ -525,7 +378,7 @@ mod tests {
             (Stem::Byeong, Branch::In),
             (Stem::Jeong, Branch::Yu), // 시지에만 도화 유
         );
-        let r = analyze(&p, false);
+        let r = calculate(&p, false);
         assert!(!r.iter().any(|s| s.kind == ShinsalKind::Dohwa));
     }
 
@@ -540,7 +393,7 @@ mod tests {
             (Stem::Gap, Branch::Jin), // 갑진 일주
             (Stem::Byeong, Branch::In),
         );
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         let bh = r
             .iter()
             .find(|s| s.kind == ShinsalKind::Baekho)
@@ -559,7 +412,7 @@ mod tests {
                 (s, b),
                 (Stem::Byeong, Branch::In),
             );
-            let r = analyze(&p, true);
+            let r = calculate(&p, true);
             assert!(
                 r.iter().any(|x| x.kind == ShinsalKind::Baekho),
                 "{:?}{:?} 일주에 백호 검출 실패",
@@ -578,7 +431,7 @@ mod tests {
             (Stem::Im, Branch::Sin),
             (Stem::Byeong, Branch::In),
         );
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         let bh = r
             .iter()
             .find(|s| s.kind == ShinsalKind::Baekho)
@@ -595,7 +448,7 @@ mod tests {
             (Stem::Byeong, Branch::In),
             (Stem::Jeong, Branch::Myo),
         );
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         assert!(!r.iter().any(|s| s.kind == ShinsalKind::Baekho));
     }
 
@@ -610,7 +463,7 @@ mod tests {
             (Stem::Gap, Branch::Ja),
             (Stem::Eul, Branch::Mi), // 시지 미
         );
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         let ce = r
             .iter()
             .find(|s| s.kind == ShinsalKind::Cheoneul)
@@ -655,7 +508,7 @@ mod tests {
             (Stem::Eul, Branch::Chuk),
         );
         // 갑자 일주는 백호 아님. 갑일간 천을귀인은 축/미 — 시지 축이 잡힘.
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         // 천을귀인은 잡힘
         assert!(r.iter().any(|s| s.kind == ShinsalKind::Cheoneul));
         // 기존 5종 12신살 중 도화/장성/반안/역마는 부재 (해당 지지 없음).
@@ -707,7 +560,7 @@ mod tests {
             (Stem::Byeong, Branch::In),
             (Stem::Jeong, Branch::Myo),
         );
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         let geop = r
             .iter()
             .find(|s| s.kind == ShinsalKind::Geop)
@@ -725,7 +578,7 @@ mod tests {
             (Stem::Byeong, Branch::Ja),
             (Stem::Jeong, Branch::Myo),
         );
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         assert!(r.iter().any(|s| s.kind == ShinsalKind::Geop), "겁살 발현");
     }
 
@@ -738,7 +591,7 @@ mod tests {
             (Stem::Byeong, Branch::In),
             (Stem::Jeong, Branch::Myo),
         );
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         assert!(r.iter().any(|s| s.kind == ShinsalKind::Jae), "재살 발현");
     }
 
@@ -751,7 +604,7 @@ mod tests {
             (Stem::Byeong, Branch::In),
             (Stem::Jeong, Branch::Myo),
         );
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         assert!(r.iter().any(|s| s.kind == ShinsalKind::Cheon), "천살 발현");
     }
 
@@ -764,7 +617,7 @@ mod tests {
             (Stem::Byeong, Branch::In),
             (Stem::Jeong, Branch::Myo),
         );
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         assert!(r.iter().any(|s| s.kind == ShinsalKind::Ji), "지살 발현");
     }
 
@@ -777,7 +630,7 @@ mod tests {
             (Stem::Byeong, Branch::In),
             (Stem::Jeong, Branch::Myo),
         );
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         assert!(r.iter().any(|s| s.kind == ShinsalKind::Wol), "월살 발현");
     }
 
@@ -790,7 +643,7 @@ mod tests {
             (Stem::Byeong, Branch::In),
             (Stem::Jeong, Branch::Myo),
         );
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         let ms = r
             .iter()
             .find(|s| s.kind == ShinsalKind::Mangsin)
@@ -807,7 +660,7 @@ mod tests {
             (Stem::Byeong, Branch::In),
             (Stem::Jeong, Branch::Myo),
         );
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         // 유는 도화살(offset 4: Sa+4=Yu)이기도 함. 두 신살 모두 잡혀야.
         assert!(
             r.iter().any(|s| s.kind == ShinsalKind::Yukae),
@@ -843,34 +696,10 @@ mod tests {
             (Stem::Byeong, Branch::Ja),
             (Stem::Jeong, Branch::Myo),
         );
-        let r = analyze(&p, true);
+        let r = calculate(&p, true);
         assert!(
             r.iter().any(|s| s.kind == ShinsalKind::Yukae),
             "육해살 발현 (알고리즘 결정성)"
         );
-    }
-
-    /// modern_take 카피가 모든 종류에 대해 비어있지 않다.
-    #[test]
-    fn all_modern_take_copy_present() {
-        for k in [
-            ShinsalKind::Geop,
-            ShinsalKind::Jae,
-            ShinsalKind::Cheon,
-            ShinsalKind::Ji,
-            ShinsalKind::Dohwa,
-            ShinsalKind::Wol,
-            ShinsalKind::Mangsin,
-            ShinsalKind::Jangseong,
-            ShinsalKind::Banan,
-            ShinsalKind::Yeokma,
-            ShinsalKind::Yukae,
-            ShinsalKind::Hwagae,
-            ShinsalKind::Baekho,
-            ShinsalKind::Cheoneul,
-        ] {
-            assert!(!k.modern_take().is_empty(), "{:?} modern_take empty", k);
-            assert!(!k.korean().is_empty(), "{:?} korean empty", k);
-        }
     }
 }

@@ -1,18 +1,8 @@
-#![allow(dead_code)]
-
 use super::elements::{self, ElementRelation};
 use super::pillars;
-use super::types::{Element, FourPillars, Stem};
+use super::types::{FourPillars, Stem};
 
-/// 월운 단일 달 결과
-struct MonthlyFortune {
-    pub month: u32,
-    pub score: i32,
-    pub grade: String,
-    pub categories: MonthlyCategories,
-    pub advice: String,
-}
-
+/// 월운 단일 달 계산 결과
 pub struct MonthlyCalculation {
     pub month: u32,
     pub score: i32,
@@ -80,34 +70,6 @@ pub fn calculate_monthly_calculation(
         .collect()
 }
 
-fn calculate_monthly_fortune(user_pillars: &FourPillars, year: i32) -> Vec<MonthlyFortune> {
-    let day_master = user_pillars.day.stem;
-
-    calculate_monthly_calculation(user_pillars, year)
-        .into_iter()
-        .map(|month| MonthlyFortune {
-            advice: monthly_advice(
-                elements::relation(
-                    day_master.element(),
-                    pillars::month_pillar(
-                        pillars::year_pillar(year, month.month, 1).stem,
-                        month.month,
-                        1,
-                    )
-                    .stem
-                    .element(),
-                ),
-                day_master,
-                month.month,
-            ),
-            month: month.month,
-            score: month.score,
-            grade: month.grade,
-            categories: month.categories,
-        })
-        .collect()
-}
-
 /// 월운용 기본 점수 — 일운보다 더 넓은 범위 변동
 fn branch_adjustment(relation: ElementRelation) -> i32 {
     match relation {
@@ -156,52 +118,6 @@ fn category_score(
     (base + relation_bonus + personal).clamp(30, 98)
 }
 
-/// 월운 조언 생성 (관계 + 일간 오행 + 월 시즌 고려)
-fn monthly_advice(relation: ElementRelation, day_master: Stem, month: u32) -> String {
-    let base = match relation {
-        ElementRelation::Generated => {
-            "이달은 주변의 도움과 지원이 이어지는 달입니다. 인맥을 적극 활용하세요."
-        }
-        ElementRelation::Same => {
-            "이달은 자신감과 의지가 강한 달입니다. 계획한 일을 추진하기 좋습니다."
-        }
-        ElementRelation::Generates => {
-            "이달은 아이디어와 창의력이 넘치는 달이지만 에너지 소모에 주의하세요."
-        }
-        ElementRelation::Controls => {
-            "이달은 재물운이 활성화되는 달입니다. 실리를 챙기기 좋은 시기입니다."
-        }
-        ElementRelation::Controlled => {
-            "이달은 외부 압력이 강한 달입니다. 겸손과 인내로 넘기면 성장이 따라옵니다."
-        }
-    };
-
-    let seasonal = seasonal_advice(month);
-
-    let personal = match day_master.element() {
-        Element::Wood => "새로운 시작과 성장에 집중하세요.",
-        Element::Fire => "대인관계와 소통이 성과를 만듭니다.",
-        Element::Earth => "안정적인 판단과 신중한 행동이 빛을 발합니다.",
-        Element::Metal => "명확한 목표 설정이 이달의 핵심입니다.",
-        Element::Water => "유연하게 상황에 적응하면 기회가 열립니다.",
-    };
-
-    format!("{} {} {}", base, seasonal, personal)
-}
-
-/// 계절 기반 조언
-fn seasonal_advice(month: u32) -> &'static str {
-    match month {
-        1 | 2 => "새해의 기운을 받아 목표를 설정하기 좋은 시기입니다.",
-        3 | 4 => "봄의 생동감이 새로운 시작을 돕습니다.",
-        5 | 6 => "활동력이 높아지는 시기, 적극적인 행동이 결실을 맺습니다.",
-        7 | 8 => "에너지가 최고조에 달하는 달입니다. 큰 일을 도모하기 좋습니다.",
-        9 | 10 => "결실과 수확의 계절, 그동안의 노력이 빛을 발합니다.",
-        11 | 12 => "마무리와 준비의 시기, 내실을 다지고 다음을 준비하세요.",
-        _ => "꾸준함이 성공의 열쇠입니다.",
-    }
-}
-
 /// 점수 → 등급
 pub fn score_to_grade(score: i32) -> &'static str {
     match score {
@@ -236,9 +152,9 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_monthly_fortune_returns_12_months() {
+    fn test_calculate_monthly_calculation_returns_12_months() {
         let pillars = test_pillars();
-        let months = calculate_monthly_fortune(&pillars, 2026);
+        let months = calculate_monthly_calculation(&pillars, 2026);
         assert_eq!(months.len(), 12);
         for (i, m) in months.iter().enumerate() {
             assert_eq!(m.month, (i + 1) as u32);
@@ -248,7 +164,7 @@ mod tests {
     #[test]
     fn test_monthly_scores_in_range() {
         let pillars = test_pillars();
-        let months = calculate_monthly_fortune(&pillars, 2026);
+        let months = calculate_monthly_calculation(&pillars, 2026);
         for m in &months {
             assert!(
                 m.score >= 30 && m.score <= 98,
@@ -267,7 +183,7 @@ mod tests {
     #[test]
     fn test_monthly_grade_matches_score() {
         let pillars = test_pillars();
-        let months = calculate_monthly_fortune(&pillars, 2026);
+        let months = calculate_monthly_calculation(&pillars, 2026);
         for m in &months {
             let expected = score_to_grade(m.score);
             assert_eq!(
@@ -280,19 +196,10 @@ mod tests {
     }
 
     #[test]
-    fn test_monthly_advice_non_empty() {
+    fn test_monthly_calculation_deterministic() {
         let pillars = test_pillars();
-        let months = calculate_monthly_fortune(&pillars, 2026);
-        for m in &months {
-            assert!(!m.advice.is_empty(), "month {} advice is empty", m.month);
-        }
-    }
-
-    #[test]
-    fn test_monthly_fortune_deterministic() {
-        let pillars = test_pillars();
-        let first = calculate_monthly_fortune(&pillars, 2026);
-        let second = calculate_monthly_fortune(&pillars, 2026);
+        let first = calculate_monthly_calculation(&pillars, 2026);
+        let second = calculate_monthly_calculation(&pillars, 2026);
         for (a, b) in first.iter().zip(second.iter()) {
             assert_eq!(a.score, b.score);
             assert_eq!(a.categories.love, b.categories.love);

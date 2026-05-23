@@ -102,6 +102,7 @@ fn ziwei_chart_alias_returns_object_shape() {
     assert!(result.is_object());
     assert!(!version.is_empty());
     assert_eq!(result["chart_type"], "ziwei");
+    assert_no_prose_keys(&result);
 }
 
 #[test]
@@ -135,6 +136,7 @@ fn public_api_returns_typed_chart() {
             .all(|policy| policy.role != "interpretation_reference_only")
     );
     assert_eq!(response.result_json["chart_type"], "ziwei");
+    assert_no_prose_keys(&response.result_json);
 }
 
 #[test]
@@ -266,4 +268,5 @@ fn typed_api_accepts_gender_and_target_year() {
         response.result_json["decade_cycles"][0]["direction"],
         "counterclockwise"
     );
+    assert_no_prose_keys(&response.result_json);
 }

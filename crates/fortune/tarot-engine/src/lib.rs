@@ -17,9 +17,6 @@ pub mod engine;
 pub mod profile;
 pub mod types;
 
-#[cfg(test)]
-mod major_arcana_tests;
-
 pub use api::{
     TarotEngineError, TarotEngineRequest, TarotEngineResponse, generate_public_daily_tarot,
     generate_tarot_reading,

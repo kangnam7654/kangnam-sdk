@@ -17,7 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Initial import from `lunawave`.
 - Four-pillars computation (year/month/day/hour) with Korean sexagenary cycle.
 - Element balance, ten-gods (십신), earthly-branch relations (삼합/육합/상충/상형).
-- Daily, monthly, and daeun (대운) fortune generators with Korean interpretation text.
+- Daily, monthly, and daeun (대운) calculation generators for backend-owned interpretation.
 - `SajuEngine::generate(reading_type, input)` — unified JSON entry point.
 
 [Unreleased]: https://github.com/kangnam7654/saju-engine/compare/v0.1.0...HEAD

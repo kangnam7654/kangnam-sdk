@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 - Initial import from `lunawave`.
-- Rider-Waite Major Arcana deck (22 cards) with per-card keywords, meanings, and element mapping.
+- Rider-Waite Major Arcana deck identity (22 cards) with element mapping.
 - Spread drawing (`SpreadType::{OneCard, ThreeCard, CelticCross}`) with deterministic seeded draws.
 - `TarotEngine::generate(reading_type, input)` — unified JSON entry point.
 - Oriental five-element (오행) mapping via `Ohang` enum.

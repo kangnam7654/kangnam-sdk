@@ -1,4 +1,4 @@
-use kangnam_harness_llm_bridge::ToolInvocation;
+use kangnam_harness_llm_tool_runner::ToolInvocation;
 use kangnam_router::ChatMessage;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -85,5 +85,5 @@ pub enum ConsultError {
     InvalidHistory(String),
 
     #[error(transparent)]
-    Bridge(#[from] kangnam_harness_llm_bridge::BridgeError),
+    Bridge(#[from] kangnam_harness_llm_tool_runner::BridgeError),
 }

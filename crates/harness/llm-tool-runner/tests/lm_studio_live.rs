@@ -6,7 +6,7 @@
 //! ```text
 //! LMSTUDIO_BASE_URL=http://localhost:1234/v1 \
 //! LMSTUDIO_MODEL=qwen2.5-7b-instruct \
-//! cargo test -p kangnam-harness-llm-bridge --features test-util \
+//! cargo test -p kangnam-harness-llm-tool-runner --features test-util \
 //!   --test lm_studio_live -- --ignored
 //! ```
 //!
@@ -24,11 +24,11 @@ use async_trait::async_trait;
 use serde_json::{Value, json};
 use tokio::sync::oneshot;
 
-use kangnam_harness_llm_bridge::LlmAgent;
-use kangnam_harness_runtime::{
+use kangnam_harness_core::{
     AgentTool, DefaultCapabilities, FsCallbacks, ImageCallbacks, InteractionBridge, ToolCtx,
     ToolError, ToolResult, WebCallbacks,
 };
+use kangnam_harness_llm_tool_runner::LlmAgent;
 use kangnam_router::create_provider;
 
 struct NopFs;

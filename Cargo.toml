@@ -51,6 +51,7 @@ tracing = "0.1"
 kangnam-harness-core       = { path = "crates/harness/core" }
 kangnam-harness-store      = { path = "crates/harness/store" }
 kangnam-harness-runtime    = { path = "crates/harness/runtime" }
+kangnam-harness-llm-tool-runner = { path = "crates/harness/llm-tool-runner" }
 kangnam-harness-llm-bridge = { path = "crates/harness/llm-bridge" }
 kangnam-harness            = { path = "crates/harness/harness" }
 kangnam-harness-session-core   = { path = "crates/harness/session-core" }

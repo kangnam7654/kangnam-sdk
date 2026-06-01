@@ -13,8 +13,8 @@ unsafe_code = "deny"
 [dependencies]
 async-trait = { workspace = true }
 futures = { workspace = true }
-kangnam-harness-llm-bridge = { workspace = true }
-kangnam-harness-runtime = { workspace = true }
+kangnam-harness-llm-tool-runner = { workspace = true }
+kangnam-harness-core = { workspace = true }
 kangnam-router = { workspace = true }
 saju-engine = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
@@ -23,5 +23,5 @@ tarot-engine = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-kangnam-harness-llm-bridge = { workspace = true, features = ["test-util"] }
+kangnam-harness-llm-tool-runner = { workspace = true, features = ["test-util"] }
 tokio = { workspace = true, features = ["macros", "rt"] }

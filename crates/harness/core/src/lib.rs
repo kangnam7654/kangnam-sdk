@@ -1,9 +1,10 @@
-//! Core types for the kangnam-harness runtime.
+//! Core SDK types for the kangnam harness.
 //!
-//! This crate is intentionally I/O-free: pure data definitions for the four
-//! resource kinds the harness manages — tools, skills, hooks, agents — plus
-//! cross-cutting concerns (permissions, scope). Storage and execution live in
-//! sibling crates (`harness-store`, `harness-runtime`).
+//! This crate intentionally stays domain-agnostic. It contains the shared
+//! metadata models the harness manages and the executable tool contract
+//! (`AgentTool`, `ToolCtx`, `ToolResult`, capability callback traits) used by
+//! host applications. Domain policy, storage schemas, app workflows, and
+//! provider-specific LLM loops live in sibling or consuming crates.
 
 pub mod agent;
 pub mod hook;
@@ -17,7 +18,10 @@ pub use hook::{Hook, HookEvent, HookMatcher};
 pub use permission::{Permission, PermissionAction};
 pub use scope::Scope;
 pub use skill::{Skill, SkillReference, SkillTrigger};
-pub use tool::{BuiltinTool, Tool, ToolSource};
+pub use tool::{
+    AgentTool, AwaitKind, BuiltinTool, DefaultCapabilities, FsCallbacks, ImageCallbacks,
+    InteractionBridge, Tool, ToolCtx, ToolError, ToolResult, ToolSource, WebCallbacks,
+};
 
 use thiserror::Error;
 

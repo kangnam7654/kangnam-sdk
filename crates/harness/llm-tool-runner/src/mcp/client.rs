@@ -18,7 +18,7 @@ pub struct ClientInfo {
 impl Default for ClientInfo {
     fn default() -> Self {
         Self {
-            name: "kangnam-harness-llm-bridge".into(),
+            name: "kangnam-harness-llm-tool-runner".into(),
             version: env!("CARGO_PKG_VERSION").into(),
         }
     }

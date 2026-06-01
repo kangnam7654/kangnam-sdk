@@ -2,8 +2,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use futures::stream::BoxStream;
-use kangnam_harness_llm_bridge::LlmAgent;
-use kangnam_harness_runtime::ToolCtx;
+use kangnam_harness_core::ToolCtx;
+use kangnam_harness_llm_tool_runner::LlmAgent;
 use kangnam_router::{
     ChatMessage, LlmError, LlmProviderDyn, LlmRequestOptions, LlmResponse, LlmStreamEvent,
     ProviderCapabilities,
@@ -167,7 +167,7 @@ impl LlmProviderDyn for SharedProvider {
 
 #[cfg(test)]
 mod tests {
-    use kangnam_harness_llm_bridge::test_util::{MockLlmProvider, Step};
+    use kangnam_harness_llm_tool_runner::test_util::{MockLlmProvider, Step};
     use serde_json::json;
 
     use super::*;

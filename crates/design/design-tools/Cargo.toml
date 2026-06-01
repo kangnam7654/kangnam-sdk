@@ -8,7 +8,7 @@ repository.workspace = true
 description = "Eight design-mode tools for the kangnam-sdk harness runtime: ask, scaffold, skill, preview, tweaks, done, brand_asset_extract, gen_image."
 
 [dependencies]
-kangnam-harness-runtime = { workspace = true }
+kangnam-harness-core = { workspace = true }
 kangnam-design-skill            = { workspace = true }
 kangnam-design-artifact         = { workspace = true }
 serde       = { workspace = true }

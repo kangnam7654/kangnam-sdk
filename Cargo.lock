@@ -70,8 +70,8 @@ version = "0.3.1"
 dependencies = [
  "async-trait",
  "futures",
- "kangnam-harness-llm-bridge",
- "kangnam-harness-runtime",
+ "kangnam-harness-core",
+ "kangnam-harness-llm-tool-runner",
  "kangnam-router",
  "saju-engine",
  "serde",
@@ -2758,7 +2758,7 @@ dependencies = [
  "async-trait",
  "kangnam-design-artifact",
  "kangnam-design-skill",
- "kangnam-harness-runtime",
+ "kangnam-harness-core",
  "regex",
  "serde",
  "serde_json",
@@ -2779,10 +2779,12 @@ dependencies = [
 name = "kangnam-harness-core"
 version = "0.3.1"
 dependencies = [
+ "async-trait",
  "chrono",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+ "tokio",
  "uuid",
 ]
 
@@ -2790,10 +2792,17 @@ dependencies = [
 name = "kangnam-harness-llm-bridge"
 version = "0.3.1"
 dependencies = [
+ "kangnam-harness-llm-tool-runner",
+]
+
+[[package]]
+name = "kangnam-harness-llm-tool-runner"
+version = "0.3.1"
+dependencies = [
  "async-stream",
  "async-trait",
  "futures",
- "kangnam-harness-runtime",
+ "kangnam-harness-core",
  "kangnam-router",
  "serde",
  "serde_json",
@@ -2812,9 +2821,7 @@ dependencies = [
  "kangnam-harness-core",
  "serde",
  "serde_json",
- "thiserror 2.0.18",
  "tokio",
- "uuid",
 ]
 
 [[package]]

@@ -21,11 +21,11 @@ use async_trait::async_trait;
 use serde_json::{Value, json};
 use tokio::sync::oneshot;
 
-use kangnam_harness_llm_bridge::LlmAgent;
-use kangnam_harness_runtime::{
+use kangnam_harness_core::{
     AgentTool, DefaultCapabilities, FsCallbacks, ImageCallbacks, InteractionBridge, ToolCtx,
     ToolError, ToolResult, WebCallbacks,
 };
+use kangnam_harness_llm_tool_runner::LlmAgent;
 use kangnam_router::create_provider;
 use wiremock::matchers::{body_partial_json, body_string_contains, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};

@@ -15,13 +15,13 @@ use async_trait::async_trait;
 use serde_json::{Value, json};
 use tokio::sync::oneshot;
 
-use kangnam_harness_llm_bridge::LlmAgent;
-use kangnam_harness_llm_bridge::mcp::{ClientInfo, InMemoryTransport, McpClient, McpError};
-use kangnam_harness_llm_bridge::test_util::{MockLlmProvider, Step};
-use kangnam_harness_runtime::{
+use kangnam_harness_core::{
     DefaultCapabilities, FsCallbacks, ImageCallbacks, InteractionBridge, ToolCtx, ToolError,
     WebCallbacks,
 };
+use kangnam_harness_llm_tool_runner::LlmAgent;
+use kangnam_harness_llm_tool_runner::mcp::{ClientInfo, InMemoryTransport, McpClient, McpError};
+use kangnam_harness_llm_tool_runner::test_util::{MockLlmProvider, Step};
 
 // ── stub capabilities ───────────────────────────────────────────────
 
@@ -85,7 +85,7 @@ fn make_ctx() -> ToolCtx {
 
 // ── client unit tests ───────────────────────────────────────────────
 
-use kangnam_harness_llm_bridge::mcp::transport::ScriptedResponse;
+use kangnam_harness_llm_tool_runner::mcp::transport::ScriptedResponse;
 
 #[tokio::test]
 async fn initialize_parses_nested_server_info_shape() {

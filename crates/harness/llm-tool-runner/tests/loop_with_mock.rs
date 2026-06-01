@@ -7,7 +7,7 @@
 //! - Records assistant tool-call turns in history (so the next request
 //!   re-emits them on the wire — verified at the integration layer).
 //! - Errors with `UnknownTool` when the model invokes a missing tool.
-//! - Errors with `MaxIterations` when the model loops forever.
+//! - Returns partial runs with `MaxIterations` when the model loops forever.
 //! - Captures parallel tool calls in dispatch order.
 
 use std::path::Path;
@@ -17,12 +17,12 @@ use async_trait::async_trait;
 use serde_json::{Value, json};
 use tokio::sync::oneshot;
 
-use kangnam_harness_llm_bridge::test_util::{MockLlmProvider, Step};
-use kangnam_harness_llm_bridge::{BridgeError, LlmAgent};
-use kangnam_harness_runtime::{
+use kangnam_harness_core::{
     AgentTool, DefaultCapabilities, FsCallbacks, ImageCallbacks, InteractionBridge, ToolCtx,
     ToolError, ToolResult, WebCallbacks,
 };
+use kangnam_harness_llm_tool_runner::test_util::{MockLlmProvider, Step};
+use kangnam_harness_llm_tool_runner::{AgentRunStopReason, BridgeError, LlmAgent};
 use kangnam_router::{ChatContent, ChatMessage, ToolCall, context::ContextWindowBudget};
 
 // ── stub capabilities ───────────────────────────────────────────────
@@ -347,8 +347,18 @@ async fn max_iterations_caps_runaway_loop() {
         .with_tool(GetWeather { log }, "Weather")
         .with_max_iterations(3);
 
-    let err = agent.run("loop").await.unwrap_err();
-    assert!(matches!(err, BridgeError::MaxIterations { max: 3 }));
+    let run = agent.run("loop").await.unwrap();
+    assert_eq!(
+        run.stop_reason,
+        AgentRunStopReason::MaxIterations { max: 3 }
+    );
+    assert_eq!(run.iterations, 3);
+    assert_eq!(run.tool_invocations.len(), 3);
+    assert_eq!(run.final_text, "");
+    assert!(
+        run.messages.len() > 1,
+        "partial run should preserve request/assistant/tool-result history"
+    );
 }
 
 #[tokio::test]

@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use kangnam_harness_runtime::{AgentTool, ToolCtx, ToolResult};
+use kangnam_harness_core::{AgentTool, ToolCtx, ToolResult};
 use serde_json::{Value, json};
 
 use crate::catalog::SkillCatalog;

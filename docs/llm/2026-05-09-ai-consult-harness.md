@@ -8,7 +8,7 @@ project: kangnam-sdk
 
 ## Purpose
 
-Build a reusable SDK-level AI consult engine that moves Lunawave's current in-backend AI advisor logic into `kangnam-sdk`, using `kangnam-harness-runtime` tools and `kangnam-harness-llm-bridge` as the agent/tool-calling loop.
+Build a reusable SDK-level AI consult engine that moves Lunawave's current in-backend AI advisor logic into `kangnam-sdk`, using `kangnam-harness-core` tools and `kangnam-harness-llm-tool-runner` as the agent/tool-calling loop.
 
 Done when:
 - `kangnam-sdk` exposes an `ai-consult` crate that can answer one Korean consult turn from history + user message + optional birth profile.
@@ -37,19 +37,19 @@ No new DB schema is required. The SDK owns domain logic and pure Rust tools; hos
 | `/Users/kangnam/projects/kangnam-sdk/crates/fortune/ai-consult/src/tools/mod.rs` | Tool exports and `consult_tools()` factory. |
 | `/Users/kangnam/projects/kangnam-sdk/crates/fortune/ai-consult/src/tools/saju.rs` | `SajuContextTool` implementing `AgentTool<ConsultCapabilities>`. |
 | `/Users/kangnam/projects/kangnam-sdk/crates/fortune/ai-consult/src/tools/tarot.rs` | `TarotDrawTool` implementing `AgentTool<ConsultCapabilities>`. |
-| `/Users/kangnam/projects/kangnam-sdk/crates/harness/llm-bridge/src/lib.rs` | Add `LlmAgent::run_messages(messages)` so consult can pass existing chat history, not only a single prompt. |
-| `/Users/kangnam/projects/kangnam-sdk/crates/harness/llm-bridge/tests/loop_with_mock.rs` | Add tests for `run_messages` preserving caller-provided history and rejecting empty/non-user-ending input. |
+| `/Users/kangnam/projects/kangnam-sdk/crates/harness/llm-tool-runner/src/lib.rs` | Add `LlmAgent::run_messages(messages)` so consult can pass existing chat history, not only a single prompt. |
+| `/Users/kangnam/projects/kangnam-sdk/crates/harness/llm-tool-runner/tests/loop_with_mock.rs` | Add tests for `run_messages` preserving caller-provided history and rejecting empty/non-user-ending input. |
 
 ## Implementation order
 
 1. **Red tests for bridge history support**
-   - File: `/Users/kangnam/projects/kangnam-sdk/crates/harness/llm-bridge/tests/loop_with_mock.rs`
+   - File: `/Users/kangnam/projects/kangnam-sdk/crates/harness/llm-tool-runner/tests/loop_with_mock.rs`
    - Add `run_messages_uses_existing_history`.
    - Add `run_messages_rejects_empty_input`.
    - Add `run_messages_rejects_history_not_ending_in_user`.
 
 2. **Bridge implementation**
-   - File: `/Users/kangnam/projects/kangnam-sdk/crates/harness/llm-bridge/src/lib.rs`
+   - File: `/Users/kangnam/projects/kangnam-sdk/crates/harness/llm-tool-runner/src/lib.rs`
    - Extract the current loop body from `LlmAgent::run` into `run_messages`.
    - Keep `run(user_input)` as a thin wrapper: `self.run_messages(vec![ChatMessage::user(user_input)]).await`.
 
@@ -74,7 +74,7 @@ No new DB schema is required. The SDK owns domain logic and pure Rust tools; hos
 
 7. **Red tests for consult agent loop**
    - File: `/Users/kangnam/projects/kangnam-sdk/crates/fortune/ai-consult/src/agent.rs`
-   - Use `kangnam-harness-llm-bridge` with feature `test-util`.
+   - Use `kangnam-harness-llm-tool-runner` with feature `test-util`.
    - Script `MockLlmProvider` to call `consult.saju_context`, then return final Korean text.
    - Assert guard redaction happens before the user message enters the LLM history.
 
@@ -82,16 +82,16 @@ No new DB schema is required. The SDK owns domain logic and pure Rust tools; hos
    - `AiConsultSession::respond` validates and redacts input, normalizes history, builds `LlmAgent<ConsultCapabilities>`, registers tools, runs `run_messages`, and returns final text + tool invocation log.
 
 9. **Verification**
-   - `cargo fmt -- /Users/kangnam/projects/kangnam-sdk/crates/harness/llm-bridge/src/lib.rs`
+   - `cargo fmt -- /Users/kangnam/projects/kangnam-sdk/crates/harness/llm-tool-runner/src/lib.rs`
    - `cargo fmt -- /Users/kangnam/projects/kangnam-sdk/crates/fortune/ai-consult/src/lib.rs`
-   - `cargo test -p kangnam-harness-llm-bridge --features test-util --test loop_with_mock`
+   - `cargo test -p kangnam-harness-llm-tool-runner --features test-util --test loop_with_mock`
    - `cargo test -p ai-consult`
    - `cargo check -p ai-consult`
 
 ## Function/API signatures
 
 ```rust
-// crates/harness/llm-bridge/src/lib.rs
+// crates/harness/llm-tool-runner/src/lib.rs
 impl<C: Send + Sync + 'static> LlmAgent<C> {
     pub async fn run_messages(
         &self,
@@ -145,7 +145,7 @@ pub struct ConsultRequest {
 pub struct ConsultResponse {
     pub text: String,
     pub messages: Vec<kangnam_router::ChatMessage>,
-    pub tool_invocations: Vec<kangnam_harness_llm_bridge::ToolInvocation>,
+    pub tool_invocations: Vec<kangnam_harness_llm_tool_runner::ToolInvocation>,
     pub redacted: bool,
 }
 ```
@@ -200,7 +200,7 @@ pub fn parse_report_fallback(text: &str) -> ReportParts;
 ```rust
 // crates/fortune/ai-consult/src/tools/mod.rs
 pub fn consult_tools()
-    -> Vec<(std::sync::Arc<dyn kangnam_harness_runtime::AgentTool<ConsultCapabilities>>, &'static str)>;
+    -> Vec<(std::sync::Arc<dyn kangnam_harness_core::AgentTool<ConsultCapabilities>>, &'static str)>;
 ```
 
 ## Constraints
@@ -220,7 +220,7 @@ pub fn consult_tools()
 
 ## Decisions
 
-- **Adopted:** Add `crates/fortune/ai-consult` as a separate SDK crate that consumes harness runtime/llm-bridge, saju engine, tarot engine, and router.
+- **Adopted:** Add `crates/fortune/ai-consult` as a separate SDK crate that consumes harness core/llm-tool-runner, saju engine, tarot engine, and router.
 - **Rejected:** Put consult logic inside `kangnam-harness-*`; reason: harness is domain-agnostic and should not contain Dalgyeol/Korean fortune persona rules.
 - **Rejected:** Keep all saju context in a static system prompt; reason: harness tools let the model request structured saju/tarot context only when needed and keep the base prompt smaller.
 - **Rejected for this pass:** SDK-owned persistence or billing; reason: Lunawave already owns session rows and point charging, and SDK should stay reusable.
@@ -230,10 +230,10 @@ pub fn consult_tools()
 
 | Dependency | Check-only command | Expected | Fallback |
 |---|---|---|---|
-| `kangnam-harness-runtime` crate | `grep '^name' /Users/kangnam/projects/kangnam-sdk/crates/harness/runtime/Cargo.toml` | `name = "kangnam-harness-runtime"` | Stop; do not add crate until actual package name is reconciled. |
-| `kangnam-harness-llm-bridge` crate | `grep '^name' /Users/kangnam/projects/kangnam-sdk/crates/harness/llm-bridge/Cargo.toml` | `name = "kangnam-harness-llm-bridge"` | Stop; bridge API cannot be assumed. |
-| `LlmAgent` surface | `grep -n 'pub struct LlmAgent' /Users/kangnam/projects/kangnam-sdk/crates/harness/llm-bridge/src/lib.rs` | `pub struct LlmAgent<C = DefaultCapabilities>` exists | Add consult as direct router wrapper only after separate design update. |
-| `AgentTool` surface | `grep -n 'pub trait AgentTool' /Users/kangnam/projects/kangnam-sdk/crates/harness/runtime/src/tool.rs` | `pub trait AgentTool<C = DefaultCapabilities>` exists | Stop; no harness runtime implementation. |
+| `kangnam-harness-core` crate | `grep '^name' /Users/kangnam/projects/kangnam-sdk/crates/harness/core/Cargo.toml` | `name = "kangnam-harness-core"` | Stop; do not add crate until actual package name is reconciled. |
+| `kangnam-harness-llm-tool-runner` crate | `grep '^name' /Users/kangnam/projects/kangnam-sdk/crates/harness/llm-tool-runner/Cargo.toml` | `name = "kangnam-harness-llm-tool-runner"` | Stop; runner API cannot be assumed. |
+| `LlmAgent` surface | `grep -n 'pub struct LlmAgent' /Users/kangnam/projects/kangnam-sdk/crates/harness/llm-tool-runner/src/lib.rs` | `pub struct LlmAgent<C = DefaultCapabilities>` exists | Add consult as direct router wrapper only after separate design update. |
+| `AgentTool` surface | `grep -n 'pub trait AgentTool' /Users/kangnam/projects/kangnam-sdk/crates/harness/core/src/tool.rs` | `pub trait AgentTool<C = DefaultCapabilities>` exists | Stop; no harness core implementation. |
 | `kangnam-router` provider API | `grep -n 'fn chat_with_options_dyn' /Users/kangnam/projects/kangnam-sdk/crates/router/src/lib.rs` | Object-safe provider options API exists | Limit consult to prompt-only `chat_dyn` and defer tool calling. |
 | `saju-engine` | `grep '^name' /Users/kangnam/projects/kangnam-sdk/crates/fortune/saju-engine/Cargo.toml` | `name = "saju-engine"` | Stop; do not duplicate saju calculations. |
 | `tarot-engine` | `grep '^name' /Users/kangnam/projects/kangnam-sdk/crates/fortune/tarot-engine/Cargo.toml` | `name = "tarot-engine"` | Ship saju-only consult tools; document tarot as deferred. |
@@ -241,7 +241,7 @@ pub fn consult_tools()
 | Network access | None for unit tests | No live LLM call in default tests | Live LM Studio tests stay ignored/opt-in outside this crate. |
 
 Inventory already verified manually for the current local tree before this draft:
-- `kangnam-harness-runtime`, `kangnam-harness-llm-bridge`, `saju-engine`, and `tarot-engine` package names exist.
+- `kangnam-harness-core`, `kangnam-harness-llm-tool-runner`, `saju-engine`, and `tarot-engine` package names exist.
 - `LlmAgent<C = DefaultCapabilities>` and `AgentTool<C = DefaultCapabilities>` exist.
 - `SajuEngine::generate` and `TarotEngine::generate` exist and return `(serde_json::Value, String)`.
 
@@ -250,7 +250,7 @@ Inventory already verified manually for the current local tree before this draft
 Run tests in this order:
 
 ```sh
-cargo test -p kangnam-harness-llm-bridge --features test-util --test loop_with_mock
+cargo test -p kangnam-harness-llm-tool-runner --features test-util --test loop_with_mock
 cargo test -p ai-consult
 cargo check -p ai-consult
 ```

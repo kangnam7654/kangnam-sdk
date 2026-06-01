@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use kangnam_harness_runtime::{AgentTool, ToolCtx, ToolResult};
+use kangnam_harness_core::{AgentTool, ToolCtx, ToolResult};
 use serde_json::{Map, Value, json};
 
 use crate::types::ConsultCapabilities;

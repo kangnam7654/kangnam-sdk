@@ -22,8 +22,8 @@
 
 | Pi (TS) | Kangnam-SDK (Rust) | 메모 |
 |---|---|---|
-| `packages/agent` | `crates/harness/runtime` | AgentTool 추상화 |
-| `packages/ai` | `crates/router` + `crates/harness/llm-bridge` | 멀티 프로바이더 |
+| `packages/agent` | `crates/harness/core` | AgentTool 추상화 |
+| `packages/ai` | `crates/router` + `crates/harness/llm-tool-runner` | 멀티 프로바이더 |
 | `packages/coding-agent` | `apps/kangnam-client` (부분) | CLI/UI |
 | `packages/tui` | — | 우리는 Tauri UI |
 | `packages/web-ui` | — | 우리는 Tauri 기반 |
@@ -32,7 +32,7 @@
 
 1. **Steering messages (실행 중 주입)** — Pi는 tool 실행 중 사용자 메시지를 큐에 넣어 다음 turn 직전 합류. 우리 `InteractionBridge`(suspend/resume)와 다른 모델 — 비교 검토 가치.
 2. **Follow-up messages (post-completion 큐)** — agent가 완료된 직후 자동으로 다음 메시지 처리. 우리 runtime에 명시적 대응 없음.
-3. **`AgentMessage` ↔ LLM message 분리** — Pi의 `convertToLlm`이 application-level 메시지를 LLM-compat 형태로 필터/변환. 우리 `llm-bridge`가 비슷한 역할이지만 명시적 분리는 약함.
+3. **`AgentMessage` ↔ LLM message 분리** — Pi의 `convertToLlm`이 application-level 메시지를 LLM-compat 형태로 필터/변환. 우리 `llm-tool-runner`가 비슷한 역할이지만 명시적 분리는 약함.
 4. **Tool `terminate: true` hint** — tool 결과가 자동 follow-up LLM 호출을 스킵하라고 신호. 비용 + 응답 빠름. `AgentTool::call()` 반환 타입에 추가 고려.
 5. **`executionMode: parallel | sequential`** — tool 단위로 override 가능. 우리 runtime이 어떤 모델인지 확인 후 차이 검토.
 6. **Cross-provider handoffs + thinking block transform** — 한 conversation을 provider 갈아타며 진행. Anthropic의 thinking 블록을 다른 provider로 변환. `kangnam-router`/`design-llm/models` 확장 후보.
@@ -76,8 +76,8 @@ TypeScript 모노레포 19 packages. Provider-agnostic (Claude/OpenAI/Google/loc
 |---|---|---|
 | `packages/core` | `crates/harness/core` | 코어 타입 |
 | `packages/opencode` | `apps/kangnam-client` 일부 | CLI 본체 |
-| `packages/sdk` | `crates/harness/llm-bridge` + `crates/router` | provider SDK |
-| `packages/plugin` | `crates/harness/runtime` (AgentTool) | tool 확장 |
+| `packages/sdk` | `crates/harness/llm-tool-runner` + `crates/router` | provider SDK |
+| `packages/plugin` | `crates/harness/core` (AgentTool) | tool 확장 |
 | `packages/function` | tool 정의 | function-call schema |
 | `packages/containers` | — | 우리는 sandbox 없음 |
 | `packages/console` | — | 우리는 TUI 없음 |

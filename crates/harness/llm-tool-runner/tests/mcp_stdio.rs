@@ -16,7 +16,7 @@ use std::process::Command;
 
 use serde_json::json;
 
-use kangnam_harness_llm_bridge::mcp::{ClientInfo, McpClient, McpError};
+use kangnam_harness_llm_tool_runner::mcp::{ClientInfo, McpClient, McpError};
 
 fn python3_available() -> bool {
     Command::new("python3")

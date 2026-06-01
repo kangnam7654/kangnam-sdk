@@ -11,7 +11,7 @@ pub mod tweaks;
 
 use std::sync::Arc;
 
-use kangnam_harness_runtime::AgentTool;
+use kangnam_harness_core::AgentTool;
 
 use crate::catalog::SkillCatalog;
 

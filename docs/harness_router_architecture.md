@@ -17,7 +17,7 @@ Kangnam now treats `kangnam-harness` and `kangnam-router` as the core.
 - runtime capability traits
 - suspend/resume interaction primitives
 - harness resource persistence
-- LLM tool-call loops through `kangnam-harness-llm-bridge`
+- LLM tool-call loops through `kangnam-harness-llm-tool-runner`
 
 `kangnam-harness-session-*` is optional host infrastructure:
 

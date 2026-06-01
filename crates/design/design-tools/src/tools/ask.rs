@@ -2,7 +2,7 @@
 
 use async_trait::async_trait;
 use kangnam_design_artifact::question_form::parse_question_form;
-use kangnam_harness_runtime::{AgentTool, AwaitKind, ToolCtx, ToolResult};
+use kangnam_harness_core::{AgentTool, AwaitKind, ToolCtx, ToolResult};
 use serde_json::{Value, json};
 
 pub struct AskTool;

@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-### Added (round 23) — `kangnam-harness-llm-bridge::mcp` — native MCP client + AgentTool adapter
+### Added (round 23) — `kangnam-harness-llm-tool-runner::mcp` — native MCP client + AgentTool adapter
 
 Architectural inspiration absorbed from RisuAI's `process/mcp/` (GPL-3 — patterns only, no code copy). Adds first-class Model Context Protocol support to `LlmAgent` so the bridge can consume tools advertised by external MCP servers (filesystem, brave-search, github, custom Python tools, etc.).
 
@@ -23,21 +23,21 @@ Architectural inspiration absorbed from RisuAI's `process/mcp/` (GPL-3 — patte
 
 ### Added (round 22) — LM Studio tool calling: 3-layer test infrastructure
 
-- `kangnam-harness-llm-bridge::test_util::MockLlmProvider` — scripted in-memory `LlmProviderDyn` for unit tests. State (steps queue + observed-call log) wrapped in `Arc<Mutex<…>>` so tests `clone()` once before boxing the original into `LlmAgent::new()`, then inspect `observed()` post-`run()`. `Step::text` / `Step::tool_call` / `Step::tool_calls` constructors. Gated behind the `test-util` feature.
+- `kangnam-harness-llm-tool-runner::test_util::MockLlmProvider` — scripted in-memory `LlmProviderDyn` for unit tests. State (steps queue + observed-call log) wrapped in `Arc<Mutex<…>>` so tests `clone()` once before boxing the original into `LlmAgent::new()`, then inspect `observed()` post-`run()`. `Step::text` / `Step::tool_call` / `Step::tool_calls` constructors. Gated behind the `test-util` feature.
 - **Layer 1** `tests/loop_with_mock.rs` — 7 unit tests on the bridge loop with `MockLlmProvider`: terminal-text early return, single-tool-call dispatch + history shape (verifies `ChatContent::ToolUse` lands in the assistant turn), parallel calls dispatch in order, unknown-tool error returns the registered list, failed-tool propagates `is_error: true` to history, max-iterations caps runaway loops, and an explicit gate on the second request re-emitting `tool_calls` (the wire-correctness signal Round 20 unblocks).
 - **Layer 2** `tests/lm_studio_wire.rs` — 2 wiremock-based integration tests against a fake OpenAI-compat HTTP server. Uses real `OpenAICompatProvider` from `kangnam-router` so the full request/response wire path is exercised. Round-trip: 1st call returns canned `tool_calls`; 2nd call (gated by `body_string_contains("tool_call_id")`) returns final text. Verifies the same network shape LM Studio at `http://localhost:1234/v1` would receive. Plus a failed-tool variant that asserts `Error: <msg>` lands in the `{role: "tool", tool_call_id, content}` follow-up.
-- **Layer 3** `tests/lm_studio_live.rs` — `#[ignore]`-gated live LM Studio test. Reads `LMSTUDIO_BASE_URL` (e.g. `http://localhost:1234/v1`) + optional `LMSTUDIO_MODEL`. Registers a `multiply` tool, asks "What's 7 times 6?", asserts the model invoked `multiply(7, 6)` (commutative) and the final answer mentions 42. Skips early when env var is unset. Run with `LMSTUDIO_BASE_URL=http://localhost:1234/v1 cargo test -p kangnam-harness-llm-bridge --features test-util --test lm_studio_live -- --ignored`.
-- `crates/harness/llm-bridge/Cargo.toml` — `[[test]]` declarations with `required-features = ["test-util"]` for `loop_with_mock` and `lm_studio_wire` so `cargo test --workspace` (which doesn't auto-enable features) skips them rather than failing compilation. `lm_studio_live` doesn't depend on `test-util` and is `#[ignore]`-gated.
+- **Layer 3** `tests/lm_studio_live.rs` — `#[ignore]`-gated live LM Studio test. Reads `LMSTUDIO_BASE_URL` (e.g. `http://localhost:1234/v1`) + optional `LMSTUDIO_MODEL`. Registers a `multiply` tool, asks "What's 7 times 6?", asserts the model invoked `multiply(7, 6)` (commutative) and the final answer mentions 42. Skips early when env var is unset. Run with `LMSTUDIO_BASE_URL=http://localhost:1234/v1 cargo test -p kangnam-harness-llm-tool-runner --features test-util --test lm_studio_live -- --ignored`.
+- `crates/harness/llm-tool-runner/Cargo.toml` — `[[test]]` declarations with `required-features = ["test-util"]` for `loop_with_mock` and `lm_studio_wire` so `cargo test --workspace` (which doesn't auto-enable features) skips them rather than failing compilation. `lm_studio_live` doesn't depend on `test-util` and is `#[ignore]`-gated.
 - 13 bridge tests passing (3 unit + 7 layer-1 + 2 layer-2 + 1 doctest), 1 ignored layer-3 live test.
 
-### Added (round 21) — `kangnam-harness-llm-bridge` crate
+### Added (round 21) — `kangnam-harness-llm-tool-runner` crate
 
-- New crate `crates/harness/llm-bridge/` bridges the harness `AgentTool` runtime to the router's multi-provider LLM clients with first-class tool calling.
+- New crate `crates/harness/llm-tool-runner/` bridges the harness `AgentTool` runtime to the router's multi-provider LLM clients with first-class tool calling.
 - `LlmAgent<C = DefaultCapabilities>` builder: `new(provider, ctx)` → `with_tool(tool, description)` → `with_system_prompt` → `with_max_iterations` → `with_options` → `run(user_input)`. Generic over the harness capability bundle so domain-specific capability sets (Travel Planner, finance, …) instantiate `LlmAgent<TheirCaps>`.
 - Multi-turn dispatch loop in `LlmAgent::run`: `chat_with_options_dyn` → if no `tool_calls`, return final text; otherwise record assistant turn via `ChatMessage::assistant_with_tool_calls` (Round 20 wire reconstruction), dispatch each call to the matching `AgentTool::execute`, push `ChatMessage::tool_result` for each result (with `is_error: true` for `ToolResult::Failed`), repeat up to `max_iterations` (default 8).
 - `BridgeError` (Llm/UnknownTool/SuspendedTurn/MaxIterations). `SuspendedTurn` is a hard error: tools that call `ToolResult::AwaitUser` (interactive forms/previews) are incompatible with the autonomous loop and surface this so the host can drive the loop manually if needed.
 - `ToolInvocation` / `AgentRun` records every dispatch. `AgentRun::messages` is the full conversation history including reconstructed assistant tool-call turns; `final_text` is the model's terminal answer; `tool_invocations` lists every dispatched call in order; `iterations` counts model round-trips.
-- Workspace wiring: `kangnam-harness-llm-bridge` added to `[workspace.dependencies]`. `LM Studio` (OpenAI-compat) is the canonical target — `create_provider("openai_compat", "", "<model>", "http://localhost:1234/v1")` plus `with_tool(...)` is the standard one-liner.
+- Workspace wiring: `kangnam-harness-llm-tool-runner` added to `[workspace.dependencies]`. `LM Studio` (OpenAI-compat) is the canonical target — `create_provider("openai_compat", "", "<model>", "http://localhost:1234/v1")` plus `with_tool(...)` is the standard one-liner.
 
 ### Added (round 20) — router `ChatContent::ToolUse` + assistant `tool_calls` wire reconstruction
 

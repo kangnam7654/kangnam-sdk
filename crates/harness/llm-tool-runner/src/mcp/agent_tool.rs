@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 use async_trait::async_trait;
 use serde_json::Value;
 
-use kangnam_harness_runtime::{AgentTool, ToolCtx, ToolResult};
+use kangnam_harness_core::{AgentTool, ToolCtx, ToolResult};
 
 use super::client::McpClient;
 
@@ -29,7 +29,7 @@ use super::client::McpClient;
 ///     agent = agent.with_boxed_tool(Arc::new(adapter), description);
 /// }
 /// ```
-pub struct McpAgentTool<C = kangnam_harness_runtime::DefaultCapabilities> {
+pub struct McpAgentTool<C = kangnam_harness_core::DefaultCapabilities> {
     client: McpClient,
     tool_name: String,
     description: String,

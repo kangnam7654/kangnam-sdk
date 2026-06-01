@@ -1,5 +1,5 @@
 //! Eight design-mode tools the agent calls during a discovery → preview
-//! → done loop. All implement [`kangnam_harness_runtime::AgentTool`]
+//! → done loop. All implement [`kangnam_harness_core::AgentTool`]
 //! and route side effects through the runtime's `ToolCtx` so a host
 //! can swap the fs / web / image / preview-bridge callbacks for tests.
 //!
@@ -33,7 +33,7 @@ pub(crate) mod tests {
     use std::sync::{Arc, Mutex};
 
     use async_trait::async_trait;
-    use kangnam_harness_runtime::{
+    use kangnam_harness_core::{
         DefaultCapabilities, FsCallbacks, ImageCallbacks, InteractionBridge, ToolCtx, ToolError,
         WebCallbacks,
     };

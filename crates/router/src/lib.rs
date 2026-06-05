@@ -61,11 +61,16 @@ pub mod openai_compat;
 pub mod pi_local;
 pub mod pricing;
 pub mod router;
+pub mod structured;
 
 pub use router::{
     ProviderConfig, ProviderIntegrationCandidate, ProviderIntegrationStatus, RenderRequest,
     RouteRequest, Router, RouterAttachPath, SubscriptionAuthSurface, SubscriptionProviderBenchmark,
     provider_integration_candidates, subscription_provider_benchmarks,
+};
+pub use structured::{
+    StructuredOutputError, json_object_candidates, parse_json_tolerant, parse_response_json,
+    strip_outer_code_fence, strip_think_blocks, visible_text_from_events,
 };
 
 /// The kind of provider backend.

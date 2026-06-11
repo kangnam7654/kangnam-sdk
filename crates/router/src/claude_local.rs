@@ -856,7 +856,7 @@ impl ClaudeLocalProvider {
     /// - `Image { Base64 }`: decoded → written to a temp file → path collected
     ///   into `temp_images`; callers pass those paths via `--image` flags.
     /// - `Image { Url }`: warn + skip (local CLIs cannot fetch URLs).
-    /// - `ToolResult`: debug-log + skip (local CLIs manage their own tools).
+    /// - `ToolResult`: debug-log + skip (local CLI is used as a text-only provider).
     fn build_args_inner(
         model: &str,
         messages: &[ChatMessage],
@@ -866,7 +866,15 @@ impl ClaudeLocalProvider {
             "-p".to_string(),
             "--output-format".to_string(),
             "json".to_string(),
-            "--dangerously-skip-permissions".to_string(),
+            // Auto Company owns tool dispatch. Keep Claude Code's unmanaged
+            // local tools unavailable when this provider is used as an LLM
+            // backend, so a model cannot bypass the registry before returning
+            // JSON to Auto Company.
+            "--tools".to_string(),
+            "".to_string(),
+            "--disable-slash-commands".to_string(),
+            "--permission-mode".to_string(),
+            "dontAsk".to_string(),
             "--no-session-persistence".to_string(),
         ];
 
@@ -923,13 +931,13 @@ impl ClaudeLocalProvider {
                     }
                     crate::ChatContent::ToolResult { tool_use_id, .. } => {
                         tracing::debug!(
-                            "claude_local: dropping tool_result block (CLI handles its own internal tools); tool_use_id={}",
+                            "claude_local: dropping tool_result block (local CLI is used as a text-only provider); tool_use_id={}",
                             tool_use_id
                         );
                     }
                     crate::ChatContent::ToolUse { name, .. } => {
                         tracing::debug!(
-                            "claude_local: dropping tool_use block (CLI handles its own internal tools); name={}",
+                            "claude_local: dropping tool_use block (local CLI is used as a text-only provider); name={}",
                             name
                         );
                     }
@@ -1177,6 +1185,29 @@ mod tests {
         // May return empty if no config file exists (first-run scenario)
         // but should not panic
         let _ = models;
+    }
+
+    #[test]
+    fn build_args_disables_unmanaged_claude_tools() {
+        let messages = vec![crate::ChatMessage::user("hi")];
+        let args = ClaudeLocalProvider::build_args("auto", &messages, "sys");
+
+        assert!(
+            !args
+                .iter()
+                .any(|arg| arg == "--dangerously-skip-permissions")
+        );
+        assert!(has_arg_pair(&args, "--tools", ""), "args: {args:?}");
+        assert!(args.iter().any(|arg| arg == "--disable-slash-commands"));
+        assert!(
+            has_arg_pair(&args, "--permission-mode", "dontAsk"),
+            "args: {args:?}"
+        );
+    }
+
+    fn has_arg_pair(args: &[String], key: &str, value: &str) -> bool {
+        args.windows(2)
+            .any(|window| window[0] == key && window[1] == value)
     }
 
     #[test]

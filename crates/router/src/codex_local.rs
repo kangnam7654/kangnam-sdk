@@ -840,9 +840,27 @@ impl CodexLocalProvider {
         let mut fixed_args = vec![
             "exec".to_string(),
             "--json".to_string(),
-            "--dangerously-bypass-approvals-and-sandbox".to_string(),
+            // Auto Company drives Codex through its own tool contract. Do not
+            // expose Codex's unmanaged local tools while using codex_local as a
+            // plain LLM provider; otherwise the model could read/write outside
+            // the Auto Company registry before returning JSON.
+            "--disable".to_string(),
+            "shell_tool".to_string(),
+            "--disable".to_string(),
+            "browser_use".to_string(),
+            "--disable".to_string(),
+            "browser_use_external".to_string(),
+            "--disable".to_string(),
+            "computer_use".to_string(),
+            "--disable".to_string(),
+            "multi_agent".to_string(),
+            "--disable".to_string(),
+            "apps".to_string(),
+            "--ignore-user-config".to_string(),
+            "--ignore-rules".to_string(),
+            "--skip-git-repo-check".to_string(),
             "--sandbox".to_string(),
-            "danger-full-access".to_string(),
+            "read-only".to_string(),
             "--ephemeral".to_string(),
         ];
 
@@ -898,13 +916,13 @@ impl CodexLocalProvider {
                     },
                     crate::ChatContent::ToolResult { tool_use_id, .. } => {
                         tracing::debug!(
-                            "codex_local: dropping tool_result block (CLI handles its own internal tools); tool_use_id={}",
+                            "codex_local: dropping tool_result block (local CLI is used as a text-only provider); tool_use_id={}",
                             tool_use_id
                         );
                     }
                     crate::ChatContent::ToolUse { name, .. } => {
                         tracing::debug!(
-                            "codex_local: dropping tool_use block (CLI handles its own internal tools); name={}",
+                            "codex_local: dropping tool_use block (local CLI is used as a text-only provider); name={}",
                             name
                         );
                     }
@@ -1265,6 +1283,43 @@ mod tests {
         assert_eq!(models[0].default_reasoning_level.as_deref(), Some("medium"));
         assert_eq!(models[0].supported_reasoning_levels.len(), 2);
         assert_eq!(models[0].supported_reasoning_levels[1].effort, "xhigh");
+    }
+
+    #[test]
+    fn build_args_disables_unmanaged_codex_tools() {
+        let messages = vec![crate::ChatMessage::user("hi")];
+        let args = CodexLocalProvider::build_args("auto", Some("/tmp/scratch"), &messages, "sys");
+
+        assert!(
+            !args
+                .iter()
+                .any(|arg| arg == "--dangerously-bypass-approvals-and-sandbox")
+        );
+        assert!(!args.iter().any(|arg| arg == "danger-full-access"));
+        assert!(
+            has_arg_pair(&args, "--sandbox", "read-only"),
+            "args: {args:?}"
+        );
+        assert!(
+            has_arg_pair(&args, "--disable", "shell_tool"),
+            "args: {args:?}"
+        );
+        assert!(
+            has_arg_pair(&args, "--disable", "browser_use"),
+            "args: {args:?}"
+        );
+        assert!(
+            has_arg_pair(&args, "--disable", "computer_use"),
+            "args: {args:?}"
+        );
+        assert!(args.iter().any(|arg| arg == "--ignore-user-config"));
+        assert!(args.iter().any(|arg| arg == "--ignore-rules"));
+        assert!(args.iter().any(|arg| arg == "--skip-git-repo-check"));
+    }
+
+    fn has_arg_pair(args: &[String], key: &str, value: &str) -> bool {
+        args.windows(2)
+            .any(|window| window[0] == key && window[1] == value)
     }
 
     #[test]

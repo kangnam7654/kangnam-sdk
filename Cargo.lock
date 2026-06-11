@@ -66,7 +66,7 @@ dependencies = [
 
 [[package]]
 name = "ai-consult"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-trait",
  "futures",
@@ -2490,7 +2490,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-client"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-trait",
  "axum",
@@ -2528,7 +2528,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-design"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "kangnam-design-artifact",
  "kangnam-design-contracts",
@@ -2550,7 +2550,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-design-artifact"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "base64 0.22.1",
  "serde",
@@ -2561,7 +2561,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-design-catalog-core"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "tempfile",
  "thiserror 2.0.18",
@@ -2569,7 +2569,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-design-contracts"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -2578,7 +2578,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-design-craft"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "kangnam-design-catalog-core",
  "serde",
@@ -2589,7 +2589,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-design-direction"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -2597,7 +2597,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-design-doc-site"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "kangnam-design-doc-slide",
  "serde",
@@ -2607,7 +2607,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-design-doc-slide"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -2616,7 +2616,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-design-editor-html"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-stream",
  "futures",
@@ -2632,7 +2632,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-design-editor-site"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-stream",
  "futures",
@@ -2650,7 +2650,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-design-editor-slide"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-stream",
  "futures",
@@ -2668,7 +2668,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-design-export-pptx"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "base64 0.22.1",
  "image",
@@ -2683,7 +2683,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-design-html-template"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "serde",
  "thiserror 2.0.18",
@@ -2691,7 +2691,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-design-llm"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-stream",
  "base64 0.22.1",
@@ -2710,7 +2710,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-design-prompt"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -2718,7 +2718,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-design-prompt-template"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "kangnam-design-catalog-core",
  "serde",
@@ -2729,7 +2729,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-design-skill"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "kangnam-design-catalog-core",
  "kangnam-design-craft",
@@ -2742,7 +2742,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-design-system"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "kangnam-design-catalog-core",
  "serde",
@@ -2753,7 +2753,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-design-tools"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-trait",
  "kangnam-design-artifact",
@@ -2769,7 +2769,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-harness"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "kangnam-harness-core",
  "kangnam-harness-store",
@@ -2777,7 +2777,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-harness-core"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2790,14 +2790,14 @@ dependencies = [
 
 [[package]]
 name = "kangnam-harness-llm-bridge"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "kangnam-harness-llm-tool-runner",
 ]
 
 [[package]]
 name = "kangnam-harness-llm-tool-runner"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -2815,7 +2815,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-harness-runtime"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-trait",
  "kangnam-harness-core",
@@ -2826,7 +2826,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-harness-session"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "kangnam-harness-session-agent",
  "kangnam-harness-session-core",
@@ -2836,7 +2836,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-harness-session-agent"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-trait",
  "futures",
@@ -2850,7 +2850,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-harness-session-core"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-trait",
  "rusqlite",
@@ -2864,7 +2864,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-harness-session-rpc"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-trait",
  "dirs",
@@ -2880,7 +2880,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-harness-session-server"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-trait",
  "axum",
@@ -2898,7 +2898,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-harness-store"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2912,7 +2912,7 @@ dependencies = [
 
 [[package]]
 name = "kangnam-router"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-stream",
  "base64 0.22.1",
@@ -3780,7 +3780,7 @@ dependencies = [
 
 [[package]]
 name = "pii-crypto"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "aes-gcm",
  "base64 0.22.1",
@@ -4484,7 +4484,7 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "saju-engine"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "chrono",
  "rs-klc",
@@ -5349,7 +5349,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tarot-engine"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "chrono",
  "rand 0.8.6",
@@ -7578,7 +7578,7 @@ dependencies = [
 
 [[package]]
 name = "ziwei-engine"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "chrono",
  "rs-klc",

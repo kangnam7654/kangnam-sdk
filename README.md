@@ -1,180 +1,96 @@
 # Kangnam Client
 
-A desktop GUI wrapper for coding agent CLIs (Claude Code, Codex CLI). Run AI coding agents through a structured chat interface instead of the terminal.
+A desktop client (Tauri 2 + React) that puts a chat-style GUI in front of locally installed coding-agent CLIs such as Claude Code and Codex CLI.
 
 [한국어 문서 (Korean)](docs/README_ko.md)
 
----
-
-## Why This Exists
-
-Coding agent CLIs like Claude Code and Codex CLI are powerful, but they assume terminal fluency. Kangnam Client wraps these CLIs as subprocesses and presents their JSON output in a structured GUI — making them accessible to non-developers.
-
-This is a personal project, not a commercial product.
+> **Source-visible, not open source.** This repository is public for transparency and portfolio review only. See [License](#license).
 
 ---
 
-## What It Does
+## For reviewers: what this is
 
-Kangnam Client is a desktop application built with Tauri 2 (Rust backend + system WebView). It spawns coding agent CLIs as subprocesses, parses their JSON stream output, and renders it as a real-time chat UI.
+**Problem.** Coding-agent CLIs are capable, but they are terminal-first. This project explores running those CLIs as local subprocesses and showing their streamed output, tool activity and permission prompts in a desktop chat UI.
 
-Key capabilities:
+**Where it lives.** Links to `kangnam7654/kangnam-client` redirect to this repository (`kangnam-sdk`), which is a monorepo. The client is one part of it:
 
-- **Multi-CLI support** — Switch between Claude Code and Codex CLI. Adding new CLIs requires only a new adapter implementation.
-- **Real-time streaming** — Token-by-token text display, tool call progress, and subagent activity — all streamed in real time.
-- **Safety dialogs** — When the CLI requests permission for file edits or command execution, a confirmation dialog appears.
-- **Setup wizard** — Detects installed CLIs, helps install missing ones, guides through first-time setup.
-- **Conversation persistence** — Messages are saved to a local SQLite database.
-- **Web access** — The same UI works in a browser via WebSocket (ws://localhost:3001/ws), no Tauri required.
+- `apps/kangnam-client/` — Tauri 2 desktop shell (Rust)
+- `src/renderer/` — React front end
+- `crates/harness/session-*` — shared Rust crates the client delegates to (CLI adapters, JSON-RPC handlers, Axum server)
+- Other `crates/` (router, design, fortune, pii-crypto) are separate workspace members, not part of this README's scope.
 
----
+**Existing release.** GitHub lists [v0.3.2](https://github.com/kangnam7654/kangnam-sdk/releases/tag/v0.3.2) with macOS, Windows and Linux build assets. That tag points to the source revision described here; the asset filenames say 0.3.1, matching the desktop app's [`tauri.conf.json`](apps/kangnam-client/tauri.conf.json). This documentation pass did not install or run those binaries. A public download is not permission to use or redistribute it; see [License](#license).
 
-## Prerequisites
+**What you can see in the source today**
 
-### Required Tools
+| Area | Where to look |
+|------|---------------|
+| App entry: starts a local Axum server on a background thread (port `3001`, or `KANGNAM_PORT`), then builds the Tauri window, tray and Tauri commands | [`apps/kangnam-client/src/lib.rs`](apps/kangnam-client/src/lib.rs) |
+| App state: SQLite connection, CLI manager with Claude Code and Codex adapters registered, broadcast channels, pending-permission map | [`apps/kangnam-client/src/state.rs`](apps/kangnam-client/src/state.rs) |
+| Server boot: hands app state to the shared session server (local-only, no auth hook) | [`apps/kangnam-client/src/server/mod.rs`](apps/kangnam-client/src/server/mod.rs) |
+| Shared server: binds `127.0.0.1`, serves JSON-RPC over WebSocket at `/ws` and an `/mcp` endpoint used for Claude Code permission prompts | [`crates/harness/session-server/src/lib.rs`](crates/harness/session-server/src/lib.rs) |
+| Message persistence: accumulates assistant text and saves it at turn end | [`crates/harness/session-server/src/saver.rs`](crates/harness/session-server/src/saver.rs) |
+| CLI adapters: spawn `claude` / `codex` and parse their streamed output | [`claude.rs`](crates/harness/session-agent/src/adapters/claude.rs), [`codex.rs`](crates/harness/session-agent/src/adapters/codex.rs) |
+| Front end: layout with Chat / Studio / Project / Hub views; auto-detects an installed CLI provider on startup | [`src/renderer/App.tsx`](src/renderer/App.tsx) |
+| Front-end transport: WebSocket client to `ws://localhost:<port>/ws` | [`src/renderer/lib/cli-api.ts`](src/renderer/lib/cli-api.ts) |
+| Build and window config | [`apps/kangnam-client/tauri.conf.json`](apps/kangnam-client/tauri.conf.json) |
 
-| Tool | Minimum Version | Installation |
-|------|----------------|-------------|
-| Node.js | 20+ | [nodejs.org](https://nodejs.org) |
-| Rust | 1.75+ (edition 2021) | [rustup.rs](https://rustup.rs) |
-| npm | 10+ | Included with Node.js |
+**Verification boundary.** The frontend type check, tests and production frontend build ran locally; the Tauri desktop app, CLI-provider sessions, MCP calls and Rust workspace tests did not. Earlier versions of this README listed modules that are no longer in this tree; source and frontend checks alone do not prove desktop runtime behavior.
 
-### Supported CLIs (at least one required)
+**Limits visible in source** (not based on a runtime test):
 
-| CLI | Install | Subscription |
-|-----|---------|-------------|
-| Claude Code | `npm install -g @anthropic-ai/claude-code` | Claude Max |
-| Codex CLI | `npm install -g @openai/codex` | OpenAI subscription |
-
-### Platform-Specific Requirements
-
-| Platform | Required | Install Command |
-|----------|----------|----------------|
-| macOS | Xcode Command Line Tools | `xcode-select --install` |
-| Linux (Debian/Ubuntu) | webkit2gtk, build essentials | `sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev` |
-| Windows | WebView2 Runtime | Pre-installed on Windows 10/11. See [Tauri docs](https://v2.tauri.app/start/prerequisites/) if missing. |
-
----
-
-## Getting Started
-
-### Step 1: Clone and install
-
-```bash
-git clone https://github.com/kangnam7654/kangnam-client.git
-cd kangnam-client
-npm install
-```
-
-### Step 2: Run in development mode
-
-```bash
-npm run tauri:dev
-```
-
-First build compiles all Rust dependencies (300+ crates) and takes 2-5 minutes. Subsequent builds start in seconds.
-
-### Step 3: Build for production
-
-```bash
-npm run tauri:build
-```
-
-Find the built application in `src-tauri/target/release/bundle/`.
+- The shared message saver writes to the *most recent* conversation, not the conversation associated with a CLI session; concurrent sessions can therefore attach text to the wrong conversation ([`saver.rs`](crates/harness/session-server/src/saver.rs)).
+- Settings are still served through Tauri commands rather than the JSON-RPC layer ([`lib.rs`](apps/kangnam-client/src/lib.rs)).
+- Design-mode question-form / preview hooks are left as `None` on the desktop host until the front end wires that flow ([`server/mod.rs`](apps/kangnam-client/src/server/mod.rs)).
+- The new-project panel has no regular UI entry yet; it is only reachable through a development hook ([`App.tsx`](src/renderer/App.tsx)).
 
 ---
 
 ## Architecture
 
 ```
-React Frontend <--> WebSocket (JSON-RPC 2.0) <--> Axum Server <--> CLI Subprocess
-                    ws://localhost:3001/ws          (Rust)       stdin/stdout NDJSON
+React front end <── JSON-RPC over WebSocket ──> Axum server (in-process, 127.0.0.1) <──> CLI subprocess
+ src/renderer        ws://localhost:3001/ws      crates/harness/session-server          claude / codex
+        │
+        └── Tauri commands (settings, conversations, skills, MCP config, agents, ...) ──> apps/kangnam-client
 ```
 
-- **Frontend** communicates via JSON-RPC 2.0 over WebSocket
-- **Axum server** (embedded in Tauri) dispatches RPC calls to handlers
-- **CLI Manager** spawns CLI subprocesses and pipes stdin/stdout
-- **CliAdapter trait** normalizes different CLI JSON formats into `UnifiedMessage`
-- **Broadcast channel** fans out CLI stream events to all connected WebSocket clients
-- **Message saver** background task persists conversations to SQLite
+Conversations and other app data are stored in a local SQLite database (`rusqlite`, bundled) under the per-user config/data directory (`kangnam-client/data/`), per [`state.rs`](apps/kangnam-client/src/state.rs).
 
 ---
 
-## Project Structure
+## Tech stack
 
-```text
-src-tauri/                    # Rust backend (Tauri 2)
-  src/
-    lib.rs                    # Tauri builder + Axum server spawn
-    state.rs                  # AppState (DB, CliManager, broadcast)
-    cli/                      # CLI subprocess management
-      adapter.rs              # CliAdapter trait
-      adapters/claude.rs      # Claude Code NDJSON parser
-      adapters/codex.rs       # Codex CLI JSONL parser
-      manager.rs              # Subprocess lifecycle, stdin/stdout
-      registry.rs             # CLI detection and install
-      types.rs                # UnifiedMessage enum, CliStatus
-    rpc/                      # JSON-RPC 2.0 layer
-      dispatcher.rs           # Method routing
-      handlers.rs             # RPC method implementations
-      types.rs                # Request/Response/Notification types
-    server/                   # Axum WebSocket server
-      ws.rs                   # WebSocket handler
-      router.rs               # HTTP routes
-      broadcast.rs            # tokio::broadcast channel
-      saver.rs                # Background message persistence
-    db/                       # SQLite (conversations, messages)
-    commands/                 # Tauri IPC (settings, legacy)
-src/renderer/                 # React frontend
-  lib/
-    rpc/                      # JSON-RPC client + WebSocket transport
-    cli-api.ts                # High-level CLI API wrapper
-  components/
-    chat/                     # Chat UI, message renderer, safety dialog
-    setup/                    # CLI setup wizard
-    sidebar/                  # Conversation list, agent panel
-    settings/                 # Settings panel
-  stores/                     # Zustand state management
-docs/
-  llm/                        # Implementation plan, TODO
-```
-
----
-
-## Tech Stack
+Taken from [`package.json`](package.json), [`Cargo.toml`](Cargo.toml) and [`apps/kangnam-client/Cargo.toml`](apps/kangnam-client/Cargo.toml):
 
 | Layer | Technology |
 |-------|-----------|
-| Desktop | Tauri 2 (Rust backend + system WebView) |
-| Server | Axum (embedded WebSocket server) |
-| Protocol | JSON-RPC 2.0 over WebSocket |
-| Frontend | React 19 + Vite 7 + Tailwind CSS v4 |
-| State | Zustand 5 |
-| Database | rusqlite (bundled SQLite) |
-| Async I/O | tokio (subprocess, broadcast, server) |
+| Desktop | Tauri 2 (Rust, Cargo workspace edition 2024, `rust-version` 1.85) |
+| Local server | Axum 0.8 with WebSocket, Tokio |
+| Front end | React 19, Vite 7, Tailwind CSS 4, Zustand 5 |
+| Storage | rusqlite (bundled SQLite) |
+| Package manager | pnpm (lockfile and CI use pnpm 9) |
 
 ---
 
-## Current Status
+## Development reference (owner / authorized contributors)
 
-Active development. Core backend is functional. UI needs overhaul.
+These commands are listed for the copyright holder and anyone with separate written permission. They are **not** a grant of permission to clone, run, modify or distribute this software; see [License](#license). They follow [`package.json`](package.json), [`tauri.conf.json`](apps/kangnam-client/tauri.conf.json) and the [CI](.github/workflows/ci.yml) / [release](.github/workflows/release.yml) workflows. The frontend checks above were run; the full Tauri and Rust commands below remain source-defined references.
 
-### Done
+**Prerequisites:** Node.js (CI uses 20, release builds use 22), pnpm 9, a Rust toolchain ≥ 1.85, and the [Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/). On Ubuntu, CI installs `libwebkit2gtk-4.1-dev libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev`. Using a CLI provider additionally requires that CLI (`claude` or `codex`) to be installed and signed in on its own terms.
 
-- CLI subprocess management (spawn, stdin/stdout piping, lifecycle)
-- Claude Code adapter (NDJSON stream parsing, bidirectional messaging)
-- Codex CLI adapter (JSONL parsing, multi-turn via history prepend)
-- Axum WebSocket server + JSON-RPC 2.0 protocol
-- Real-time token-by-token streaming
-- Conversation/message persistence to SQLite
-- Setup wizard (CLI detection + install)
-- Permission request / safety dialog flow
+From the repository root:
 
-### In Progress
+```bash
+pnpm install --frozen-lockfile   # as in CI
+pnpm tauri:dev                   # tauri dev; beforeDevCommand runs Vite, devUrl is :5173
+pnpm tauri:build                 # tauri build; runs the Vite production build first
+pnpm typecheck                   # tsc --noEmit -p tsconfig.web.json
+pnpm test                        # vitest run (front end)
+cargo test --workspace --locked  # Rust tests, as in CI
+```
 
-- UI overhaul (current UI is rough from the pivot)
-- Session-aware message saving (currently saves to most recent conversation)
-- Migrate remaining Tauri IPC commands to JSON-RPC
+Because the Cargo workspace root is the repository root, Tauri bundles are expected under `target/release/bundle/` (or `target/<target-triple>/release/bundle/` when `--target` is passed, as the release workflow does). This path follows from the workspace layout and has not been checked against a fresh build here.
 
 ---
 
@@ -182,8 +98,4 @@ Active development. Core backend is functional. UI needs overhaul.
 
 **Proprietary — All Rights Reserved.** Copyright (c) 2026 Kangnam Kim.
 
-This repository is source-visible for transparency and personal-archive
-purposes only. It is **not open source**. No license is granted to use, copy,
-modify, or distribute the code except by the copyright holder. See
-[LICENSE](LICENSE) for full terms. For licensing inquiries, contact
-kangnam7654@naver.com.
+This repository is source-visible for transparency, portfolio and personal-archive purposes only. It is **not open source**. Public visibility does not grant any right to use, copy, run, modify or distribute the code; those require prior written permission from the copyright holder. The [LICENSE](LICENSE) file is authoritative, including over any license field in package metadata. For licensing inquiries, contact kangnam7654@naver.com.

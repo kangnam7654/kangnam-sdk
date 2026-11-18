@@ -23,17 +23,9 @@
 
 **현재 소스에서 확인할 수 있는 것**
 
-| 영역 | 위치 |
-|------|------|
-| 앱 진입점: 백그라운드 스레드에서 로컬 Axum 서버를 띄운 뒤(포트 `3001`, 또는 `KANGNAM_PORT`) Tauri 창·트레이·Tauri 커맨드를 구성 | [`apps/kangnam-client/src/lib.rs`](../apps/kangnam-client/src/lib.rs) |
-| 앱 상태: SQLite 연결, Claude Code·Codex 어댑터가 등록된 CLI 매니저, broadcast 채널, 권한 요청 대기 맵 | [`apps/kangnam-client/src/state.rs`](../apps/kangnam-client/src/state.rs) |
-| 서버 기동: 앱 상태를 공용 세션 서버에 전달 (로컬 전용, 인증 훅 없음) | [`apps/kangnam-client/src/server/mod.rs`](../apps/kangnam-client/src/server/mod.rs) |
-| 공용 서버: `127.0.0.1`에 바인딩, `/ws`에서 WebSocket 기반 JSON-RPC 제공, Claude Code 권한 요청용 `/mcp` 엔드포인트 | [`crates/harness/session-server/src/lib.rs`](../crates/harness/session-server/src/lib.rs) |
-| 메시지 저장: 응답 텍스트를 모았다가 턴 종료 시 저장 | [`crates/harness/session-server/src/saver.rs`](../crates/harness/session-server/src/saver.rs) |
-| CLI 어댑터: `claude` / `codex`를 실행하고 스트리밍 출력을 파싱 | [`claude.rs`](../crates/harness/session-agent/src/adapters/claude.rs), [`codex.rs`](../crates/harness/session-agent/src/adapters/codex.rs) |
-| 프론트엔드: Chat / Studio / Project / Hub 뷰 레이아웃, 시작 시 설치된 CLI 프로바이더 자동 감지 | [`src/renderer/App.tsx`](../src/renderer/App.tsx) |
-| 프론트엔드 전송 계층: `ws://localhost:<port>/ws` WebSocket 클라이언트 | [`src/renderer/lib/cli-api.ts`](../src/renderer/lib/cli-api.ts) |
-| 빌드·창 설정 | [`apps/kangnam-client/tauri.conf.json`](../apps/kangnam-client/tauri.conf.json) |
+- [`lib.rs`](../apps/kangnam-client/src/lib.rs)는 백그라운드 스레드에서 로컬 Axum 서버를 띄우고(포트 `3001` 또는 `KANGNAM_PORT`) Tauri 창·트레이·커맨드를 구성합니다. [`state.rs`](../apps/kangnam-client/src/state.rs)는 Claude Code·Codex 어댑터를 등록하고 로컬 SQLite 저장소를 엽니다.
+- [`server/mod.rs`](../apps/kangnam-client/src/server/mod.rs)는 앱 상태를 공용 [세션 서버](../crates/harness/session-server/src/lib.rs)에 전달합니다. 서버는 `127.0.0.1`에 바인딩하고 `/ws`에서 WebSocket 기반 JSON-RPC를 제공하며, Claude Code 권한 요청용 `/mcp` 엔드포인트를 둡니다. [메시지 저장기](../crates/harness/session-server/src/saver.rs)는 턴 종료 시 응답 텍스트를 기록합니다.
+- [`claude`](../crates/harness/session-agent/src/adapters/claude.rs)와 [`codex`](../crates/harness/session-agent/src/adapters/codex.rs) 어댑터는 로컬 CLI를 실행하고 출력을 파싱합니다. [`App.tsx`](../src/renderer/App.tsx)는 Chat·Studio·Project·Hub 뷰를 배치하고 [`cli-api.ts`](../src/renderer/lib/cli-api.ts)는 `ws://localhost:<port>/ws`에 연결합니다.
 
 **검증 범위.** 프론트엔드 타입 검사·테스트·프로덕션 빌드는 로컬에서 실행했습니다. Tauri 데스크톱 앱, CLI 프로바이더 세션, MCP 호출, Rust 워크스페이스 테스트는 실행하지 않았습니다. 이전 README에는 현재 트리에 없는 모듈이 나열되어 있었으며, 소스와 프론트엔드 검사만으로 데스크톱 런타임 동작이 입증되지는 않습니다.
 
@@ -48,12 +40,7 @@
 
 ## 아키텍처
 
-```
-React 프론트엔드 <── WebSocket 기반 JSON-RPC ──> Axum 서버 (프로세스 내, 127.0.0.1) <──> CLI 서브프로세스
- src/renderer         ws://localhost:3001/ws       crates/harness/session-server           claude / codex
-        │
-        └── Tauri 커맨드 (설정, 대화, 스킬, MCP 설정, 에이전트 등) ──> apps/kangnam-client
-```
+React 프론트엔드는 프로세스 내 Axum 서버를 WebSocket 기반 JSON-RPC로 호출합니다. 서버는 로컬 CLI 서브프로세스에 요청을 전달합니다. 설정·대화·스킬·MCP 구성에는 Tauri 커맨드도 사용합니다. 각 경계의 소스는 위 링크에서 확인할 수 있습니다.
 
 대화 등 앱 데이터는 사용자별 config/data 디렉터리 아래(`kangnam-client/data/`)의 로컬 SQLite 데이터베이스(`rusqlite`, 번들)에 저장됩니다 ([`state.rs`](../apps/kangnam-client/src/state.rs) 기준).
 
@@ -82,13 +69,15 @@ React 프론트엔드 <── WebSocket 기반 JSON-RPC ──> Axum 서버 (프
 저장소 루트에서:
 
 ```bash
-pnpm install --frozen-lockfile   # CI와 동일
-pnpm tauri:dev                   # tauri dev; beforeDevCommand가 Vite 실행, devUrl은 :5173
-pnpm tauri:build                 # tauri build; Vite 프로덕션 빌드를 먼저 실행
-pnpm typecheck                   # tsc --noEmit -p tsconfig.web.json
-pnpm test                        # vitest run (프론트엔드)
-cargo test --workspace --locked  # Rust 테스트, CI와 동일
+pnpm install --frozen-lockfile
+pnpm tauri:dev
+pnpm tauri:build
+pnpm typecheck
+pnpm test
+cargo test --workspace --locked
 ```
+
+Tauri 스크립트는 저장소 루트에서 Vite를 실행합니다. `pnpm typecheck`와 `pnpm test`는 프론트엔드 검사이며, Cargo 명령은 Rust CI 테스트 명령입니다.
 
 Cargo 워크스페이스 루트가 저장소 루트이므로 Tauri 번들은 `target/release/bundle/`(릴리스 워크플로처럼 `--target`을 넘기면 `target/<target-triple>/release/bundle/`) 아래에 생성될 것으로 예상됩니다. 이 경로는 워크스페이스 구조에서 추론한 것이며 새 빌드로 확인하지는 않았습니다.
 

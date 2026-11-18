@@ -23,17 +23,9 @@ A desktop client (Tauri 2 + React) that puts a chat-style GUI in front of locall
 
 **What you can see in the source today**
 
-| Area | Where to look |
-|------|---------------|
-| App entry: starts a local Axum server on a background thread (port `3001`, or `KANGNAM_PORT`), then builds the Tauri window, tray and Tauri commands | [`apps/kangnam-client/src/lib.rs`](apps/kangnam-client/src/lib.rs) |
-| App state: SQLite connection, CLI manager with Claude Code and Codex adapters registered, broadcast channels, pending-permission map | [`apps/kangnam-client/src/state.rs`](apps/kangnam-client/src/state.rs) |
-| Server boot: hands app state to the shared session server (local-only, no auth hook) | [`apps/kangnam-client/src/server/mod.rs`](apps/kangnam-client/src/server/mod.rs) |
-| Shared server: binds `127.0.0.1`, serves JSON-RPC over WebSocket at `/ws` and an `/mcp` endpoint used for Claude Code permission prompts | [`crates/harness/session-server/src/lib.rs`](crates/harness/session-server/src/lib.rs) |
-| Message persistence: accumulates assistant text and saves it at turn end | [`crates/harness/session-server/src/saver.rs`](crates/harness/session-server/src/saver.rs) |
-| CLI adapters: spawn `claude` / `codex` and parse their streamed output | [`claude.rs`](crates/harness/session-agent/src/adapters/claude.rs), [`codex.rs`](crates/harness/session-agent/src/adapters/codex.rs) |
-| Front end: layout with Chat / Studio / Project / Hub views; auto-detects an installed CLI provider on startup | [`src/renderer/App.tsx`](src/renderer/App.tsx) |
-| Front-end transport: WebSocket client to `ws://localhost:<port>/ws` | [`src/renderer/lib/cli-api.ts`](src/renderer/lib/cli-api.ts) |
-| Build and window config | [`apps/kangnam-client/tauri.conf.json`](apps/kangnam-client/tauri.conf.json) |
+- [`lib.rs`](apps/kangnam-client/src/lib.rs) starts the local Axum server on a background thread (port `3001` or `KANGNAM_PORT`) and configures the Tauri window, tray and commands. [`state.rs`](apps/kangnam-client/src/state.rs) registers the Claude Code and Codex adapters and opens local SQLite storage.
+- [`server/mod.rs`](apps/kangnam-client/src/server/mod.rs) hands the app state to the shared [session server](crates/harness/session-server/src/lib.rs). It binds `127.0.0.1`, serves JSON-RPC over WebSocket at `/ws`, and exposes `/mcp` for Claude Code permission prompts. The [message saver](crates/harness/session-server/src/saver.rs) stores assistant text at turn end.
+- The [`claude`](crates/harness/session-agent/src/adapters/claude.rs) and [`codex`](crates/harness/session-agent/src/adapters/codex.rs) adapters launch local CLIs and parse their output. [`App.tsx`](src/renderer/App.tsx) lays out Chat, Studio, Project and Hub views; [`cli-api.ts`](src/renderer/lib/cli-api.ts) connects to `ws://localhost:<port>/ws`.
 
 **Verification boundary.** The frontend type check, tests and production frontend build ran locally; the Tauri desktop app, CLI-provider sessions, MCP calls and Rust workspace tests did not. Earlier versions of this README listed modules that are no longer in this tree; source and frontend checks alone do not prove desktop runtime behavior.
 
@@ -48,12 +40,7 @@ A desktop client (Tauri 2 + React) that puts a chat-style GUI in front of locall
 
 ## Architecture
 
-```
-React front end <── JSON-RPC over WebSocket ──> Axum server (in-process, 127.0.0.1) <──> CLI subprocess
- src/renderer        ws://localhost:3001/ws      crates/harness/session-server          claude / codex
-        │
-        └── Tauri commands (settings, conversations, skills, MCP config, agents, ...) ──> apps/kangnam-client
-```
+The React front end calls the in-process Axum server via JSON-RPC over WebSocket. The server delegates to local CLI subprocesses; settings, conversations, skills and MCP configuration also use Tauri commands. See the linked source paths above for each boundary.
 
 Conversations and other app data are stored in a local SQLite database (`rusqlite`, bundled) under the per-user config/data directory (`kangnam-client/data/`), per [`state.rs`](apps/kangnam-client/src/state.rs).
 
@@ -82,13 +69,15 @@ These commands are listed for the copyright holder and anyone with separate writ
 From the repository root:
 
 ```bash
-pnpm install --frozen-lockfile   # as in CI
-pnpm tauri:dev                   # tauri dev; beforeDevCommand runs Vite, devUrl is :5173
-pnpm tauri:build                 # tauri build; runs the Vite production build first
-pnpm typecheck                   # tsc --noEmit -p tsconfig.web.json
-pnpm test                        # vitest run (front end)
-cargo test --workspace --locked  # Rust tests, as in CI
+pnpm install --frozen-lockfile
+pnpm tauri:dev
+pnpm tauri:build
+pnpm typecheck
+pnpm test
+cargo test --workspace --locked
 ```
+
+The Tauri scripts launch Vite from the repository root; `pnpm typecheck` and `pnpm test` run the frontend checks, while the Cargo command is the Rust CI test command.
 
 Because the Cargo workspace root is the repository root, Tauri bundles are expected under `target/release/bundle/` (or `target/<target-triple>/release/bundle/` when `--target` is passed, as the release workflow does). This path follows from the workspace layout and has not been checked against a fresh build here.
 

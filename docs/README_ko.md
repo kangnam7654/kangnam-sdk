@@ -1,179 +1,90 @@
 # Kangnam Client
 
-코딩 에이전트 CLI(Claude Code, Codex CLI)를 위한 데스크톱 GUI 래퍼. 터미널 대신 구조화된 채팅 인터페이스로 AI 코딩 에이전트를 사용할 수 있습니다.
+로컬에 설치된 코딩 에이전트 CLI(Claude Code, Codex CLI 등) 앞에 채팅형 GUI를 두는 데스크톱 클라이언트입니다 (Tauri 2 + React).
 
 [English](../README.md)
 
----
-
-## 왜 이 프로젝트가 존재하는가
-
-Claude Code, Codex CLI 같은 코딩 에이전트 CLI는 강력하지만, 터미널 사용에 익숙해야 합니다. Kangnam Client는 이런 CLI를 서브프로세스로 실행하고 JSON 출력을 구조화된 GUI로 보여줍니다 — 비개발자도 사용할 수 있도록.
-
-개인 프로젝트이며 상용 제품이 아닙니다.
+> **소스 공개(source-visible)이며 오픈소스가 아닙니다.** 이 저장소는 투명성과 포트폴리오 검토 목적으로만 공개되어 있습니다. [라이선스](#라이선스)를 참고하세요.
 
 ---
 
-## 주요 기능
+## 리뷰어를 위한 안내
 
-- **멀티 CLI 지원** — Claude Code와 Codex CLI 간 전환. 새 CLI 추가는 어댑터 구현만 하면 됨.
-- **실시간 스트리밍** — 토큰 단위 텍스트 표시, 도구 호출 진행, 서브에이전트 활동 — 모두 실시간.
-- **안전 다이얼로그** — CLI가 파일 수정이나 명령 실행 권한을 요청하면 확인 다이얼로그가 나타남.
-- **설정 위저드** — 설치된 CLI 감지, 미설치 CLI 설치 안내, 초기 설정 가이드.
-- **대화 저장** — 메시지가 로컬 SQLite 데이터베이스에 저장됨.
-- **웹 접근** — WebSocket(ws://localhost:3001/ws)을 통해 브라우저에서도 동일한 UI 사용 가능.
+**문제의식.** 코딩 에이전트 CLI는 강력하지만 터미널 중심입니다. 이 프로젝트는 이런 CLI를 로컬 서브프로세스로 실행하고, 스트리밍 출력·도구 활동·권한 요청을 데스크톱 채팅 UI로 보여주는 방식을 다룹니다.
 
----
+**위치.** `kangnam7654/kangnam-client` 링크는 이 저장소(`kangnam-sdk`)로 리다이렉트되며, 이 저장소는 모노레포입니다. 클라이언트는 그 일부입니다.
 
-## 전제조건
+- `apps/kangnam-client/` — Tauri 2 데스크톱 셸 (Rust)
+- `src/renderer/` — React 프론트엔드
+- `crates/harness/session-*` — 클라이언트가 위임하는 공용 Rust 크레이트 (CLI 어댑터, JSON-RPC 핸들러, Axum 서버)
+- 그 밖의 `crates/` (router, design, fortune, pii-crypto)는 별도 워크스페이스 멤버이며 이 문서의 범위가 아닙니다.
 
-### 필요한 도구
+**기존 릴리스.** GitHub에 [v0.3.2](https://github.com/kangnam7654/kangnam-sdk/releases/tag/v0.3.2)와 macOS·Windows·Linux 빌드 파일이 공개되어 있습니다. 태그는 여기서 설명하는 소스 리비전을 가리킵니다. 파일 이름의 0.3.1은 데스크톱 앱의 [`tauri.conf.json`](../apps/kangnam-client/tauri.conf.json) 버전과 일치합니다. 이번 작업에서 바이너리를 설치하거나 실행하지는 않았습니다. 파일을 내려받을 수 있다는 사실이 사용·재배포 허가는 아닙니다 ([라이선스](#라이선스) 참고).
 
-| 도구 | 최소 버전 | 설치 |
-|------|---------|------|
-| Node.js | 20+ | [nodejs.org](https://nodejs.org) |
-| Rust | 1.75+ (edition 2021) | [rustup.rs](https://rustup.rs) |
-| npm | 10+ | Node.js에 포함됨 |
+**현재 소스에서 확인할 수 있는 것**
 
-### 지원 CLI (최소 하나 필요)
+- [`lib.rs`](../apps/kangnam-client/src/lib.rs)는 백그라운드 스레드에서 로컬 Axum 서버를 띄우고(포트 `3001` 또는 `KANGNAM_PORT`) Tauri 창·트레이·커맨드를 구성합니다. [`state.rs`](../apps/kangnam-client/src/state.rs)는 Claude Code·Codex 어댑터를 등록하고 로컬 SQLite 저장소를 엽니다.
+- [`server/mod.rs`](../apps/kangnam-client/src/server/mod.rs)는 앱 상태를 공용 [세션 서버](../crates/harness/session-server/src/lib.rs)에 전달합니다. 서버는 `127.0.0.1`에 바인딩하고 `/ws`에서 WebSocket 기반 JSON-RPC를 제공하며, Claude Code 권한 요청용 `/mcp` 엔드포인트를 둡니다. [메시지 저장기](../crates/harness/session-server/src/saver.rs)는 턴 종료 시 응답 텍스트를 기록합니다.
+- [`claude`](../crates/harness/session-agent/src/adapters/claude.rs)와 [`codex`](../crates/harness/session-agent/src/adapters/codex.rs) 어댑터는 로컬 CLI를 실행하고 출력을 파싱합니다. [`App.tsx`](../src/renderer/App.tsx)는 Chat·Studio·Project·Hub 뷰를 배치하고 [`cli-api.ts`](../src/renderer/lib/cli-api.ts)는 `ws://localhost:<port>/ws`에 연결합니다.
 
-| CLI | 설치 | 구독 |
-|-----|------|------|
-| Claude Code | `npm install -g @anthropic-ai/claude-code` | Claude Max |
-| Codex CLI | `npm install -g @openai/codex` | OpenAI 구독 |
+**검증 범위.** 프론트엔드 타입 검사·테스트·프로덕션 빌드는 로컬에서 실행했습니다. Tauri 데스크톱 앱, CLI 프로바이더 세션, MCP 호출, Rust 워크스페이스 테스트는 실행하지 않았습니다. 이전 README에는 현재 트리에 없는 모듈이 나열되어 있었으며, 소스와 프론트엔드 검사만으로 데스크톱 런타임 동작이 입증되지는 않습니다.
 
-### 플랫폼별 요구사항
+**소스에서 확인한 한계** (실행 관찰이 아닌 코드 기준):
 
-| 플랫폼 | 필요 항목 | 설치 명령어 |
-|--------|---------|-----------|
-| macOS | Xcode Command Line Tools | `xcode-select --install` |
-| Linux (Debian/Ubuntu) | webkit2gtk, 빌드 필수 | `sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev` |
-| Windows | WebView2 Runtime | Windows 10/11에 기본 설치됨. 없으면 [Tauri 문서](https://v2.tauri.app/start/prerequisites/) 참조. |
-
----
-
-## 시작하기
-
-### 1단계: 클론 및 설치
-
-```bash
-git clone https://github.com/kangnam7654/kangnam-client.git
-cd kangnam-client
-npm install
-```
-
-### 2단계: 개발 모드 실행
-
-```bash
-npm run tauri:dev
-```
-
-첫 빌드는 Rust 의존성(300+ crate)을 컴파일하므로 2-5분 소요. 이후 빌드는 수 초면 시작됨.
-
-### 3단계: 프로덕션 빌드
-
-```bash
-npm run tauri:build
-```
-
-빌드된 앱은 `src-tauri/target/release/bundle/`에 생성됨.
+- 공용 메시지 저장기는 CLI 세션에 연결된 대화가 아니라 *가장 최근 대화*에 응답을 기록합니다. 세션이 겹치면 다른 대화에 저장될 수 있습니다 ([`saver.rs`](../crates/harness/session-server/src/saver.rs)).
+- 설정은 아직 JSON-RPC가 아닌 Tauri 커맨드로 처리됩니다 ([`lib.rs`](../apps/kangnam-client/src/lib.rs)).
+- 디자인 모드의 question-form / preview 훅은 프론트엔드 연결 전까지 데스크톱 호스트에서 `None`으로 남아 있습니다 ([`server/mod.rs`](../apps/kangnam-client/src/server/mod.rs)).
+- 새 프로젝트 패널은 아직 정식 UI 진입점이 없고 개발용 훅으로만 열 수 있습니다 ([`App.tsx`](../src/renderer/App.tsx)).
 
 ---
 
 ## 아키텍처
 
-```
-React Frontend <--> WebSocket (JSON-RPC 2.0) <--> Axum Server <--> CLI Subprocess
-                    ws://localhost:3001/ws          (Rust)       stdin/stdout NDJSON
-```
+React 프론트엔드는 프로세스 내 Axum 서버를 WebSocket 기반 JSON-RPC로 호출합니다. 서버는 로컬 CLI 서브프로세스에 요청을 전달합니다. 설정·대화·스킬·MCP 구성에는 Tauri 커맨드도 사용합니다. 각 경계의 소스는 위 링크에서 확인할 수 있습니다.
 
-- **프론트엔드**는 JSON-RPC 2.0 over WebSocket으로 통신
-- **Axum 서버** (Tauri에 내장)가 RPC 호출을 핸들러에 디스패치
-- **CLI Manager**가 CLI 서브프로세스를 생성하고 stdin/stdout 파이핑
-- **CliAdapter trait**이 서로 다른 CLI JSON 포맷을 `UnifiedMessage`로 정규화
-- **Broadcast 채널**이 CLI 스트림 이벤트를 모든 WebSocket 클라이언트에 팬아웃
-- **Message saver** 백그라운드 태스크가 대화를 SQLite에 저장
-
----
-
-## 프로젝트 구조
-
-```text
-src-tauri/                    # Rust 백엔드 (Tauri 2)
-  src/
-    lib.rs                    # Tauri 빌더 + Axum 서버 시작
-    state.rs                  # AppState (DB, CliManager, broadcast)
-    cli/                      # CLI 서브프로세스 관리
-      adapter.rs              # CliAdapter trait
-      adapters/claude.rs      # Claude Code NDJSON 파서
-      adapters/codex.rs       # Codex CLI JSONL 파서
-      manager.rs              # 서브프로세스 라이프사이클, stdin/stdout
-      registry.rs             # CLI 감지 및 설치
-      types.rs                # UnifiedMessage enum, CliStatus
-    rpc/                      # JSON-RPC 2.0 레이어
-      dispatcher.rs           # 메서드 라우팅
-      handlers.rs             # RPC 메서드 구현
-      types.rs                # Request/Response/Notification 타입
-    server/                   # Axum WebSocket 서버
-      ws.rs                   # WebSocket 핸들러
-      router.rs               # HTTP 라우트
-      broadcast.rs            # tokio::broadcast 채널
-      saver.rs                # 백그라운드 메시지 저장
-    db/                       # SQLite (대화, 메시지)
-    commands/                 # Tauri IPC (설정, 레거시)
-src/renderer/                 # React 프론트엔드
-  lib/
-    rpc/                      # JSON-RPC 클라이언트 + WebSocket 트랜스포트
-    cli-api.ts                # 고수준 CLI API 래퍼
-  components/
-    chat/                     # 채팅 UI, 메시지 렌더러, 안전 다이얼로그
-    setup/                    # CLI 설정 위저드
-    sidebar/                  # 대화 목록, 에이전트 패널
-    settings/                 # 설정 패널
-  stores/                     # Zustand 상태 관리
-docs/
-  llm/                        # 구현 계획서, TODO
-```
+대화 등 앱 데이터는 사용자별 config/data 디렉터리 아래(`kangnam-client/data/`)의 로컬 SQLite 데이터베이스(`rusqlite`, 번들)에 저장됩니다 ([`state.rs`](../apps/kangnam-client/src/state.rs) 기준).
 
 ---
 
 ## 기술 스택
 
+[`package.json`](../package.json), [`Cargo.toml`](../Cargo.toml), [`apps/kangnam-client/Cargo.toml`](../apps/kangnam-client/Cargo.toml) 기준:
+
 | 레이어 | 기술 |
 |--------|------|
-| 데스크톱 | Tauri 2 (Rust 백엔드 + 시스템 WebView) |
-| 서버 | Axum (내장 WebSocket 서버) |
-| 프로토콜 | JSON-RPC 2.0 over WebSocket |
-| 프론트엔드 | React 19 + Vite 7 + Tailwind CSS v4 |
-| 상태 관리 | Zustand 5 |
-| 데이터베이스 | rusqlite (번들된 SQLite) |
-| 비동기 I/O | tokio (서브프로세스, broadcast, 서버) |
+| 데스크톱 | Tauri 2 (Rust, Cargo 워크스페이스 edition 2024, `rust-version` 1.85) |
+| 로컬 서버 | Axum 0.8 (WebSocket), Tokio |
+| 프론트엔드 | React 19, Vite 7, Tailwind CSS 4, Zustand 5 |
+| 저장소 | rusqlite (번들 SQLite) |
+| 패키지 매니저 | pnpm (lockfile과 CI가 pnpm 9 사용) |
 
 ---
 
-## 현재 상태
+## 개발 참고 (저작권자 / 허가받은 기여자용)
 
-활발한 개발 중. 백엔드 코어는 동작. UI 개편 필요.
+아래 명령은 저작권자와 별도 서면 허가를 받은 사람을 위한 참고용입니다. 이 소프트웨어를 클론·실행·수정·배포할 권리를 부여하는 것이 **아닙니다** ([라이선스](#라이선스) 참고). [`package.json`](../package.json), [`tauri.conf.json`](../apps/kangnam-client/tauri.conf.json), [CI](../.github/workflows/ci.yml) / [릴리스](../.github/workflows/release.yml) 워크플로를 기준으로 합니다. 위의 프론트엔드 검사는 실행했으나 전체 Tauri·Rust 명령은 소스 기준 참고용입니다.
 
-### 완료
+**전제조건:** Node.js (CI는 20, 릴리스 빌드는 22 사용), pnpm 9, Rust 1.85 이상, [Tauri 2 플랫폼 요구사항](https://v2.tauri.app/start/prerequisites/). Ubuntu에서 CI는 `libwebkit2gtk-4.1-dev libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev`를 설치합니다. CLI 프로바이더를 쓰려면 해당 CLI(`claude` 또는 `codex`)가 각자의 조건에 따라 설치·로그인되어 있어야 합니다.
 
-- CLI 서브프로세스 관리 (spawn, stdin/stdout 파이핑, 라이프사이클)
-- Claude Code 어댑터 (NDJSON 스트림 파싱, 양방향 메시징)
-- Codex CLI 어댑터 (JSONL 파싱, 히스토리 prepend 멀티턴)
-- Axum WebSocket 서버 + JSON-RPC 2.0 프로토콜
-- 실시간 토큰 단위 스트리밍
-- 대화/메시지 SQLite 저장
-- 설정 위저드 (CLI 감지 + 설치)
-- 권한 요청 / 안전 다이얼로그 플로우
+저장소 루트에서:
 
-### 진행 중
+```bash
+pnpm install --frozen-lockfile
+pnpm tauri:dev
+pnpm tauri:build
+pnpm typecheck
+pnpm test
+cargo test --workspace --locked
+```
 
-- UI 전면 개편 (피벗으로 인해 현재 UI가 거침)
-- 세션별 메시지 저장 (현재는 가장 최근 대화에 저장)
-- 남은 Tauri IPC 커맨드를 JSON-RPC로 마이그레이션
+Tauri 스크립트는 저장소 루트에서 Vite를 실행합니다. `pnpm typecheck`와 `pnpm test`는 프론트엔드 검사이며, Cargo 명령은 Rust CI 테스트 명령입니다.
+
+Cargo 워크스페이스 루트가 저장소 루트이므로 Tauri 번들은 `target/release/bundle/`(릴리스 워크플로처럼 `--target`을 넘기면 `target/<target-triple>/release/bundle/`) 아래에 생성될 것으로 예상됩니다. 이 경로는 워크스페이스 구조에서 추론한 것이며 새 빌드로 확인하지는 않았습니다.
 
 ---
 
 ## 라이선스
 
-[MIT](LICENSE) -- Copyright (c) 2026 Kangnam Kim
+**독점 소프트웨어 — All Rights Reserved.** Copyright (c) 2026 Kangnam Kim.
+
+이 저장소는 투명성, 포트폴리오, 개인 아카이브 목적으로만 소스를 공개합니다. **오픈소스가 아닙니다.** 공개되어 있다는 사실만으로 코드를 사용·복제·실행·수정·배포할 권리가 생기지 않으며, 이를 위해서는 저작권자의 사전 서면 허가가 필요합니다. 패키지 메타데이터의 라이선스 필드를 포함해 모든 경우에 [LICENSE](../LICENSE) 파일이 우선합니다. 라이선스 문의: kangnam7654@naver.com
